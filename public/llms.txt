@@ -6,19 +6,19 @@
 
 ## 記事一覧
 
-- [椎名林檎「歌舞伎町の女王」の歌詞分析：繰り返し現れる子音](https://www.lyricstheory.com/sheena-ringo-repeated-consonance/): 子音ピボットという独自概念の初出記事。
-- [ASIAN KUNG-FU GENERATIONのように歌詞を書くための6ヶ条](https://www.lyricstheory.com/how-to-write-like-an-asian-kung-fu-generation/): メロディ1ノートに歌詞2音を詰め込む技術6ヶ条の解説。
-- [クリスマスプレゼント：「い段子音課題」をお届けします！](https://www.lyricstheory.com/i-dan-consonance-exercises/): い段子音を利用した作詞課題。
-- [公開メモ](https://www.lyricstheory.com/public-memo/): 個別議論のメモ集。
-- [宇多田ヒカルの作詞の特徴：半シラブル化仮説](https://www.lyricstheory.com/utada-hikaru-like-mora-syllable-articulation/): 半シラブル化仮説の初出記事。
-- [作詞家とボーカルのための宇多田ヒカル論：「Automatic」における子音の強調の方法](https://www.lyricstheory.com/how-to-accent-consonances-like-utada-hikaru/): 宇多田カットと子音強調の分析。
-- [宇多田ヒカル「Automatic」の歌詞分析：1拍目と3拍目に「ん」を配置してみよう](https://www.lyricstheory.com/where-to-place-nn-consonances-like-utada-hikaru/): 拍位置と「ん」音の配置分析。
-- [宇多田ヒカル「Automatic」の歌詞分析：1拍目と3拍目で「い」音を強調する](https://www.lyricstheory.com/where-to-place-ii-like-utada-hikaru/): 拍位置と「い」音の強調分析。
-- [宇多田ヒカルの頭韻と緩やかなライムについてのエセー](https://www.lyricstheory.com/essay-on-art-of-utada-hikarus-alliteration-and-rhyme/): 頭韻とライムのエセー。
-- [GLAYの歌詞のたたみかけとちょっとしたライムについてのエセー](https://www.lyricstheory.com/essay-on-glay-like-repetition-and-little-rhyme/): GLAY のたたみかけ技法のエセー。
-- [作詞法：宇多田ヒカル「time will tell」とバップライティングのすすめ](https://www.lyricstheory.com/how-to-write-lyrics-bop-writing/): バップライティングという発想法の解説。
-- [作詞のはじめかた](https://www.lyricstheory.com/how-to-start-writing-lyrics/): 歌詞分析と作詞の基本手順。
-- [SEKAI NO OWARI "Dragon Night" の子音の発音の特徴](https://www.lyricstheory.com/sekai-no-owari-dragon-night-closed-syllable-consonant/): クローズド・シラブル発音のケーススタディ。
+- [椎名林檎「歌舞伎町の女王」の歌詞分析：繰り返し現れる子音](https://lyricstheory.com/sheena-ringo-repeated-consonance/): 子音ピボットという独自概念の初出記事。
+- [ASIAN KUNG-FU GENERATIONのように歌詞を書くための6ヶ条](https://lyricstheory.com/how-to-write-like-an-asian-kung-fu-generation/): メロディ1ノートに歌詞2音を詰め込む技術6ヶ条の解説。
+- [クリスマスプレゼント：「い段子音課題」をお届けします！](https://lyricstheory.com/i-dan-consonance-exercises/): い段子音を利用した作詞課題。
+- [公開メモ](https://lyricstheory.com/public-memo/): 個別議論のメモ集。
+- [宇多田ヒカルの作詞の特徴：半シラブル化仮説](https://lyricstheory.com/utada-hikaru-like-mora-syllable-articulation/): 半シラブル化仮説の初出記事。
+- [作詞家とボーカルのための宇多田ヒカル論：「Automatic」における子音の強調の方法](https://lyricstheory.com/how-to-accent-consonances-like-utada-hikaru/): 宇多田カットと子音強調の分析。
+- [宇多田ヒカル「Automatic」の歌詞分析：1拍目と3拍目に「ん」を配置してみよう](https://lyricstheory.com/where-to-place-nn-consonances-like-utada-hikaru/): 拍位置と「ん」音の配置分析。
+- [宇多田ヒカル「Automatic」の歌詞分析：1拍目と3拍目で「い」音を強調する](https://lyricstheory.com/where-to-place-ii-like-utada-hikaru/): 拍位置と「い」音の強調分析。
+- [宇多田ヒカルの頭韻と緩やかなライムについてのエセー](https://lyricstheory.com/essay-on-art-of-utada-hikarus-alliteration-and-rhyme/): 頭韻とライムのエセー。
+- [GLAYの歌詞のたたみかけとちょっとしたライムについてのエセー](https://lyricstheory.com/essay-on-glay-like-repetition-and-little-rhyme/): GLAY のたたみかけ技法のエセー。
+- [作詞法：宇多田ヒカル「time will tell」とバップライティングのすすめ](https://lyricstheory.com/how-to-write-lyrics-bop-writing/): バップライティングという発想法の解説。
+- [作詞のはじめかた](https://lyricstheory.com/how-to-start-writing-lyrics/): 歌詞分析と作詞の基本手順。
+- [SEKAI NO OWARI "Dragon Night" の子音の発音の特徴](https://lyricstheory.com/sekai-no-owari-dragon-night-closed-syllable-consonant/): クローズド・シラブル発音のケーススタディ。
 
 ## 独自フレームワーク（概念）
 
@@ -36,4 +36,4 @@
 
 ## Sitemap
 
-- [sitemap-index.xml](https://www.lyricstheory.com/sitemap-index.xml)
+- [sitemap-index.xml](https://lyricstheory.com/sitemap-index.xml)

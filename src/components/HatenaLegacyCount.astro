@@ -1,0 +1,55 @@
+---
+/**
+ * 過去（HTTPS化以前の http://lyricstheory.com/ URL）に付いたはてなブックマーク数を、
+ * ビルド時にはてなカウンターAPIから取得して表示する。
+ *
+ * 背景: 2015年頃までの記事は `http://lyricstheory.com/{slug}/` として公開されていて
+ * このURLに全てのはてブが集まっている。HTTPS化・www 変遷を経てもはてなは URL 完全一致で
+ * 集計するため、当時のブクマは新しい URL (https://lyricstheory.com/{slug}/) には
+ * 合算されない。過去の資産を可視化するためのレガシー表示。
+ */
+interface Props {
+  slug: string;
+}
+
+const { slug } = Astro.props as Props;
+
+const legacyUrl = `http://lyricstheory.com/${slug}/`;
+const entryUrl = `https://b.hatena.ne.jp/entry/lyricstheory.com/${slug}/`;
+
+let count = 0;
+try {
+  const apiUrl = `https://bookmark.hatenaapis.com/count/entry?url=${encodeURIComponent(legacyUrl)}`;
+  const res = await fetch(apiUrl, { signal: AbortSignal.timeout(5000) });
+  if (res.ok) {
+    const text = (await res.text()).trim();
+    const parsed = parseInt(text, 10);
+    if (Number.isFinite(parsed)) count = parsed;
+  }
+} catch {
+  count = 0;
+}
+---
+
+{
+  count > 0 && (
+    <aside class="my-8 rounded-md border border-gray-200 bg-gray-50 p-4 text-sm">
+      <p class="mb-2 text-gray-700">
+        この記事は 2014-2015 年当時の URL <code class="rounded bg-white px-1 text-xs">{legacyUrl}</code> で
+        <strong class="mx-1">{count}</strong>
+        users にはてなブックマークされていました。
+      </p>
+      <p class="text-xs text-gray-500">
+        （HTTPS 化前のブクマは URL 単位で集計されるため、上記数値は現在の URL とは別集計です）
+        <a
+          href={entryUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="ml-1 text-blue-700 hover:underline"
+        >
+          当時のブクマ一覧を見る →
+        </a>
+      </p>
+    </aside>
+  )
+}

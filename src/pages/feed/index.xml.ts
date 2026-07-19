@@ -9,7 +9,7 @@ export async function GET(context: APIContext) {
   return rss({
     title: 'lyricstheory.com',
     description: '日本語歌詞の音韻分析',
-    site: context.site ?? 'https://www.lyricstheory.com',
+    site: context.site ?? 'https://lyricstheory.com',
     items: posts.map((post) => ({
       title: post.data.title,
       description: post.data.description,

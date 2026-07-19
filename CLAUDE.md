@@ -12,7 +12,7 @@
 
 ## URL 構造
 
-- 本番ホスト名: `www.lyricstheory.com`
+- 本番ホスト名: `lyricstheory.com`
 - permalink: `/{slug}/`（投稿名のみ、末尾スラッシュ付き）
 - 既存 slug は変更しない（SEO 資産の維持）
 - `astro.config.mjs` で `trailingSlash: 'always'`, `build.format: 'directory'` 設定済み

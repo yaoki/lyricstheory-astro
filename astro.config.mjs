@@ -13,7 +13,7 @@ import remarkTocExtract from './plugins/remark-toc-extract.mjs';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://www.lyricstheory.com',
+  site: 'https://lyricstheory.com',
   trailingSlash: 'always',
   build: {
     format: 'directory',

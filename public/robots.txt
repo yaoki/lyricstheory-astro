@@ -60,4 +60,4 @@ Allow: /
 User-agent: FriendlyCrawler
 Allow: /
 
-Sitemap: https://www.lyricstheory.com/sitemap-index.xml
+Sitemap: https://lyricstheory.com/sitemap-index.xml

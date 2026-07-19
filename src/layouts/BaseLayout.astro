@@ -19,7 +19,7 @@ interface Props {
 
 const { title, description, ogImage, article } = Astro.props as Props;
 
-const siteUrl = 'https://www.lyricstheory.com';
+const siteUrl = 'https://lyricstheory.com';
 const pageUrl = new URL(Astro.url.pathname, siteUrl).toString();
 const image = ogImage || `${siteUrl}/favicon.svg`;
 

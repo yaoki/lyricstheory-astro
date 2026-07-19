@@ -37,7 +37,8 @@ git push -u origin main
 
 Cloudflare Pages プロジェクト → **Custom domains** → **Set up a custom domain**
 
-- `www.lyricstheory.com` を追加
+- `lyricstheory.com`（apex, これが本番の canonical）を追加
+- `www.lyricstheory.com`（過去のURL変遷対策として apex への 301 転送用に追加）
 
 Cloudflare が DNS レコードの案内を出す。次項でネームサーバー移管を行う。
 
@@ -64,19 +65,21 @@ Cloudflare が DNS レコードの案内を出す。次項でネームサーバ�
 
 ### 4.4 DNS レコード確認・追加
 
+**本番の canonical URL は apex (`lyricstheory.com`)**。理由: 過去10年のはてブ被リンク・SEO 資産がすべて apex URL で登録されているため（Phase 5 実データ調査で確定）。`www.lyricstheory.com` は canonical へリダイレクトさせるための予備扱い。
+
 Cloudflare DNS 管理画面で以下を確認・設定:
 
 | Type | Name | Content | Proxy status |
 |---|---|---|---|
-| CNAME | www | `<project>.pages.dev` | Proxied（オレンジ雲） |
-| A / CNAME | @ | (apex → wwwへリダイレクトさせるダミー) | Proxied |
+| CNAME | @ (apex) | `<project>.pages.dev` | Proxied（オレンジ雲、CNAME flattening で解決） |
+| CNAME | www | `<project>.pages.dev` | Proxied（www→apex の 301 用） |
 
-apex → www の 301 リダイレクトは Cloudflare **Redirect Rules** で設定:
+www → apex の 301 リダイレクトは Cloudflare **Redirect Rules** で設定:
 
 - **Rules** → **Redirect Rules** → **Create rule**
-- Rule name: `apex to www`
-- If: `Hostname equals lyricstheory.com`
-- Then: `Static Redirect` → `https://www.lyricstheory.com/${http.request.uri.path}`
+- Rule name: `www to apex`
+- If: `Hostname equals www.lyricstheory.com`
+- Then: `Dynamic` → `concat("https://lyricstheory.com", http.request.uri.path)`
 - Status: `301`
 
 ## 5. PR プレビュー動作確認

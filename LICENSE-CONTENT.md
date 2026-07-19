@@ -39,7 +39,7 @@ Under CC BY 4.0 you are free to:
 Example:
 
 > やおき (the 8 rise). "椎名林檎「歌舞伎町の女王」の歌詞分析：繰り返し現れる子音".
-> lyricstheory.com. https://www.lyricstheory.com/sheena-ringo-repeated-consonance/.
+> lyricstheory.com. https://lyricstheory.com/sheena-ringo-repeated-consonance/.
 > Licensed under CC BY 4.0.
 
 ## What is NOT covered by this license
