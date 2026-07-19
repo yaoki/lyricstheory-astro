@@ -9,9 +9,11 @@
 https://www.lyricstheory.com/* https://lyricstheory.com/:splat 301
 http://www.lyricstheory.com/* https://lyricstheory.com/:splat 301
 
-# WordPress 時代の /wordpress/ プレフィックス付き記事 URL（もし残っていれば）は
-# 現行 /{slug}/ 構造にリダイレクト（サブディレクトリインストール時の遺物）
+# WordPress 時代の /wordpress/ サブディレクトリ入り口へのアクセスは
+# 現行 apex ルートにリダイレクト（画像パス /wordpress/wp-content/uploads/... は
+# 実ファイル配置に一致するので明示的に例外）
 /wordpress/  /  301
+/wordpress/wp-content/uploads/*  /wordpress/wp-content/uploads/:splat  200
 /wordpress/*  /:splat  301
 
 # 旧 WordPress 内部生成 URL（管理系）は 404 で明示的に消す
