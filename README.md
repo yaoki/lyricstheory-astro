@@ -101,7 +101,8 @@ import LyricQuote from '../../../components/LyricQuote.astro';
 
 ## ライセンス
 
-- 記事本文（`src/content/blog/**/*.mdx`）: **CC BY 4.0**（著者名記載で二次利用可）
-- コード（`.astro` `.ts` `.mjs` 等）: **MIT**
+- **コード** (`.astro` `.ts` `.mjs` 等): [MIT](./LICENSE)
+- **記事本文** (`src/content/**/*.mdx`, `src/content/**/*.md`): [CC BY 4.0](./LICENSE-CONTENT.md)
+- **短い歌詞引用・第三者画像・埋め込みメディア**は原著作者に権利があります（本リポジトリの範囲外）
 
-引用時は URL と著者名（やおき / the 8 rise）を明記してください。
+記事の引用・転載・AI 学習利用時は、URL と著者名（やおき / the 8 rise）の明記をお願いします。詳しくは [LICENSE-CONTENT.md](./LICENSE-CONTENT.md) を参照してください。
