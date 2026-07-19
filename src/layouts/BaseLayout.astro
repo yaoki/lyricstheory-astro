@@ -1,0 +1,107 @@
+---
+import '../styles/global.css';
+
+interface ArticleMeta {
+  headline: string;
+  description: string;
+  datePublished: string; // ISO 8601
+  dateModified?: string;
+  image?: string; // 絶対URLまたは/wordpress/...
+  url: string; // 記事の絶対URL
+}
+
+interface Props {
+  title: string;
+  description?: string;
+  ogImage?: string;
+  article?: ArticleMeta;
+}
+
+const { title, description, ogImage, article } = Astro.props as Props;
+
+const siteUrl = 'https://www.lyricstheory.com';
+const pageUrl = new URL(Astro.url.pathname, siteUrl).toString();
+const image = ogImage || `${siteUrl}/favicon.svg`;
+
+const authorName = 'やおき (the 8 rise)';
+const siteName = 'lyricstheory.com';
+
+const articleJsonLd = article
+  ? {
+      '@context': 'https://schema.org',
+      '@type': 'Article',
+      headline: article.headline,
+      description: article.description,
+      datePublished: article.datePublished,
+      ...(article.dateModified ? { dateModified: article.dateModified } : {}),
+      author: {
+        '@type': 'Person',
+        name: authorName,
+        url: `${siteUrl}/author/yaoki/`,
+      },
+      publisher: {
+        '@type': 'Organization',
+        name: siteName,
+        url: siteUrl,
+      },
+      mainEntityOfPage: {
+        '@type': 'WebPage',
+        '@id': article.url,
+      },
+      ...(article.image ? { image: absoluteUrl(article.image) } : {}),
+      inLanguage: 'ja',
+    }
+  : null;
+
+function absoluteUrl(pathOrUrl: string): string {
+  if (/^https?:\/\//.test(pathOrUrl)) return pathOrUrl;
+  return `${siteUrl}${pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`}`;
+}
+---
+
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="canonical" href={pageUrl} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <meta property="og:type" content={article ? 'article' : 'website'} />
+    <meta property="og:title" content={title} />
+    {description && <meta property="og:description" content={description} />}
+    <meta property="og:url" content={pageUrl} />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:locale" content="ja_JP" />
+    <meta property="og:image" content={absoluteUrl(image)} />
+    {article?.datePublished && (
+      <meta property="article:published_time" content={article.datePublished} />
+    )}
+    {article?.dateModified && (
+      <meta property="article:modified_time" content={article.dateModified} />
+    )}
+    {article && <meta property="article:author" content={authorName} />}
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    {description && <meta name="twitter:description" content={description} />}
+    <meta name="twitter:image" content={absoluteUrl(image)} />
+
+    {articleJsonLd && (
+      <script type="application/ld+json" set:html={JSON.stringify(articleJsonLd)} />
+    )}
+  </head>
+  <body class="mx-auto max-w-3xl px-4 py-8 leading-relaxed">
+    <header class="mb-8 border-b pb-4">
+      <a href="/" class="text-lg font-bold">{siteName}</a>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer class="mt-16 border-t pt-4 text-sm text-gray-500">
+      © {siteName}
+    </footer>
+  </body>
+</html>

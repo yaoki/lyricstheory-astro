@@ -1,0 +1,51 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import XThreadCTA from '../../components/XThreadCTA.astro';
+import TOC from '../../components/TOC.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog');
+  return posts.map((post) => ({
+    params: { slug: post.data.slug },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content, remarkPluginFrontmatter } = await render(post);
+
+const siteUrl = 'https://www.lyricstheory.com';
+const pageUrl = `${siteUrl}/${post.data.slug}/`;
+const firstImage: string | undefined = remarkPluginFrontmatter?.firstImage;
+const toc = remarkPluginFrontmatter?.toc ?? [];
+
+const article = {
+  headline: post.data.title,
+  description: post.data.description,
+  datePublished: post.data.pubDate.toISOString(),
+  ...(post.data.updatedDate ? { dateModified: post.data.updatedDate.toISOString() } : {}),
+  ...(firstImage ? { image: firstImage } : {}),
+  url: pageUrl,
+};
+---
+
+<BaseLayout
+  title={post.data.title}
+  description={post.data.description}
+  ogImage={firstImage}
+  article={article}
+>
+  <article class="prose">
+    <h1 class="mb-2 text-3xl font-bold">{post.data.title}</h1>
+    <p class="mb-6 text-sm text-gray-600">
+      {post.data.pubDate.toISOString().slice(0, 10)}
+      {post.data.updatedDate && ` / 更新: ${post.data.updatedDate.toISOString().slice(0, 10)}`}
+    </p>
+    <TOC items={toc} />
+    <div class="post-body">
+      <Content />
+    </div>
+    {post.data.xThreadUrl && <XThreadCTA url={post.data.xThreadUrl} />}
+  </article>
+</BaseLayout>

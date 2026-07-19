@@ -1,0 +1,43 @@
+---
+interface Props {
+  src: string;
+  title: string;
+  provider?: 'youtube' | 'soundcloud' | 'other';
+  aspectRatio?: string;
+}
+
+const { src, title, provider = 'other', aspectRatio = '16 / 9' } = Astro.props as Props;
+
+if (!src || !title) {
+  throw new Error(`<EmbedIframe> requires src and title. Got: src=${src}, title=${title}`);
+}
+
+const wrapperStyle = `aspect-ratio: ${aspectRatio};`;
+---
+
+<div class="embed-iframe" data-provider={provider} style={wrapperStyle}>
+  <iframe
+    src={src}
+    title={title}
+    loading="lazy"
+    referrerpolicy="no-referrer"
+    allow="encrypted-media; picture-in-picture"
+    allowfullscreen
+  ></iframe>
+</div>
+
+<style>
+  .embed-iframe {
+    margin: 1.5rem 0;
+    width: 100%;
+  }
+  .embed-iframe iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+  .embed-iframe[data-provider='soundcloud'] {
+    aspect-ratio: auto;
+    height: 166px;
+  }
+</style>

@@ -1,0 +1,32 @@
+{
+  "name": "lyricstheory-astro",
+  "type": "module",
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/mdx": "^7.0.3",
+    "@astrojs/sitemap": "^3.7.3",
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^7.1.1",
+    "tailwindcss": "^4.3.3",
+    "unist-util-visit": "^5.1.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.9",
+    "@astrojs/rss": "^4.0.19",
+    "github-slugger": "^2.0.0",
+    "jsdom": "^29.1.1",
+    "mdast-util-to-string": "^4.0.0",
+    "rehype-slug": "^6.0.0",
+    "turndown": "^7.2.4",
+    "typescript": "^6.0.3"
+  }
+}

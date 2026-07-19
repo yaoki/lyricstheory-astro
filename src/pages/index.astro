@@ -1,0 +1,24 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
+);
+---
+
+<BaseLayout title="lyricstheory.com" description="日本語歌詞の音韻分析">
+  <h1 class="mb-6 text-2xl font-bold">最新の分析</h1>
+  <ul class="space-y-4">
+    {
+      posts.map((post) => (
+        <li>
+          <a href={`/${post.data.slug}/`} class="text-blue-700 underline">
+            {post.data.title}
+          </a>
+          <p class="text-sm text-gray-600">{post.data.description}</p>
+        </li>
+      ))
+    }
+  </ul>
+</BaseLayout>

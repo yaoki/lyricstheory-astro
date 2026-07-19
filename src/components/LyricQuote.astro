@@ -1,0 +1,51 @@
+---
+interface Props {
+  song: string;
+  artist: string;
+  lyricist: string;
+  year?: number;
+  cite?: string;
+}
+
+const { song, artist, lyricist, year, cite } = Astro.props as Props;
+
+if (!song || !artist || !lyricist) {
+  throw new Error(
+    `<LyricQuote> requires song, artist, and lyricist props. Got: song=${song}, artist=${artist}, lyricist=${lyricist}`,
+  );
+}
+
+const metaParts = [`「${song}」`, artist, `作詞: ${lyricist}`];
+if (year) metaParts.push(`${year}`);
+const meta = metaParts.join(' / ');
+---
+
+<figure class="lyric-quote">
+  <blockquote cite={cite} itemscope itemtype="https://schema.org/Quotation">
+    <div itemprop="text" class="lyric-quote__text">
+      <slot />
+    </div>
+  </blockquote>
+  <figcaption class="lyric-quote__caption">
+    <span itemprop="spokenByCharacter">{meta}</span>
+  </figcaption>
+</figure>
+
+<style>
+  .lyric-quote {
+    margin: 1.5rem 0;
+    padding: 1rem 1.25rem;
+    border-left: 3px solid var(--lyric-quote-border, #999);
+    background: var(--lyric-quote-bg, #f6f6f6);
+  }
+  .lyric-quote__text {
+    white-space: pre-wrap;
+    line-height: 2;
+    font-feature-settings: 'palt';
+  }
+  .lyric-quote__caption {
+    margin-top: 0.5rem;
+    font-size: 0.85em;
+    color: var(--lyric-quote-caption, #666);
+  }
+</style>

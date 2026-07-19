@@ -1,0 +1,10 @@
+term_id,term_taxonomy_id,taxonomy,name,slug,wp_count,used_by_published_post_ids
+1,1,category,未分類,miscellaneous,0,
+2,2,category,歌詞分析,lyrics-analysis,7,3;117;250;277;308;312;437
+3,3,post_tag,椎名林檎,%e6%a4%8e%e5%90%8d%e6%9e%97%e6%aa%8e,1,3
+4,4,post_tag,子音ピボット,%e5%ad%90%e9%9f%b3%e3%83%94%e3%83%9c%e3%83%83%e3%83%88,1,3
+5,5,category,作詞課題,exercise,1,220
+6,6,category,検討課題,task,1,244
+8,8,category,エッセイ,essay,4,99;107;324;392
+9,9,nav_menu,ナビゲーション,%e3%83%8a%e3%83%93%e3%82%b2%e3%83%bc%e3%82%b7%e3%83%a7%e3%83%b3,6,
+10,10,category,ライムの知識,%e3%83%a9%e3%82%a4%e3%83%a0%e3%81%ae%e7%9f%a5%e8%ad%98,0,

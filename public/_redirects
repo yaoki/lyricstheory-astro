@@ -1,0 +1,20 @@
+# Cloudflare Pages リダイレクト設定
+# フォーマット: <from> <to> <status>
+# 参照: 仕様書 7.6, docs/redirects.csv (追加分ここに集約)
+
+# apex → www 正規化（DNS/Cloudflare Redirect Rules で先に処理される想定だが二重保険）
+https://lyricstheory.com/* https://www.lyricstheory.com/:splat 301
+
+# WordPress 時代の /wordpress/ プレフィックス付き記事 URL（もし残っていれば）は
+# 現行 /{slug}/ 構造にリダイレクト（サブディレクトリインストール時の遺物）
+/wordpress/  /  301
+/wordpress/*  /:splat  301
+
+# 旧 WordPress 内部生成 URL（管理系）は 410 Gone として明示的に消す
+/wp-admin/*  /  404
+/wp-login.php  /  404
+/xmlrpc.php  /  404
+
+# 旧 WordPress プラグインが生成していた便宜 URL のうち、コンテンツ性がないもの
+/register/  /  301
+/login/  /  301

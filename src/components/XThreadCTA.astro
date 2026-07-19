@@ -1,0 +1,19 @@
+---
+interface Props {
+  url: string;
+}
+
+const { url } = Astro.props as Props;
+---
+
+<aside class="my-12 border-t pt-6">
+  <p class="mb-2 text-sm text-gray-600">この記事への感想・議論は X へ</p>
+  <a
+    href={url}
+    target="_blank"
+    rel="noopener noreferrer"
+    class="inline-block rounded-md border border-gray-800 px-4 py-2 text-sm font-medium hover:bg-gray-100"
+  >
+    X で議論する →
+  </a>
+</aside>
