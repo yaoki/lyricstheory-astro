@@ -1,0 +1,119 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('elements');
+  return entries.map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+
+const MATURITY_LABELS: Record<string, string> = {
+  seed: '種 (seed)',
+  budding: '芽 (budding)',
+  evergreen: '常緑 (evergreen)',
+};
+
+const [elements, posts] = await Promise.all([getCollection('elements'), getCollection('blog')]);
+
+interface RelatedLink {
+  key: string;
+  title: string;
+  href: string;
+  kind: 'element' | 'essay';
+}
+
+const relatedLinks: RelatedLink[] = (entry.data.related ?? [])
+  .map((key: string): RelatedLink | null => {
+    const el = elements.find((e) => e.id === key);
+    if (el) {
+      return { key, title: el.data.title, href: `/garden/${el.id}/`, kind: 'element' };
+    }
+    const post = posts.find((p) => p.data.slug === key);
+    if (post) {
+      return { key, title: post.data.title, href: `/${post.data.slug}/`, kind: 'essay' };
+    }
+    return null;
+  })
+  .filter((link): link is RelatedLink => link !== null);
+
+const phoneme = entry.data.tags?.phoneme ?? [];
+const artist = entry.data.tags?.artist ?? [];
+const era = entry.data.tags?.era;
+const lang = entry.data.tags?.lang ?? 'ja';
+const sources = entry.data.sources ?? [];
+const maturityLabel = MATURITY_LABELS[entry.data.maturity] ?? entry.data.maturity;
+const description = `${entry.data.title}（音韻要素の庭・${maturityLabel}）`;
+---
+
+<BaseLayout title={`${entry.data.title} | 音韻要素の庭`} description={description}>
+  <p class="mb-2 text-sm text-gray-500">
+    <a href="/" class="hover:underline">lyricstheory.com</a> /
+    <a href="/garden/" class="hover:underline">音韻要素の庭</a>
+  </p>
+
+  <article class="prose">
+    <h1 class="mb-2 text-2xl font-bold">{entry.data.title}</h1>
+    <div class="mb-6 flex flex-wrap items-center gap-2 text-xs">
+      <span class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600">{entry.data.type}</span>
+      <span class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600">{maturityLabel}</span>
+      <span class="text-gray-500">最終更新: {entry.data.updated.toISOString().slice(0, 10)}</span>
+    </div>
+
+    <div class="post-body">
+      <Content />
+    </div>
+
+    <aside class="mt-12 border-t pt-6 text-sm">
+      <dl class="space-y-4">
+        {(phoneme.length > 0 || artist.length > 0 || era || lang) && (
+          <div>
+            <dt class="font-semibold text-gray-700">タグ</dt>
+            <dd class="mt-1 text-gray-600">
+              {phoneme.length > 0 && <p>音素: {phoneme.join(', ')}</p>}
+              {artist.length > 0 && <p>artist: {artist.join(', ')}</p>}
+              {era && <p>年代: {era}</p>}
+              <p>言語: {lang}</p>
+            </dd>
+          </div>
+        )}
+        {sources.length > 0 && (
+          <div>
+            <dt class="font-semibold text-gray-700">出典</dt>
+            <dd class="mt-1 text-gray-600">
+              <ul class="list-disc space-y-1 pl-5">
+                {sources.map((source) => (
+                  <li>{source}</li>
+                ))}
+              </ul>
+            </dd>
+          </div>
+        )}
+        {relatedLinks.length > 0 && (
+          <div>
+            <dt class="font-semibold text-gray-700">related</dt>
+            <dd class="mt-1">
+              <ul class="list-disc space-y-1 pl-5">
+                {relatedLinks.map((link) => (
+                  <li>
+                    <a href={link.href} class="text-blue-700 underline">
+                      {link.title}
+                    </a>
+                    <span class="ml-1 text-xs text-gray-400">
+                      {link.kind === 'essay' ? '(essay)' : '(element)'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </dd>
+          </div>
+        )}
+      </dl>
+    </aside>
+  </article>
+</BaseLayout>

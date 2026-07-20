@@ -31,6 +31,46 @@
 - ルーチン変換・機械的チェック: Sonnet 5 / Haiku 4.5
 - オーバーナイト移行バッチ: Sonnet 5 with 明示的 stopping criteria
 
+## elements コレクション（音韻要素の庭）
+
+上位仕様: `../tasks/lyricstheory-digital-garden-spec.md`（v0.2）。詳細な設計意図はそちらを参照。
+
+### 二層構造
+
+- **essays**（`src/content/blog/`）= 結晶層。既存の完成記事。permalink `/{slug}/` は変更しない。
+- **elements**（`src/content/elements/`）= 庭層。分析の最小単位を1件1ファイル（MDX）で持つ新設コレクション。子音ピボットの個別事例、音韻的ゼクエンツの型、押韻パターンなど。公開後も編集し続ける常緑運用。URL は `/garden/{slug}/`。
+
+### 成熟度（maturity）
+
+- `seed`: 観察メモ。断片で良い。
+- `budding`: 他カードとの関連（`related`）が1本以上張られた状態。
+- `evergreen`: 定義・事例・反例が揃い、essay から安心して参照できる状態。
+
+### type（推奨語彙）
+
+`type` は enum ではなく `z.string()`。カードが10〜20枚溜まってから enum 化を検討する。当面の推奨6語彙:
+
+`pivot | sequenz | rhyme | syllable | prosody | other`
+
+### phoneme romaji 正規化ルール（重要・厳守）
+
+`tags.phoneme` は romaji 小文字で表記する。表記が揺れるとコリジョン照合（将来実装）が壊れるため、以下を必ず守る:
+
+1. 撥音「ん」は `n`
+2. 促音「っ」は次の子音を重複させず、独立した `q` として表記する
+3. 長音は母音を重複させず単独表記する（例: 「カー」は `ka`、長音記号は捨てる）
+4. ローマ字化はヘボン式を採用する（訓令式ではない）。例: `shi`（し）, `chi`（ち）, `tsu`（つ）, `fu`（ふ）, `ji`（じ）
+5. 拗音は2文字で表記する（例: `kya`, `sha`, `cho`）
+6. 母音単独は `a i u e o`
+
+### 引用ルール
+
+1カードあたりの歌詞引用は、分析に必要な最小フレーズ（1〜2行以内）に限定する。既存の Public repo ガードレール（上記「リポジトリ公開ポリシー（Public 運用）」、上位仕様 10.5 相当）は elements 配下にも同様に適用する。
+
+### カードテンプレート
+
+`src/content/elements/_template.mdx.txt` を参照。拡張子を `.mdx.txt` にすることで content collection の glob（`**/*.{md,mdx}`）にマッチしないようにしてある。新規カード作成時はこの内容をコピーして `.mdx` 拡張子で保存する。
+
 ## Phase 進行
 
 - **Phase 1**: 足場作り（現在）

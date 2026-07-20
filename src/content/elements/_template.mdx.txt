@@ -1,0 +1,42 @@
+<!--
+  elements カードのテンプレート。
+
+  このファイルは拡張子を .mdx.txt にしてあるため、
+  content.config.ts の glob パターン（**/*.{md,mdx}）にはマッチしない
+  ＝ビルド対象・コレクション対象にはならない。
+
+  新しいカードを作るときは、この内容をコピーして
+  拡張子 .mdx の新規ファイル（slug ベースのファイル名）として保存すること。
+
+  【引用ルール（重要）】
+  1カードあたりの歌詞引用は、分析に必要な最小フレーズ（1〜2行以内）に限定する。
+  歌詞全文は repo に置かない。既存 CLAUDE.md「Public repo ガードレール」を
+  elements 配下にも同様に適用する。
+-->
+---
+title: ""            # カード名（例: "k→t 子音ピボット（〇〇型）"）
+type: ""              # 推奨語彙: pivot | sequenz | rhyme | syllable | prosody | other
+                       # （z.string() なので上記以外も書けるが、10〜20枚溜まってから enum 化を検討する）
+maturity: seed        # seed | budding | evergreen
+tags:
+  phoneme: []          # 関与する音素・音素列。romaji 小文字、正規化ルールは CLAUDE.md 参照（例: [k, a]）
+  artist: []           # アーティスト（romaji slug）
+  era: ""              # 年代（例: "2010s"）
+  lang: ja             # ja | en | fr | ...
+related: []            # 関連カード・essay の slug（双方向リンクの素）
+sources: []            # 出典（曲名・作詞者・年。全文引用はしない。未確認のまま記載しない）
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
+
+## 観察（YYYY年M月D日）
+
+（歌詞引用は最小フレーズ1〜2行以内）
+
+（観察メモ）
+
+## 照合メモ（Claude）
+
+- 流通歌詞との一致確認
+- メタデータ確認済み事項
+- 分析（budding 昇格時に追記）

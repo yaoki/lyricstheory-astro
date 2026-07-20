@@ -1,0 +1,91 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const MATURITY_LABELS: Record<string, string> = {
+  seed: '種 (seed)',
+  budding: '芽 (budding)',
+  evergreen: '常緑 (evergreen)',
+};
+
+const MATURITY_ORDER = ['seed', 'budding', 'evergreen'] as const;
+
+// frontmatter に description が無いため、本文冒頭から簡易的に切り出す。
+// import/export 行・見出し記号・MDX タグ・ルビ記法を除去した上で先頭 100 文字を目安に取る。
+function excerpt(body: string | undefined, length = 100): string {
+  if (!body) return '';
+  const cleaned = body
+    .split('\n')
+    .filter((line) => !/^\s*(import|export)\s/.test(line))
+    .join('\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\[([^\]|]+)\|[^\]]+\]/g, '$1')
+    .replace(/^#+\s*/gm, '')
+    .replace(/[*_`>]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned.length > length ? `${cleaned.slice(0, length)}…` : cleaned;
+}
+
+const entries = await getCollection('elements');
+const sorted = [...entries].sort((a, b) => b.data.updated.valueOf() - a.data.updated.valueOf());
+
+const groups = MATURITY_ORDER.map((maturity) => ({
+  maturity,
+  label: MATURITY_LABELS[maturity],
+  items: sorted.filter((entry) => entry.data.maturity === maturity),
+})).filter((group) => group.items.length > 0);
+---
+
+<BaseLayout
+  title="音韻要素の庭 | lyricstheory.com"
+  description="音韻分析の要素カード一覧。子音ピボット・音韻的ゼクエンツなど、分析の最小単位を育てていく庭。"
+>
+  <p class="mb-2 text-sm text-gray-500">
+    <a href="/" class="hover:underline">lyricstheory.com</a> / 音韻要素の庭
+  </p>
+  <h1 class="mb-4 text-2xl font-bold">音韻要素の庭</h1>
+  <p class="mb-10 text-gray-700">
+    essays が結晶なら、elements は庭。分析の最小単位を育てていく場所です。
+  </p>
+
+  {
+    groups.map(({ maturity, label, items }) => (
+      <section class="mb-12" id={maturity}>
+        <h2 class="mb-4 border-b pb-2 text-lg font-semibold">
+          {label} <span class="text-sm font-normal text-gray-500">({items.length})</span>
+        </h2>
+        <ul class="space-y-6">
+          {items.map((entry) => {
+            const phoneme = entry.data.tags?.phoneme ?? [];
+            const artist = entry.data.tags?.artist ?? [];
+            const tagLine = [
+              phoneme.length > 0 ? `音素: ${phoneme.join(', ')}` : null,
+              artist.length > 0 ? `artist: ${artist.join(', ')}` : null,
+            ]
+              .filter(Boolean)
+              .join(' / ');
+            return (
+              <li>
+                <a href={`/garden/${entry.id}/`} class="text-lg font-medium text-blue-700 underline">
+                  {entry.data.title}
+                </a>
+                <div class="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                  <span class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600">
+                    {entry.data.type}
+                  </span>
+                  <span class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600">{label}</span>
+                  <span class="text-gray-500">更新: {entry.data.updated.toISOString().slice(0, 10)}</span>
+                </div>
+                {tagLine && <p class="mt-1 text-xs text-gray-500">{tagLine}</p>}
+                <p class="mt-2 text-sm text-gray-600">{excerpt(entry.body)}</p>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    ))
+  }
+
+  {sorted.length === 0 && <p class="text-gray-500">まだ種がありません。</p>}
+</BaseLayout>

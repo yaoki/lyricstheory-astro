@@ -63,4 +63,26 @@ const author = defineCollection({
   }),
 });
 
-export const collections = { blog, concept, author };
+const elements = defineCollection({
+  loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/elements' }),
+  schema: z.object({
+    title: z.string(),
+    // enum ではなく string。10〜20枚溜まってから enum 化を検討する（推奨語彙は CLAUDE.md 参照）
+    type: z.string(),
+    maturity: z.enum(['seed', 'budding', 'evergreen']).default('seed'),
+    tags: z
+      .object({
+        phoneme: z.array(z.string()).default([]),
+        artist: z.array(z.string()).default([]),
+        era: z.string().optional(),
+        lang: z.string().default('ja'),
+      })
+      .default({ phoneme: [], artist: [], lang: 'ja' }),
+    related: z.array(z.string()).default([]),
+    sources: z.array(z.string()).default([]),
+    created: z.coerce.date(),
+    updated: z.coerce.date(),
+  }),
+});
+
+export const collections = { blog, concept, author, elements };
