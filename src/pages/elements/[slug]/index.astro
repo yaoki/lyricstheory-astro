@@ -32,7 +32,7 @@ const relatedLinks: RelatedLink[] = (entry.data.related ?? [])
   .map((key: string): RelatedLink | null => {
     const el = elements.find((e) => e.id === key);
     if (el) {
-      return { key, title: el.data.title, href: `/garden/${el.id}/`, kind: 'element' };
+      return { key, title: el.data.title, href: `/elements/${el.id}/`, kind: 'element' };
     }
     const post = posts.find((p) => p.data.slug === key);
     if (post) {
@@ -48,13 +48,13 @@ const era = entry.data.tags?.era;
 const lang = entry.data.tags?.lang ?? 'ja';
 const sources = entry.data.sources ?? [];
 const maturityLabel = MATURITY_LABELS[entry.data.maturity] ?? entry.data.maturity;
-const description = `${entry.data.title}（音韻要素の庭・${maturityLabel}）`;
+const description = `${entry.data.title}（elements・${maturityLabel}）`;
 ---
 
-<BaseLayout title={`${entry.data.title} | 音韻要素の庭`} description={description}>
+<BaseLayout title={`${entry.data.title} | elements`} description={description}>
   <p class="mb-2 text-sm text-gray-500">
     <a href="/" class="hover:underline">lyricstheory.com</a> /
-    <a href="/garden/" class="hover:underline">音韻要素の庭</a>
+    <a href="/elements/" class="hover:underline">elements</a>
   </p>
 
   <article class="prose">
@@ -96,7 +96,7 @@ const description = `${entry.data.title}（音韻要素の庭・${maturityLabel}
         )}
         {relatedLinks.length > 0 && (
           <div>
-            <dt class="font-semibold text-gray-700">related</dt>
+            <dt class="font-semibold text-gray-700">関連</dt>
             <dd class="mt-1">
               <ul class="list-disc space-y-1 pl-5">
                 {relatedLinks.map((link) => (

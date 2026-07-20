@@ -31,14 +31,14 @@
 - ルーチン変換・機械的チェック: Sonnet 5 / Haiku 4.5
 - オーバーナイト移行バッチ: Sonnet 5 with 明示的 stopping criteria
 
-## elements コレクション（音韻要素の庭）
+## elements コレクション
 
 上位仕様: `../tasks/lyricstheory-digital-garden-spec.md`（v0.2）。詳細な設計意図はそちらを参照。
 
 ### 二層構造
 
 - **essays**（`src/content/blog/`）= 結晶層。既存の完成記事。permalink `/{slug}/` は変更しない。
-- **elements**（`src/content/elements/`）= 庭層。分析の最小単位を1件1ファイル（MDX）で持つ新設コレクション。子音ピボットの個別事例、音韻的ゼクエンツの型、押韻パターンなど。公開後も編集し続ける常緑運用。URL は `/garden/{slug}/`。
+- **elements**（`src/content/elements/`）= 庭層。分析の最小単位を1件1ファイル（MDX）で持つ新設コレクション。子音ピボットの個別事例、音韻的ゼクエンツの型、押韻パターンなど。公開後も編集し続ける常緑運用。URL は `/elements/{slug}/`。
 
 ### 成熟度（maturity）
 
