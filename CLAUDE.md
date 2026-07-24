@@ -92,6 +92,27 @@ seed と作業ノートの違いは成熟度ではなく「公開ルートに乗
 
 `src/content/elements/_template.mdx.txt` を参照。拡張子を `.mdx.txt` にすることで content collection の glob（`**/*.{md,mdx}`）にマッチしないようにしてある。新規カード作成時はこの内容をコピーして `.mdx` 拡張子で保存する。
 
+### 新規 element カードのデプロイ workflow
+
+Chat 側（lyric-analysis-memo スキル）で生成された MDX を受け取ってから、以下の順で lyricstheory.com に公開する。単独で「デプロイして」と依頼された場合の標準手順。
+
+1. **配置**: `src/content/elements/{slug}.mdx` にファイル作成。slug は既存規約に従う（上記「ファイル名規則」）
+2. **schema 検証**: `npx astro check` を実行。0 errors / 0 warnings を確認
+3. **タイトル規約チェック**: `title` が「アーティスト『曲名』：観察名」の形式になっているか確認。抜けていれば整える
+4. **本文の裏取り除去**: 「照合メモ」「裏取り」「確認済み」等の節を含んでいたら削除（seed と作業ノートの分離ルール）
+5. **related の双方向更新**: `related` に他カード slug を書くなら、相手側カードの `related` にも今回の slug を追加。相手側の `updated` も本日に更新（現状 related は宣言側のみに表示されるため、双方向にしたければ両方書く）
+6. **staging**: `git add src/content/elements/` — 相手側カード更新や CLAUDE.md 変更があればそれも含める。**posfie-*.md 等の別作業由来の未コミット差分は絶対に一緒に staging しない**。今回スコープの変更のみ選択的に `git add`
+7. **commit**: 日本語 commit message で「何を」「なぜ」を書く。末尾に以下の署名を付ける:
+   ```
+   🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+   Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+   ```
+8. **push**: `git push origin main` → Cloudflare Pages が自動でビルド・デプロイ（1-3分）
+9. **到達確認**: 数分後、`curl -sI https://lyricstheory.com/elements/{slug}/` で HTTP 200 を確認
+
+MDX が渡されず「デプロイ」だけ言われた場合は、まず対象 MDX の場所（貼付を待つ、既にディレクトリ内にあるなら明示）を確認してから実行する。推測で進めない。
+
 ## Phase 進行
 
 - **Phase 1**: 足場作り（現在）
