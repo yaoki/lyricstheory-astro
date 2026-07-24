@@ -48,9 +48,11 @@
 
 ### type（推奨語彙）
 
-`type` は enum ではなく `z.string()`。カードが10〜20枚溜まってから enum 化を検討する。当面の推奨6語彙:
+`type` は enum ではなく `z.string()`。カードが10〜20枚溜まってから enum 化を検討する。当面の推奨7語彙:
 
-`pivot | sequenz | rhyme | syllable | prosody | other`
+`pivot | sequenz | rhyme | syllable | prosody | pattern | other`
+
+- **pattern**: 反復パターンの上位型。距離のバリエーション（連続反復・1音おき反復・2音おき反復・倒置反復 等）を含む。サブカテゴリの細分化は該当カードが5枚以上溜まってから判断する。
 
 ### phoneme romaji 正規化ルール（重要・厳守）
 
