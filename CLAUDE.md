@@ -136,13 +136,13 @@ Chat 側（lyric-analysis-memo スキル）で生成された MDX を受け取�
 2. **schema 検証**: `npx astro check` を実行。0 errors / 0 warnings を確認
 3. **タイトル規約チェック**: `title` が「アーティスト『曲名』：観察名」の形式になっているか確認。抜けていれば整える
 4. **本文の裏取り除去**: 「照合メモ」「裏取り」「確認済み」等の節を含んでいたら削除（seed と作業ノートの分離ルール）
-5. **related の双方向更新**: `related` に他カード slug を書くなら、相手側カードの `related` にも今回の slug を追加。相手側の `updated` も本日に更新（現状 related は宣言側のみに表示されるため、双方向にしたければ両方書く）
+5. **related の双方向更新**: `related` に他カード slug を書くなら、相手側カードの `related` にも今回の slug を追加。相手側の `updated` も本日に更新（現状 related は宣言側のみに表示されるため、双方向にしたければ両方書く）。**`maturity` の昇格は Claude の判断に委ねる**（yaoki は seed / budding / evergreen の遷移にこだわりを持たない、2026-07-25 確認）。定義どおり、related が1本入った側は両方とも budding に上げてよい
 6. **staging**: `git add src/content/elements/` — 相手側カード更新や CLAUDE.md 変更があればそれも含める。**posfie-*.md 等の別作業由来の未コミット差分は絶対に一緒に staging しない**。今回スコープの変更のみ選択的に `git add`
-7. **commit**: 日本語 commit message で「何を」「なぜ」を書く。末尾に以下の署名を付ける:
+7. **commit**: 日本語 commit message で「何を」「なぜ」を書く。末尾に以下の署名を付ける。**モデル名は実際に作業したモデルを書く**（下記は記法の例であり、バージョンを固定値として扱わない。誤ったモデルへの帰属を残さないため）:
    ```
    🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
-   Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+   Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
    ```
 8. **push**: `git push origin main` → Cloudflare Pages が自動でビルド・デプロイ（1-3分）
 9. **到達確認**: 数分後、`curl -sI https://lyricstheory.com/elements/{slug}/` で HTTP 200 を確認
