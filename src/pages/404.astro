@@ -1,0 +1,32 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+// このページの存在自体が重要。Cloudflare Pages は出力先に 404.html が無いと
+// サイトを SPA とみなし、未知のパスへ index.html を HTTP 200 で返す。
+// その状態では存在しない URL が「有効なページ」として扱われ、
+// デプロイの到達確認（200 判定）も機能しなくなる。
+---
+
+<BaseLayout
+  title="ページが見つかりません | lyricstheory.com"
+  description="お探しのページは見つかりませんでした。"
+>
+  <p class="mb-2 text-sm text-gray-500">
+    <a href="/" class="hover:underline">lyricstheory.com</a> / 404
+  </p>
+  <h1 class="mb-4 text-2xl font-bold">ページが見つかりません</h1>
+  <p class="mb-10 text-gray-700">
+    お探しのページは、移動したか削除された可能性があります。
+  </p>
+
+  <ul class="space-y-3">
+    <li>
+      <a href="/" class="text-lg font-medium text-blue-700 underline">記事一覧</a>
+      <p class="mt-1 text-sm text-gray-600">完成した論考（essays）。</p>
+    </li>
+    <li>
+      <a href="/elements/" class="text-lg font-medium text-blue-700 underline">elements</a>
+      <p class="mt-1 text-sm text-gray-600">分析の最小単位。断片・観察・仮説を置く場所。</p>
+    </li>
+  </ul>
+</BaseLayout>

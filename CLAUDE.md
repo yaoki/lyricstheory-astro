@@ -111,6 +111,15 @@ Chat 側（lyric-analysis-memo スキル）で生成された MDX を受け取�
 8. **push**: `git push origin main` → Cloudflare Pages が自動でビルド・デプロイ（1-3分）
 9. **到達確認**: 数分後、`curl -sI https://lyricstheory.com/elements/{slug}/` で HTTP 200 を確認
 
+### `src/pages/404.astro` を削除しないこと（重要）
+
+Cloudflare Pages は、ビルド出力のトップに `404.html` が無いとサイトを SPA とみなし、**未知のパスへ `index.html` を HTTP 200 で返す**。この状態では、
+
+- 存在しない URL が「有効なページ」として扱われる（検索エンジンにはソフト 404）
+- 上記の到達確認（HTTP 200 判定）が**検証として機能しない**。タイポしたスラッグでも 200 が返るため
+
+2026-07-25 に `src/pages/404.astro` を追加して解消済み。このページは見た目のためではなく、**`dist/404.html` を生成させるために存在する**。
+
 MDX が渡されず「デプロイ」だけ言われた場合は、まず対象 MDX の場所（貼付を待つ、既にディレクトリ内にあるなら明示）を確認してから実行する。推測で進めない。
 
 ## Phase 進行
