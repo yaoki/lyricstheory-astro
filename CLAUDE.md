@@ -65,6 +65,42 @@
 5. 拗音は2文字で表記する（例: `kya`, `sha`, `cho`）
 6. 母音単独は `a i u e o`
 
+### artist 表記の正規化ルール（重要・厳守）
+
+`tags.artist` および slug 中のアーティスト名は、**本人が使う公式英語表記**に準拠する。機械的なヘボン式ローマ字化を優先しない。
+
+- 椎名林檎 → `sheena-ringo`（**`shiina-ringo` ではない**。本人の公式英語表記が "Sheena Ringo"）
+- SOUL'd OUT → `souldout`
+- 公式英語表記が存在しない場合のみヘボン式（例: 関ゆみ子 → `seki-yumiko`）
+
+理由は二つ。
+
+1. **essays 側の slug が既にこの規約で運用されている**（`sheena-ringo-repeated-consonance`）。essays の slug は WordPress 時代からの SEO 資産で変更できないため、elements 側を合わせる
+2. コリジョン・インデックス（上位仕様 §3、`phoneme × artist` の共起集計）は artist の文字列一致で組む。表記が割れると**同一アーティストが二人に分裂したまま集計される**
+
+2026-07-25 に elements 11枚を `shiina-ringo` から `sheena-ringo` へ統一済み。
+
+### slug 命名規約（essays に準拠）
+
+「既存規約」とは、WordPress 移植前から続く **essays の slug の規則性**を指す。elements もこれに従う。
+
+- **内容語は英語**で書く（`repeated-consonance` / `closed-syllable-consonant` / `how-to-place`）。日本語のローマ字化を使わない
+- **固有名詞のみ romaji**（`utada-hikaru` / `sekai-no-owari` / `dragon-night` / `tadashii-machi`）。アーティスト名は上記の artist 正規化ルールに従う
+- 音韻要素は綴りで表す（`where-to-place-ii-` / `where-to-place-nn-` / `i-dan-`）
+- elements の全体形は `<曲slug>-<観察slug>`（例: `tadashii-machi-t-pivot`）
+
+**注意**: この slug 規約は、上記「phoneme romaji 正規化ルール」とは**適用対象が異なる**。phoneme タグは促音を `q`・長音を単独表記とするが、slug は曲名の流通する読みをそのまま綴る（`yumeippai` / `tadashii`）。混同しないこと。
+
+2026-07-25 に未適合だった3枚を英語へ統一済み。
+
+| 旧 | 新 | 語の出所 |
+|---|---|---|
+| `wekapipo-boin-kotei` | `wekapipo-fixed-vowel-a` | 対象の音を末尾に綴る（essays の `where-to-place-ii-` に倣う） |
+| `tadashii-machi-kaiki-hanpuku` | `tadashii-machi-return-repetition` | 「回帰」は楽式論（石桁真礼生）の概念。主題が間に別素材を挟んで再び現れる現象。西洋形式論では return |
+| `tadashii-machi-aba-seidaku` | `tadashii-machi-aba-voicing` | 清濁＝voicing。言語学の一般語 |
+
+**注意**: `return` は『楽式論』の**公式な英語対応語として確認できたものではない**（同書は日本語文献で、Zotero には書誌のみ）。西洋形式論の慣用に基づく採用である。英語圏展開時に術語を確定する際は、この選択を再検討の対象とすること。
+
 ### タイトル規約（重要）
 
 カード title は「**アーティスト『曲名』：観察名**」の順で記す。目的はカード単体で「誰の・何の曲の・何の観察か」が伝わることを担保すること。一覧ページや X 経由の初見読者に対して、タイトルだけで文脈が復元できる状態にする。
