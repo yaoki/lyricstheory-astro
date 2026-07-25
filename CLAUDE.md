@@ -54,6 +54,12 @@
 
 - **pattern**: 反復パターンの上位型。距離のバリエーション（連続反復・1音おき反復・2音おき反復・倒置反復 等）を含む。サブカテゴリの細分化は該当カードが5枚以上溜まってから判断する。
 
+### 理論用語
+
+想起・短期反復・回帰反復、四操作、同音／類音、隠蔽、ぷよぷよ（仮称）の定義は `docs/theory-glossary.md` にある。**定義の参照先はそこ一箇所**とし、カードやスキルに写しを置かない。
+
+Chat からは `https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/theory-glossary.md` で読める。
+
 ### 反復の類型（`tags.repetition`）
 
 COMITIA156 本で確定した三類型をそのまま使う。定義は `../comitia156/full_manuscript_v1.6_integrated_20260531.md` の用語集。
