@@ -73,6 +73,9 @@ const elements = defineCollection({
     tags: z
       .object({
         phoneme: z.array(z.string()).default([]),
+        // 反復の類型（既刊の三類型）。c=子音のみ / v=母音のみ / cv=両方が反復に参与
+        // 類型であって単位ではない。単位は譜割シラブルとその内部の C・V
+        repetition: z.enum(['cv', 'v', 'c']).optional(),
         artist: z.array(z.string()).default([]),
         era: z.string().optional(),
         lang: z.string().default('ja'),

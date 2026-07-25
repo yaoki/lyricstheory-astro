@@ -26,6 +26,7 @@ type: ""              # 推奨語彙: pivot | sequenz | rhyme | syllable | proso
 maturity: seed        # seed | budding | evergreen
 tags:
   phoneme: []          # 関与する音素・音素列。romaji 小文字、正規化ルールは CLAUDE.md 参照（例: [k, a]）
+  repetition:          # 反復の類型。c=子音のみ一致 / v=母音のみ一致 / cv=両方一致
   artist: []           # アーティスト（romaji slug）
   era: ""              # 年代（例: "2010s"）
   lang: ja             # ja | en | fr | ...

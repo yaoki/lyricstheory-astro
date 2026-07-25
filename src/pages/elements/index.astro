@@ -74,6 +74,11 @@ const groups = MATURITY_ORDER.map((maturity) => ({
                   <span class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600">
                     {entry.data.type}
                   </span>
+                  {entry.data.tags?.repetition && (
+                    <span class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600">
+                      {entry.data.tags.repetition.toUpperCase()}反復
+                    </span>
+                  )}
                   <span class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600">{label}</span>
                   <span class="text-gray-500">更新: {entry.data.updated.toISOString().slice(0, 10)}</span>
                 </div>

@@ -19,6 +19,12 @@ const MATURITY_LABELS: Record<string, string> = {
   evergreen: '常緑 (evergreen)',
 };
 
+const REPETITION_LABELS: Record<string, string> = {
+  c: 'C反復（子音のみが一致）',
+  v: 'V反復（母音のみが一致）',
+  cv: 'CV反復（子音と母音の両方が一致）',
+};
+
 const [elements, posts] = await Promise.all([getCollection('elements'), getCollection('blog')]);
 
 interface RelatedLink {
@@ -43,6 +49,7 @@ const relatedLinks: RelatedLink[] = (entry.data.related ?? [])
   .filter((link): link is RelatedLink => link !== null);
 
 const phoneme = entry.data.tags?.phoneme ?? [];
+const repetition = entry.data.tags?.repetition;
 const artist = entry.data.tags?.artist ?? [];
 const era = entry.data.tags?.era;
 const lang = entry.data.tags?.lang ?? 'ja';
@@ -71,10 +78,11 @@ const description = `${entry.data.title}（elements・${maturityLabel}）`;
 
     <aside class="mt-12 border-t pt-6 text-sm">
       <dl class="space-y-4">
-        {(phoneme.length > 0 || artist.length > 0 || era || lang) && (
+        {(phoneme.length > 0 || repetition || artist.length > 0 || era || lang) && (
           <div>
             <dt class="font-semibold text-gray-700">タグ</dt>
             <dd class="mt-1 text-gray-600">
+              {repetition && <p>反復の類型: {REPETITION_LABELS[repetition]}</p>}
               {phoneme.length > 0 && <p>音素: {phoneme.join(', ')}</p>}
               {artist.length > 0 && <p>artist: {artist.join(', ')}</p>}
               {era && <p>年代: {era}</p>}
