@@ -11,6 +11,9 @@ Human-readable summary: <https://creativecommons.org/licenses/by/4.0/>
 This license applies to the article content authored by やおき (the 8 rise):
 
 - All `.mdx` and `.md` files under `src/content/`
+- All `.md` files under `docs/` — the author's writing norms and terminology
+  definitions (`style-rules.md`, `theory-glossary.md`). These are published so
+  that anyone can use them for their own lyric analysis, with or without AI.
 - Figures, diagrams, and images the author created and uploaded (originally at
   `wp-content/uploads/`, now at `public/wordpress/wp-content/uploads/`)
 - Analyses, framework definitions (子音ピボット、半シラブル化仮説、クローズド・シラブル、

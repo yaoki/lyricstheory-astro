@@ -4,6 +4,13 @@
 
 ## 執筆規約
 
+**文体・表記の規範の正本は [`docs/style-rules.md`](docs/style-rules.md)。** 記事・カード・散文を書くときは必ずこれに従う。**規則の写しをどこにも置かない**（写しが古い訳を温存し、2026-07-26 に事故を起こした）。理論用語の定義は [`docs/theory-glossary.md`](docs/theory-glossary.md)。Chat からは以下で読める。
+
+```
+https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/style-rules.md
+https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/theory-glossary.md
+```
+
 - 記事は `src/content/blog/YYYY/<slug>.mdx` 形式で作成
 - frontmatter は `src/content.config.ts` の schema に厳密準拠（欠落フィールドはビルドエラー）
 - 歌詞引用は必ず `<LyricQuote song="..." artist="..." lyricist="...">` を経由。生の歌詞ブロックは書かない
