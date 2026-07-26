@@ -118,10 +118,12 @@ COMITIA156 本で確定した三類型をそのまま使う。定義は `../comi
 | 旧 | 新 | 語の出所 |
 |---|---|---|
 | `wekapipo-boin-kotei` | `wekapipo-fixed-vowel-a` | 対象の音を末尾に綴る（essays の `where-to-place-ii-` に倣う） |
-| `tadashii-machi-kaiki-hanpuku` | `tadashii-machi-return-repetition` | 「回帰」は楽式論（石桁真礼生）の概念。主題が間に別素材を挟んで再び現れる現象。西洋形式論では return |
+| `tadashii-machi-kaiki-hanpuku` | `tadashii-machi-return-repetition` | 「回帰」は沼野雄司『ファンダメンタルな楽曲分析入門』からの借用概念。主題が間に別素材を挟んで再び現れる現象。西洋形式論では return |
 | `tadashii-machi-aba-seidaku` | `tadashii-machi-aba-voicing` | 清濁＝voicing。言語学の一般語 |
 
-**注意**: `return` は『楽式論』の**公式な英語対応語として確認できたものではない**（同書は日本語文献で、Zotero には書誌のみ）。西洋形式論の慣用に基づく採用である。英語圏展開時に術語を確定する際は、この選択を再検討の対象とすること。
+**注意**: `return` は**確定訳ではない**。「回帰」の出典である沼野雄司『ファンダメンタルな楽曲分析入門』が英語を併記しているかは未確認である（日本語文献）。現状は西洋形式論の慣用に基づく採用にとどまる。確定させるには沼野の当該箇所を確認すること。
+
+**2026-07-27 訂正**: 上記の出典を、それ以前の記録は石桁真礼生『楽式論』としていたが誤り。正しくは沼野雄司『ファンダメンタルな楽曲分析入門』。`tasks/blog-comitia156-announcement.md:325` にやおき自身が「回帰という語は沼野雄司『ファンダメンタルな楽曲分析入門』に由来する借用です」と書いている。
 
 ### タイトル規約（重要）
 

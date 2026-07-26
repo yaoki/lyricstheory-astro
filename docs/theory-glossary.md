@@ -69,7 +69,13 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/theory-glos
 
 ### 英語表記について
 
-`tadashii-machi-return-repetition` の slug では `return` を当てている。ただしこれは楽式論（石桁真礼生）の「回帰」概念に対する西洋形式論の慣用からの採用であり、**公式な英語対応語として確認できたものではない**。英語圏展開時に術語を確定する際は再検討の対象とすること。
+**「回帰」の出典は沼野雄司『ファンダメンタルな楽曲分析入門』**からの借用である（2026-07-27 訂正。それ以前の記録は石桁真礼生『楽式論』としていたが誤り）。
+
+`tadashii-machi-return-repetition` の slug では `return` を当てているが、これは**確定訳ではない**。沼野が英語を併記しているかは未確認であり、現状は西洋形式論の慣用に基づく採用にとどまる。確定させるには沼野の当該箇所を確認すること。
+
+**「想起」も暫定の語である。**本の告知文（`tasks/blog-comitia156-announcement.md:325`）に「想起は、現在の本書では暫定の語として導入されており、今後も呼称そのものを検討する余地があります」と明記されている。`english_edition/terminology.md` は `recall` を挙げているが状態は「踏襲」であり、**確定訳として扱わないこと**。
+
+なお `recursion`（同 terminology.md の回帰の訳）は計算機科学の「再帰」と衝突するため採用しない。
 
 ---
 
