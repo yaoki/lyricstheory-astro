@@ -24,3 +24,9 @@ http://www.lyricstheory.com/* https://lyricstheory.com/:splat 301
 # 旧 WordPress プラグインが生成していた便宜 URL のうち、コンテンツ性がないもの
 /register/  /  301
 /login/  /  301
+
+# elements のスラッグ改名（2026-07-26）
+# 倒置の英訳を style_rules.md 規則14 の確定訳 retrograde に統一。
+# inversion は十二音技法では音程反転（反行）を指し、正反対に読まれるため。
+# 旧 URL は X に投稿済みのため 301 で保全する。
+/elements/hajimete-no-koi-ga-owaru-toki-consonant-inversion/  /elements/hajimete-no-koi-ga-owaru-toki-consonant-retrograde/  301
