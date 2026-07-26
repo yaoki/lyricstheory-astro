@@ -8,6 +8,12 @@ const MATURITY_LABELS: Record<string, string> = {
   evergreen: '常緑 (evergreen)',
 };
 
+const MATURITY_NOTES: Record<string, string> = {
+  seed: '観察メモ。断片のままでよい',
+  budding: '他のカードとの関連が張られた状態',
+  evergreen: '定義・事例・反例が揃い、essay から参照できる状態',
+};
+
 const MATURITY_ORDER = ['seed', 'budding', 'evergreen'] as const;
 
 // frontmatter に description が無いため、本文冒頭から簡易的に切り出す。
@@ -27,14 +33,74 @@ function excerpt(body: string | undefined, length = 100): string {
   return cleaned.length > length ? `${cleaned.slice(0, length)}…` : cleaned;
 }
 
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+
 const entries = await getCollection('elements');
 const sorted = [...entries].sort((a, b) => b.data.updated.valueOf() - a.data.updated.valueOf());
 
-const groups = MATURITY_ORDER.map((maturity) => ({
+const counts = MATURITY_ORDER.map((maturity) => ({
   maturity,
   label: MATURITY_LABELS[maturity],
-  items: sorted.filter((entry) => entry.data.maturity === maturity),
-})).filter((group) => group.items.length > 0);
+  note: MATURITY_NOTES[maturity],
+  count: sorted.filter((entry) => entry.data.maturity === maturity).length,
+}));
+
+// ---- 活動グリッド ----------------------------------------------------------
+// frontmatter の created / updated から日ごとの活動を数える。
+// updated は「最後の更新日」しか保持していないため、途中の更新は数えられない。
+// 表示上もその旨を注記する。
+const DAY = 86_400_000;
+const WEEKS = 26;
+
+type Activity = { created: number; updated: number };
+const activity = new Map<string, Activity>();
+const bump = (key: string, kind: keyof Activity) => {
+  const rec = activity.get(key) ?? { created: 0, updated: 0 };
+  rec[kind] += 1;
+  activity.set(key, rec);
+};
+
+for (const entry of entries) {
+  const c = iso(entry.data.created);
+  const u = iso(entry.data.updated);
+  bump(c, 'created');
+  if (u !== c) bump(u, 'updated');
+}
+
+const now = new Date();
+const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+const endSaturday = todayUTC + (6 - new Date(todayUTC).getUTCDay()) * DAY;
+const startSunday = endSaturday - (WEEKS * 7 - 1) * DAY;
+
+const weeks = Array.from({ length: WEEKS }, (_, w) => {
+  const days = Array.from({ length: 7 }, (_, d) => {
+    const ts = startSunday + (w * 7 + d) * DAY;
+    const date = new Date(ts);
+    const key = iso(date);
+    const rec = activity.get(key) ?? { created: 0, updated: 0 };
+    const total = rec.created + rec.updated;
+    return { key, total, ...rec, future: ts > todayUTC, month: date.getUTCMonth() };
+  });
+  return { days, firstOfMonth: days[0].month };
+});
+
+// 月が変わる列にだけラベルを出す
+const monthLabels = weeks.map((week, i) => {
+  if (i === 0) return null;
+  return week.firstOfMonth !== weeks[i - 1].firstOfMonth ? `${week.firstOfMonth + 1}月` : null;
+});
+
+const LEVELS = [
+  'bg-gray-200',
+  'bg-emerald-200',
+  'bg-emerald-400',
+  'bg-emerald-600',
+  'bg-emerald-800',
+];
+const levelOf = (n: number) => (n === 0 ? 0 : n === 1 ? 1 : n === 2 ? 2 : n <= 4 ? 3 : 4);
+
+const activeDays = weeks.flatMap((w) => w.days).filter((d) => d.total > 0).length;
+const rangeLabel = `${iso(new Date(startSunday))} 〜 ${iso(new Date(todayUTC))}`;
 ---
 
 <BaseLayout
@@ -45,52 +111,206 @@ const groups = MATURITY_ORDER.map((maturity) => ({
     <a href="/" class="hover:underline">lyricstheory.com</a> / elements
   </p>
   <h1 class="mb-4 text-2xl font-bold">elements</h1>
-  <p class="mb-10 text-gray-700">
-    分析の最小単位。essays に結晶化する前の断片・観察・仮説を置く場所。
+  <p class="mb-8 text-gray-700">
+    分析の最小単位。essays に結晶化する前の断片・観察・仮説を置く場所。書き上げて終わりにせず、公開したあとも手を入れ続けます。
   </p>
 
-  {
-    groups.map(({ maturity, label, items }) => (
-      <section class="mb-12" id={maturity}>
-        <h2 class="mb-4 border-b pb-2 text-lg font-semibold">
-          {label} <span class="text-sm font-normal text-gray-500">({items.length})</span>
-        </h2>
-        <ul class="space-y-6">
-          {items.map((entry) => {
-            const phoneme = entry.data.tags?.phoneme ?? [];
-            const artist = entry.data.tags?.artist ?? [];
-            const tagLine = [
-              phoneme.length > 0 ? `音素: ${phoneme.join(', ')}` : null,
-              artist.length > 0 ? `artist: ${artist.join(', ')}` : null,
-            ]
-              .filter(Boolean)
-              .join(' / ');
-            return (
-              <li>
-                <a href={`/elements/${entry.id}/`} class="text-lg font-medium text-blue-700 underline">
-                  {entry.data.title}
-                </a>
-                <div class="mt-1 flex flex-wrap items-center gap-2 text-xs">
-                  <span class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600">
-                    {entry.data.type}
-                  </span>
-                  {entry.data.tags?.repetition && (
-                    <span class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600">
-                      {entry.data.tags.repetition.toUpperCase()}反復
-                    </span>
-                  )}
-                  <span class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600">{label}</span>
-                  <span class="text-gray-500">更新: {entry.data.updated.toISOString().slice(0, 10)}</span>
-                </div>
-                {tagLine && <p class="mt-1 text-xs text-gray-500">{tagLine}</p>}
-                <p class="mt-2 text-sm text-gray-600">{excerpt(entry.body)}</p>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-    ))
-  }
+  <section class="mb-10 rounded border border-gray-200 p-4">
+    <h2 class="mb-1 text-sm font-semibold text-gray-700">活動</h2>
+    <p class="mb-3 text-xs text-gray-500">
+      カード {sorted.length} 枚。直近 {WEEKS} 週（{rangeLabel}）のうち {activeDays} 日に、新規または更新があります。
+    </p>
+
+    <div class="overflow-x-auto pb-1">
+      <div class="inline-block">
+        <div
+          class="mb-1 grid grid-flow-col text-[10px] leading-none text-gray-400"
+          style="grid-auto-columns: 12px;"
+        >
+          {monthLabels.map((label) => <div class="overflow-visible whitespace-nowrap">{label}</div>)}
+        </div>
+        <div
+          class="grid grid-flow-col gap-[2px]"
+          style="grid-auto-columns: 10px; grid-template-rows: repeat(7, 10px);"
+        >
+          {
+            weeks.flatMap((week) =>
+              week.days.map((day) => (
+                <div
+                  class={`h-[10px] w-[10px] rounded-[2px] ${day.future ? 'bg-transparent' : LEVELS[levelOf(day.total)]}`}
+                  title={
+                    day.future
+                      ? ''
+                      : `${day.key}　新規 ${day.created} 件 / 更新 ${day.updated} 件`
+                  }
+                />
+              )),
+            )
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-2 flex items-center gap-1 text-[10px] text-gray-400">
+      <span class="mr-1">少</span>
+      {LEVELS.map((cls) => <span class={`h-[10px] w-[10px] rounded-[2px] ${cls}`} />)}
+      <span class="ml-1">多</span>
+    </div>
+    <p class="mt-2 text-[10px] text-gray-400">
+      各カードが持つのは作成日と「最後の」更新日だけなので、途中の更新はここに現れません。実際の手入れはこれより多くなります。
+    </p>
+  </section>
+
+  <section class="mb-8">
+    <h2 class="mb-2 text-sm font-semibold text-gray-700">成熟度</h2>
+    <dl class="mb-3 space-y-1 text-xs text-gray-600">
+      {
+        counts.map(({ label, note }) => (
+          <div class="flex gap-2">
+            <dt class="shrink-0 font-medium">{label}</dt>
+            <dd class="text-gray-500">— {note}</dd>
+          </div>
+        ))
+      }
+    </dl>
+    <div class="flex flex-wrap gap-2 text-xs">
+      <button
+        type="button"
+        data-filter="all"
+        aria-pressed="true"
+        class="rounded-full border border-gray-400 px-3 py-1 text-gray-700 aria-pressed:border-gray-800 aria-pressed:bg-gray-800 aria-pressed:text-white"
+      >
+        すべて ({sorted.length})
+      </button>
+      {
+        counts.map(({ maturity, label, count }) => (
+          <button
+            type="button"
+            data-filter={maturity}
+            aria-pressed="false"
+            disabled={count === 0}
+            class="rounded-full border border-gray-400 px-3 py-1 text-gray-700 disabled:opacity-40 aria-pressed:border-gray-800 aria-pressed:bg-gray-800 aria-pressed:text-white"
+          >
+            {label} ({count})
+          </button>
+        ))
+      }
+    </div>
+  </section>
+
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-2 border-b pb-2 text-xs">
+    <p class="text-gray-500" data-visible-count>{sorted.length} 枚を表示中</p>
+    <div class="flex gap-2">
+      <button
+        type="button"
+        data-sort="updated"
+        aria-pressed="true"
+        class="rounded border border-gray-300 px-2 py-1 text-gray-600 aria-pressed:border-gray-700 aria-pressed:text-gray-900"
+      >
+        更新順
+      </button>
+      <button
+        type="button"
+        data-sort="created"
+        aria-pressed="false"
+        class="rounded border border-gray-300 px-2 py-1 text-gray-600 aria-pressed:border-gray-700 aria-pressed:text-gray-900"
+      >
+        投稿順
+      </button>
+    </div>
+  </div>
+
+  <ul class="space-y-6" id="card-list">
+    {
+      sorted.map((entry) => {
+        const phoneme = entry.data.tags?.phoneme ?? [];
+        const artist = entry.data.tags?.artist ?? [];
+        const tagLine = [
+          phoneme.length > 0 ? `音素: ${phoneme.join(', ')}` : null,
+          artist.length > 0 ? `artist: ${artist.join(', ')}` : null,
+        ]
+          .filter(Boolean)
+          .join(' / ');
+        return (
+          <li
+            data-maturity={entry.data.maturity}
+            data-updated={iso(entry.data.updated)}
+            data-created={iso(entry.data.created)}
+          >
+            <a href={`/elements/${entry.id}/`} class="text-lg font-medium text-blue-700 underline">
+              {entry.data.title}
+            </a>
+            <div class="mt-1 flex flex-wrap items-center gap-2 text-xs">
+              <span class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600">
+                {entry.data.type}
+              </span>
+              {entry.data.tags?.repetition && (
+                <span class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600">
+                  {entry.data.tags.repetition.toUpperCase()}反復
+                </span>
+              )}
+              <span class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600">
+                {MATURITY_LABELS[entry.data.maturity]}
+              </span>
+              <span class="text-gray-500">更新: {iso(entry.data.updated)}</span>
+              <span class="text-gray-400">投稿: {iso(entry.data.created)}</span>
+            </div>
+            {tagLine && <p class="mt-1 text-xs text-gray-500">{tagLine}</p>}
+            <p class="mt-2 text-sm text-gray-600">{excerpt(entry.body)}</p>
+          </li>
+        );
+      })
+    }
+  </ul>
 
   {sorted.length === 0 && <p class="text-gray-500">まだ種がありません。</p>}
 </BaseLayout>
+
+<script>
+  const list = document.getElementById('card-list');
+  if (list) {
+    const items = () => Array.from(list.children) as HTMLLIElement[];
+    const countLabel = document.querySelector('[data-visible-count]');
+
+    const setPressed = (nodes: NodeListOf<Element>, active: Element) => {
+      nodes.forEach((n) => n.setAttribute('aria-pressed', String(n === active)));
+    };
+
+    const filterButtons = document.querySelectorAll('[data-filter]');
+    const sortButtons = document.querySelectorAll('[data-sort]');
+
+    const applyFilter = (value: string) => {
+      let visible = 0;
+      items().forEach((li) => {
+        const show = value === 'all' || li.dataset.maturity === value;
+        li.hidden = !show;
+        if (show) visible += 1;
+      });
+      if (countLabel) countLabel.textContent = `${visible} 枚を表示中`;
+    };
+
+    filterButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        applyFilter((btn as HTMLElement).dataset.filter ?? 'all');
+        setPressed(filterButtons, btn);
+      });
+    });
+
+    sortButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = (btn as HTMLElement).dataset.sort === 'created' ? 'created' : 'updated';
+        items()
+          .sort((a, b) => (b.dataset[key] ?? '').localeCompare(a.dataset[key] ?? ''))
+          .forEach((li) => list.appendChild(li));
+        setPressed(sortButtons, btn);
+      });
+    });
+
+    // /elements/#budding のような従来のアンカーを絞り込みとして解釈する
+    const hash = location.hash.replace('#', '');
+    if (hash) {
+      const target = document.querySelector(`[data-filter="${hash}"]`);
+      if (target instanceof HTMLElement) target.click();
+    }
+  }
+</script>
