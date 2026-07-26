@@ -97,7 +97,7 @@ import LyricQuote from '../../../components/LyricQuote.astro';
 
 ## 貢献
 
-現時点では著者の個人ブログですが、事実誤認・誤字脱字の指摘や、公開議論の呼びかけを歓迎します。GitHub Issues か X（[@lyricstheory](https://x.com/lyricstheory)）へお願いします。
+現時点では著者の個人ブログですが、事実誤認・誤字脱字の指摘や、公開議論の呼びかけを歓迎します。GitHub Issues か X（[@yaoki_dokidoki](https://x.com/yaoki_dokidoki)）へお願いします。
 
 ## ライセンス
 
