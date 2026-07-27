@@ -100,6 +100,7 @@ COMITIA156 本で確定した三類型をそのまま使う。定義は `../comi
 
 - 椎名林檎 → `sheena-ringo`（**`shiina-ringo` ではない**。本人の公式英語表記が "Sheena Ringo"）
 - SOUL'd OUT → `souldout`
+- Mr.Children → `mrchildren`（公式表記 "Mr.Children" にスペースが無いため一語として結合し、記号のみ除去。`souldout` と同じ扱い。2026-07-27 決定）
 - 公式英語表記が存在しない場合のみヘボン式（例: 関ゆみ子 → `seki-yumiko`）
 
 理由は二つ。
@@ -211,5 +212,7 @@ npx astro check   # 型・schema チェック
 
 - `<LyricQuote song artist lyricist [year] [cite]>` — 歌詞引用（schema.org Quotation 出力）
 - ルビショートハンド `[漢字|かんじ]` — remark プラグインで自動変換
+
+**elements カードでは `<LyricQuote>` を import せずに使える。** `src/pages/elements/[slug]/index.astro` が `<Content components={{ LyricQuote }} />` で渡している（2026-07-27 追加。それ以前は未配線で、カード内で使うとビルドが `Expected component LyricQuote to be defined` で落ちた）。blog 記事側は従来どおり MDX 冒頭での import が必要。
 
 必要になった時点で追加するコンポーネント：`<IPA>` `<QNotation>` `<PhonoSeq>` `<ConceptLink>`
