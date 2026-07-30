@@ -11,7 +11,7 @@
  * 規則で決まる変換なので、書き手が figure の座標や添字を考える必要はない。
  */
 
-import { normalizeHighlight, type SymmetryFigure } from './templates/symmetry';
+import { normalizeHighlight, type Figure, type Highlight } from './figure';
 
 /** 直前の音に結合する文字（拗音・小書き仮名・長音符） */
 const COMBINING = /[ゃゅょャュョぁぃぅぇぉァィゥェォヵヶーｰ]/;
@@ -29,7 +29,7 @@ const MAX_UNITS = 8;
 export class PhraseError extends Error {}
 
 export interface ParsedPhrase {
-  figure: SymmetryFigure;
+  figure: Figure;
   /** 上限に収めるために落とした文脈の音数 */
   trimmed: { head: number; tail: number };
 }
@@ -44,7 +44,7 @@ interface Token {
  * 囲みの中を 1 枠、囲みの外は 1 音 1 枠として並べる。
  * どの組も囲みが 2 つ未満なら、何と何が呼応しているのか決まらないのでエラーにする。
  */
-export function parsePhrase(phrase: string): ParsedPhrase {
+export function parsePhrase(phrase: string, kind: Figure['kind'] = 'symmetry'): ParsedPhrase {
   const tokens = tokenize(phrase);
 
   const used = [...new Set(tokens.flatMap((t) => (t.group === null ? [] : [t.group])))].sort(
@@ -98,13 +98,12 @@ export function parsePhrase(phrase: string): ParsedPhrase {
   });
   const ordered = [...byGroup.entries()].sort(([a], [b]) => a - b).map(([, positions]) => positions);
 
+  // 一組だけなら [2, 4] の平たい形にする（読みやすさのため）
+  const highlight: Highlight = ordered.length === 1 ? ordered[0] : ordered;
+
   return {
-    figure: {
-      kind: 'symmetry',
-      units,
-      // 一組だけなら [2, 4] の平たい形にする（読みやすさのため）
-      highlight: ordered.length === 1 ? ordered[0] : ordered,
-    },
+    figure:
+      kind === 'vowel' ? { kind: 'vowel', units, highlight } : { kind: 'symmetry', units, highlight },
     trimmed: { head: start, tail: tokens.length - 1 - end },
   };
 }
@@ -158,7 +157,7 @@ function tokenize(phrase: string): Token[] {
 }
 
 /** frontmatter にそのまま貼れる YAML を組み立てる */
-export function toYaml(figure: SymmetryFigure): string {
+export function toYaml(figure: Figure): string {
   const units = figure.units.map((u) => `"${u}"`).join(', ');
   const groups = normalizeHighlight(figure.highlight);
   const highlight =

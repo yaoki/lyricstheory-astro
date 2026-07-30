@@ -53,6 +53,35 @@ export const SYMMETRY = {
   siteFontSize: 28,
 } as const;
 
+/**
+ * 音節を上段に並べ、母音だけを下段に抜き出して塗る図。
+ * 弧は母音の側（下）に描く。結んでいるのが音節ではなく母音であることを、位置で示すため。
+ */
+export const VOWEL = {
+  boxSize: 130,
+  boxRadius: 12,
+  boxGap: 32,
+  boxCenterY: 190,
+  unitFontSize: 64,
+  /** 母音のベースライン */
+  vowelBaseline: 318,
+  vowelFontSize: 42,
+  /** 強調した母音の下敷きにする円の半径 */
+  vowelBadgeRadius: 42,
+  /** 弧の端点と母音バッジの隙間 */
+  arcGap: 10,
+  /** 弧が下へ垂れる深さ */
+  arcDrop: 46,
+  arcNestStep: 38,
+  arcWidth: 5,
+  titleCenterY: 480,
+  titleFontSize: 44,
+  titleLineHeight: 56,
+  titleMaxLines: 2,
+  siteY: 570,
+  siteFontSize: 28,
+} as const;
+
 export const FALLBACK = {
   titleCenterY: 320,
   titleFontSize: 56,

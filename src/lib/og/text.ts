@@ -24,11 +24,33 @@ export function widthEm(text: string): number {
 }
 
 /**
+ * 折り返しの単位に切る。英数字の連なりは 1 語として扱う（「ABA」が「A / BA」に割れないように）。
+ * 日本語は 1 文字ずつで、分かち書きの解析はしない。
+ */
+function segments(text: string): string[] {
+  const out: string[] = [];
+  let word = '';
+  for (const ch of text) {
+    if (/[A-Za-z0-9]/.test(ch)) {
+      word += ch;
+      continue;
+    }
+    if (word !== '') {
+      out.push(word);
+      word = '';
+    }
+    out.push(ch);
+  }
+  if (word !== '') out.push(word);
+  return out;
+}
+
+/**
  * text を maxWidthEm 幅・maxLines 行以内に分割する。
  * 収まりきらない場合は最終行の末尾を「…」に詰める。
  */
 export function wrapText(text: string, maxWidthEm: number, maxLines: number): string[] {
-  const chars = [...text.trim()];
+  const chars = segments(text.trim());
   const lines: string[] = [];
   let line = '';
   let width = 0;
@@ -37,11 +59,11 @@ export function wrapText(text: string, maxWidthEm: number, maxLines: number): st
 
   for (let i = 0; i < chars.length; i++) {
     const ch = chars[i];
-    const w = charWidthEm(ch);
+    const w = widthEm(ch);
 
     if (width + w > maxWidthEm) {
       // 行頭禁則: あふれた文字が行頭に来られないものなら、はみ出しを許して現在行に残す
-      const keep = line !== '' && NO_LINE_START.includes(ch) && overflowed < 2;
+      const keep = line !== '' && ch.length === 1 && NO_LINE_START.includes(ch) && overflowed < 2;
       if (keep) {
         overflowed++;
       } else if (line !== '') {
@@ -67,7 +89,7 @@ export function wrapText(text: string, maxWidthEm: number, maxLines: number): st
   return lines.slice(0, maxLines);
 }
 
-/** 行数上限に達したのに残りがある場合、最終行の末尾を「…」に置き換える */
+/** 行数上限に達したのに残りがある場合、最終行の末尾を「…」に置き換える（rest は残りの折り返し単位） */
 function truncateLast(lines: string[], rest: string[], maxWidthEm: number): string[] {
   if (rest.length === 0) return lines;
   const last = [...lines[lines.length - 1]];

@@ -69,8 +69,8 @@ const author = defineCollection({
 // 型の対応先: src/lib/og/templates/symmetry.ts の SymmetryFigure
 const figureSchema = z
   .object({
-    // 現時点では symmetry のみ。テンプレートを増やすときはここに足す
-    kind: z.enum(['symmetry']),
+    // symmetry: 音を並べて呼応を弧で結ぶ / vowel: 音節を並べて母音を下段に抜き出す
+    kind: z.enum(['symmetry', 'vowel']),
     // units の上限 8 は著作権上のガードレール（長い連続は歌詞の再現に近づく）。緩めないこと
     units: z.array(z.string().min(1).max(4)).min(2).max(8),
     // 1 組なら [2, 4]、同じフレーズに複数の呼応があるなら [[2, 4], [5, 7]]
@@ -80,8 +80,17 @@ const figureSchema = z
         z.array(z.array(z.number().int().nonnegative()).min(1)),
       ])
       .default([]),
+    // kind: vowel のときだけ。省略すると units の表記から自動で導かれる
+    vowels: z.array(z.string().min(1).max(2)).optional(),
   })
   .superRefine((figure, ctx) => {
+    if (figure.vowels && figure.vowels.length !== figure.units.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['vowels'],
+        message: `vowels は units と同じ ${figure.units.length} 要素にしてください（いまは ${figure.vowels.length} 要素）`,
+      });
+    }
     const groups: number[][] =
       figure.highlight.length === 0
         ? []

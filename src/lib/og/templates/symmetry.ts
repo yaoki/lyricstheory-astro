@@ -1,19 +1,6 @@
+import { normalizeHighlight, type SymmetryFigure } from '../figure';
 import { ACCENTS, CANVAS, COLORS, FONT_FAMILY, MARGIN_X, SITE_NAME, SYMMETRY } from '../layout';
 import { escapeXml, textBlock, widthEm, wrapText } from '../text';
-
-/**
- * symmetry テンプレートが受け取る figure。
- * 実体の検証は `src/content.config.ts` の figureSchema 側で行う（構造を変えるときは両方直す）。
- */
-export interface SymmetryFigure {
-  kind: 'symmetry';
-  units: string[];
-  /**
-   * 強調する位置。1 組なら [2, 4]、複数の呼応があるなら [[2, 4], [5, 7]]。
-   * 組ごとに色が変わり、それぞれ弧で結ばれる。
-   */
-  highlight: number[] | number[][];
-}
 
 type Accent = (typeof ACCENTS)[number];
 
@@ -23,13 +10,9 @@ interface Span {
   accent: Accent;
 }
 
-/** [2, 4] と [[2, 4], [5, 7]] の両方を受けて、組の配列に揃える */
-export function normalizeHighlight(highlight: number[] | number[][]): number[][] {
-  if (highlight.length === 0) return [];
-  return typeof highlight[0] === 'number' ? [highlight as number[]] : (highlight as number[][]);
-}
-
-export function symmetry(figure: SymmetryFigure, title: string): string {
+// kind は呼び出し側で振り分け済みなので受け取らない
+// （zod の推論は判別ユニオンにならず、kind 付きのまま渡すと型が合わないため）
+export function symmetry(figure: Omit<SymmetryFigure, 'kind'>, title: string): string {
   const { units } = figure;
   const groups = normalizeHighlight(figure.highlight);
   const n = units.length;

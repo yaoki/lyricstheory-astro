@@ -14,10 +14,11 @@ import path from 'node:path';
 import { PhraseError, parsePhrase, toYaml } from '../src/lib/og/phrase';
 import { renderPng } from '../src/lib/og/render';
 import { symmetry } from '../src/lib/og/templates/symmetry';
+import { vowel } from '../src/lib/og/templates/vowel';
 
 const USAGE = `
 使い方:
-  npm run figure -- '<フレーズ>' [--title '<カードのタイトル>'] [--out <出力先.png>] [--no-open]
+  npm run figure -- '<フレーズ>' [--vowel] [--title '<カードのタイトル>'] [--out <出力先.png>] [--no-open]
 
 フレーズは、呼応する音を「」で囲んで書きます。
 前後の文脈もそのまま枠に並びます（最大8音。超えた分は外側から落ちます）。
@@ -30,6 +31,12 @@ const USAGE = `
 
   例) npm run figure -- 'あの「ひ」と「び」〈だ〉し〈た〉'
       → highlight: [[2, 4], [5, 7]]
+
+--vowel を付けると、音節を上段に並べ、母音だけを下段に抜き出した図になります。
+母音は表記から自動で導かれるので、書き手が打ち込む必要はありません。
+
+  例) npm run figure -- --vowel '「き」も「ち」'
+      → 上段 き・も・ち / 下段 イ・オ・イ（両端のイを強調）
 `;
 
 function main(): void {
@@ -37,6 +44,7 @@ function main(): void {
   let title = '';
   let out: string | undefined;
   let shouldOpen = true;
+  let kind: 'symmetry' | 'vowel' = 'symmetry';
   const positional: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
@@ -44,6 +52,7 @@ function main(): void {
     if (arg === '--title') title = args[++i] ?? '';
     else if (arg === '--out') out = args[++i];
     else if (arg === '--no-open') shouldOpen = false;
+    else if (arg === '--vowel') kind = 'vowel';
     else if (arg === '-h' || arg === '--help') return console.log(USAGE);
     else positional.push(arg);
   }
@@ -56,7 +65,7 @@ function main(): void {
 
   let parsed;
   try {
-    parsed = parsePhrase(phrase);
+    parsed = parsePhrase(phrase, kind);
   } catch (error) {
     if (error instanceof PhraseError) {
       console.error(`\n  ${error.message}\n`);
@@ -76,7 +85,8 @@ function main(): void {
   }
 
   const file = out ?? path.join(tmpdir(), 'lyricstheory-figure-preview.png');
-  writeFileSync(file, renderPng(symmetry(figure, title)));
+  const svg = figure.kind === 'vowel' ? vowel(figure, title) : symmetry(figure, title);
+  writeFileSync(file, renderPng(svg));
   console.log(`プレビュー: ${file}`);
 
   if (shouldOpen && process.platform === 'darwin') {
