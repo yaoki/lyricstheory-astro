@@ -84,7 +84,7 @@ function main(): void {
   }
 
   const file = out ?? path.join(tmpdir(), 'lyricstheory-figure-preview.png');
-  writeFileSync(file, renderPng(symmetry(figure, title, repetition)));
+  writeFileSync(file, renderPng(symmetry(figure, { title, repetition })));
   console.log(`プレビュー: ${file}`);
 
   if (shouldOpen && process.platform === 'darwin') {

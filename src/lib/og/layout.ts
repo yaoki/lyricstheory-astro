@@ -112,6 +112,26 @@ export const VOWEL = {
   siteFontSize: 28,
 } as const;
 
+/**
+ * 離れた 2 箇所を上下に並べる図（回帰反復）。
+ * 行ラベルは構造的対応を担う要素なので、本文と同じ濃さで大きく置く。
+ */
+export const PAIR = {
+  row1: 258,
+  row2: 372,
+  maxSize: 92,
+  gap: 16,
+  /** 行ラベルのぶんだけ音の領域を右に寄せる */
+  labelWidth: 118,
+  labelFontSize: 42,
+  titleCenterY: 482,
+  titleFontSize: 40,
+  titleLineHeight: 50,
+  titleMaxLines: 2,
+  siteY: 572,
+  siteFontSize: 26,
+} as const;
+
 export const FALLBACK = {
   titleCenterY: 320,
   titleFontSize: 56,

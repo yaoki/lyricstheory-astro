@@ -67,10 +67,13 @@ const author = defineCollection({
 // figure を持たないカードは図なしのフォールバックで生成される。
 // 仕様: ../tasks/lyricstheory-og-symmetry-spec.md
 // 型の対応先: src/lib/og/templates/symmetry.ts の SymmetryFigure
-const figureSchema = z
+// 行数＝図に載せる箇所の数。1 箇所なら symmetry、離れた 2 箇所の対比なら pair。
+// 図の形が表すのは「何箇所載るか」であって、何を見ているか（フレーム）ではない。
+// フレームは tags.repetition が決め、左上のバッジと色で示す。
+// 3 つ目の形を足す前に、この規則で説明がつくかを必ず判定すること。
+const symmetryFigure = z
   .object({
-    // 図の形は 1 種類に統一してある。何のフレームで見ているかは tags.repetition が決める
-    kind: z.enum(['symmetry']),
+    kind: z.literal('symmetry'),
     // units の上限 8 は著作権上のガードレール（長い連続は歌詞の再現に近づく）。緩めないこと
     units: z.array(z.string().min(1).max(4)).min(2).max(8),
     // 1 組なら [2, 4]、同じフレーズに複数の呼応があるなら [[2, 4], [5, 7]]
@@ -98,6 +101,34 @@ const figureSchema = z
       }
     }
   });
+
+// 離れた 2 箇所の対比（回帰反復）。カード本文が既に両方を引用している範囲に留めること。
+// 縛りは音数ではなく行数（1 カードあたり 1〜2 行以内、CLAUDE.md の引用ルール）。
+const pairFigure = z
+  .object({
+    kind: z.literal('pair'),
+    rows: z.tuple([
+      z.array(z.string().min(1).max(4)).min(2),
+      z.array(z.string().min(1).max(4)).min(2),
+    ]),
+    // 回帰反復では構造的対応を担う要素。省略できない
+    labels: z.tuple([z.string().min(1).max(8), z.string().min(1).max(8)]),
+  })
+  .superRefine((figure, ctx) => {
+    // 列を揃えることは「同じ位置」という主張。音数が違うまま並べると
+    // 韻律の対応（対応の三要素の③）を断定したことになる。③は保留中なので止める
+    if (figure.rows[0].length !== figure.rows[1].length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['rows'],
+        message:
+          `2行の音数が違います（${figure.rows[0].length} と ${figure.rows[1].length}）。` +
+          '列が揃わない対比は、位置の対応を主張したことになるため描けません',
+      });
+    }
+  });
+
+const figureSchema = z.union([symmetryFigure, pairFigure]);
 
 const elements = defineCollection({
   loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/elements' }),

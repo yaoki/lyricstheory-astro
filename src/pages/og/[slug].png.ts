@@ -1,7 +1,9 @@
 import type { APIRoute, InferGetStaticPropsType } from 'astro';
 import { getCollection } from 'astro:content';
 import { renderPng } from '../../lib/og/render';
+import { lyricistOf } from '../../lib/og/credit';
 import { fallback } from '../../lib/og/templates/fallback';
+import { pair } from '../../lib/og/templates/pair';
 import { symmetry } from '../../lib/og/templates/symmetry';
 
 /**
@@ -20,11 +22,19 @@ type Props = InferGetStaticPropsType<typeof getStaticPaths>;
 
 export const GET: APIRoute<Props> = ({ props }) => {
   const { data } = props.card;
-  // 反復の類型は C/V スロットのどちらを色づけるかを決める
-  const repetition = data.tags?.repetition;
-  const svg = data.figure
-    ? symmetry(data.figure, data.title, repetition)
-    : fallback(data.title);
+  const ctx = {
+    title: data.title,
+    // 分析のフレーム。図の左上に掲げる
+    repetition: data.tags?.repetition,
+    // 画像は単体で流通するため、引用の体裁として作詞者を図にも添える
+    lyricist: lyricistOf(data.sources ?? []),
+  };
+  const svg =
+    data.figure?.kind === 'pair'
+      ? pair(data.figure, ctx)
+      : data.figure
+        ? symmetry(data.figure, ctx)
+        : fallback(ctx);
 
   return new Response(new Uint8Array(renderPng(svg)), {
     headers: { 'Content-Type': 'image/png' },
