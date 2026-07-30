@@ -32,6 +32,14 @@ tags:
   lang: ja             # ja | en | fr | ...
 related: []            # 関連カード・essay の slug（双方向リンクの素）
 sources: []            # 出典（曲名・作詞者・年。全文引用はしない。未確認のまま記載しない）
+# figure（任意）— X に出るサムネイル画像に描く図。書かなければタイトルのみの絵になる。
+# 対称形のカードなら下の3行を有効にする。いまは kind: symmetry だけが使える。
+# units は最大8音まで（それ以上は歌詞の再現に近づくため、ビルドが止まる）。
+# highlight は強調する units の位置（0始まり）で、指定が2つ以上あると弧で結ばれる。
+# figure:
+#   kind: symmetry
+#   units: ["し", "て", "し"]
+#   highlight: [0, 2]
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 ---

@@ -57,9 +57,16 @@ const lang = entry.data.tags?.lang ?? 'ja';
 const sources = entry.data.sources ?? [];
 const maturityLabel = MATURITY_LABELS[entry.data.maturity] ?? entry.data.maturity;
 const description = `${entry.data.title}（elements・${maturityLabel}）`;
+// カードごとの OG 画像。実体は src/pages/og/[slug].png.ts がビルド時に生成する
+const ogImage = `/og/${entry.id}.png`;
 ---
 
-<BaseLayout title={`${entry.data.title} | elements`} description={description}>
+<BaseLayout
+  title={`${entry.data.title} | elements`}
+  description={description}
+  ogImage={ogImage}
+  ogImageSize={{ width: 1200, height: 630 }}
+>
   <p class="mb-2 text-sm text-gray-500">
     <a href="/" class="hover:underline">lyricstheory.com</a> /
     <a href="/elements/" class="hover:underline">elements</a>

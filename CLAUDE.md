@@ -160,6 +160,25 @@ seed と作業ノートの違いは成熟度ではなく「公開ルートに乗
 
 `src/content/elements/_template.mdx.txt` を参照。拡張子を `.mdx.txt` にすることで content collection の glob（`**/*.{md,mdx}`）にマッチしないようにしてある。新規カード作成時はこの内容をコピーして `.mdx` 拡張子で保存する。
 
+### OG 画像（X のサムネイル）
+
+elements カード 1 枚につき `/og/{slug}.png`（1200×630）が**ビルド時に自動生成される**。手で画像を作る必要はない。
+
+frontmatter に `figure` を書くと図になり、書かなければタイトルとサイト名だけの絵になる（フォールバック）。**書き忘れても事故にはならない**。
+
+```yaml
+figure:
+  kind: symmetry          # 現状これだけ。他の値はビルドエラー
+  units: ["し", "て", "し"] # 図に並べる音。最大8
+  highlight: [0, 2]        # 強調する位置（0始まり）。2つ以上あると弧で結ばれる
+```
+
+- `units` の**上限8は著作権上のガードレール**。長い連続は歌詞の再現に近づくため緩めない
+- `highlight` が `units` の範囲外、`units` が9個以上ならビルドが止まる
+- フォントは `fonts/NotoSansJP-{Regular,Bold}.ttf`。`public/` に置かないのは、ビルド時にしか使わない 8.8MB が `dist/` へコピーされて配信されるのを避けるため。**システムフォントには依存させない**（Cloudflare Pages 側に日本語フォントがある保証がなく、豆腐化する）
+- 実装は `src/lib/og/`、出力は `src/pages/og/[slug].png.ts`。仕様書は `../tasks/lyricstheory-og-symmetry-spec.md`
+- pivot / vowel など他の型は未実装。追加するときは `content.config.ts` の `figureSchema` の enum と `src/lib/og/templates/` の両方に足す
+
 ### 新規 element カードのデプロイ workflow
 
 Chat 側（lyric-analysis-memo スキル）で生成された MDX を受け取ってから、以下の順で lyricstheory.com に公開する。単独で「デプロイして」と依頼された場合の標準手順。

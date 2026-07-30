@@ -63,6 +63,30 @@ const author = defineCollection({
   }),
 });
 
+// OG 画像（/og/{slug}.png）に描く図の指定。任意。
+// figure を持たないカードは図なしのフォールバックで生成される。
+// 仕様: ../tasks/lyricstheory-og-symmetry-spec.md
+// 型の対応先: src/lib/og/templates/symmetry.ts の SymmetryFigure
+const figureSchema = z
+  .object({
+    // 現時点では symmetry のみ。テンプレートを増やすときはここに足す
+    kind: z.enum(['symmetry']),
+    // units の上限 8 は著作権上のガードレール（長い連続は歌詞の再現に近づく）。緩めないこと
+    units: z.array(z.string().min(1).max(4)).min(2).max(8),
+    highlight: z.array(z.number().int().nonnegative()).default([]),
+  })
+  .superRefine((figure, ctx) => {
+    for (const index of figure.highlight) {
+      if (index >= figure.units.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['highlight'],
+          message: `highlight の ${index} は units（${figure.units.length} 要素）の範囲外です`,
+        });
+      }
+    }
+  });
+
 const elements = defineCollection({
   loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/elements' }),
   schema: z.object({
@@ -83,6 +107,7 @@ const elements = defineCollection({
       .default({ phoneme: [], artist: [], lang: 'ja' }),
     related: z.array(z.string()).default([]),
     sources: z.array(z.string()).default([]),
+    figure: figureSchema.optional(),
     created: z.coerce.date(),
     updated: z.coerce.date(),
   }),
