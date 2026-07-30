@@ -44,7 +44,7 @@ interface Token {
  * 囲みの中を 1 枠、囲みの外は 1 音 1 枠として並べる。
  * どの組も囲みが 2 つ未満なら、何と何が呼応しているのか決まらないのでエラーにする。
  */
-export function parsePhrase(phrase: string, kind: Figure['kind'] = 'symmetry'): ParsedPhrase {
+export function parsePhrase(phrase: string): ParsedPhrase {
   const tokens = tokenize(phrase);
 
   const used = [...new Set(tokens.flatMap((t) => (t.group === null ? [] : [t.group])))].sort(
@@ -102,8 +102,7 @@ export function parsePhrase(phrase: string, kind: Figure['kind'] = 'symmetry'): 
   const highlight: Highlight = ordered.length === 1 ? ordered[0] : ordered;
 
   return {
-    figure:
-      kind === 'vowel' ? { kind: 'vowel', units, highlight } : { kind: 'symmetry', units, highlight },
+    figure: { kind: 'symmetry', units, highlight },
     trimmed: { head: start, tail: tokens.length - 1 - end },
   };
 }

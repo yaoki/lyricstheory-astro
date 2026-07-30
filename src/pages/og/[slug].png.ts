@@ -3,7 +3,6 @@ import { getCollection } from 'astro:content';
 import { renderPng } from '../../lib/og/render';
 import { fallback } from '../../lib/og/templates/fallback';
 import { symmetry } from '../../lib/og/templates/symmetry';
-import { vowel } from '../../lib/og/templates/vowel';
 
 /**
  * elements カード 1 枚につき OG 画像 1 枚をビルド時に生成する。
@@ -21,12 +20,11 @@ type Props = InferGetStaticPropsType<typeof getStaticPaths>;
 
 export const GET: APIRoute<Props> = ({ props }) => {
   const { data } = props.card;
-  const svg =
-    data.figure?.kind === 'symmetry'
-      ? symmetry(data.figure, data.title)
-      : data.figure?.kind === 'vowel'
-        ? vowel(data.figure, data.title)
-        : fallback(data.title);
+  // 反復の類型は C/V スロットのどちらを色づけるかを決める
+  const repetition = data.tags?.repetition;
+  const svg = data.figure
+    ? symmetry(data.figure, data.title, repetition)
+    : fallback(data.title);
 
   return new Response(new Uint8Array(renderPng(svg)), {
     headers: { 'Content-Type': 'image/png' },

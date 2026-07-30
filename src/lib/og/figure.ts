@@ -9,23 +9,19 @@
  */
 export type Highlight = number[] | number[][];
 
-/** 音を横に並べ、呼応する音を弧で結ぶ */
+/**
+ * 音を横に並べ、呼応する音を弧で結ぶ。
+ *
+ * 図の形は 1 種類に統一してある。何を見ているか（C / V / CV のどのフレームか）は
+ * 図の形ではなく、カードの tags.repetition が決めるバッジと色で示す。
+ */
 export interface SymmetryFigure {
   kind: 'symmetry';
   units: string[];
   highlight: Highlight;
 }
 
-/** 音節を上段に並べ、母音だけを下段に抜き出して塗る */
-export interface VowelFigure {
-  kind: 'vowel';
-  units: string[];
-  highlight: Highlight;
-  /** 省略すると units の表記から自動で導く。導出が合わないときだけ明示する */
-  vowels?: (string | null)[];
-}
-
-export type Figure = SymmetryFigure | VowelFigure;
+export type Figure = SymmetryFigure;
 
 /** [2, 4] と [[2, 4], [5, 7]] の両方を受けて、組の配列に揃える */
 export function normalizeHighlight(highlight: Highlight): number[][] {

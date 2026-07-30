@@ -1,4 +1,4 @@
-import { CANVAS, COLORS, FALLBACK, FONT_FAMILY, MARGIN_X, SITE_NAME } from '../layout';
+import { CANVAS, COLORS, FALLBACK, FONT_FAMILY, MARGIN_X, SIGNATURE } from '../layout';
 import { textBlock, wrapText } from '../text';
 
 /**
@@ -22,7 +22,7 @@ export function fallback(title: string): string {
       fontFamily: FONT_FAMILY,
       fontWeight: 700,
     }),
-    textBlock([SITE_NAME], {
+    textBlock([SIGNATURE], {
       x: MARGIN_X,
       baseline: FALLBACK.siteY,
       fontSize: FALLBACK.siteFontSize,

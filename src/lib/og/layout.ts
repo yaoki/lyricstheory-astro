@@ -28,29 +28,59 @@ export const ACCENTS = [
 export const FONT_FAMILY = 'Noto Sans JP';
 
 export const SITE_NAME = 'lyricstheory.com';
+export const AUTHOR_NAME = 'やおき';
+/** 図の左下に置く署名 */
+export const SIGNATURE = `${AUTHOR_NAME} / ${SITE_NAME}`;
 
+/**
+ * 分析のフレームを示すバッジ。図の左上に置き、読み始める前に目に入るようにする。
+ *
+ * これは個々の音の構造（音節が C+V でできていること）ではなく、
+ * **この図をどの枠で見ているか**の宣言である。三類型は類型であって単位ではない。
+ */
+export const FRAME_BADGE = {
+  x: MARGIN_X,
+  y: 56,
+  width: 168,
+  height: 56,
+  radius: 10,
+  fontSize: 30,
+} as const;
+
+export const REPETITION_LABELS: Record<string, string> = {
+  c: 'C反復',
+  v: 'V反復',
+  cv: 'CV反復',
+};
+
+/**
+ * 音を横一列に並べ、呼応する音を弧で結ぶ図。
+ *
+ * 枠を持たないのは、SNS のタイムラインで縮小表示されることを前提にしているため。
+ * 装飾を削って文字を大きく取り、色の差だけで呼応を示す。
+ */
 export const SYMMETRY = {
-  /** 枠の一辺。units が多いときはこの値を上限として縮む（§5.3 の初期値） */
-  boxSize: 140,
-  boxRadius: 12,
-  boxGap: 32,
-  /** 枠の中心の縦位置。枠が縮んでもこの中心は動かさない */
-  boxCenterY: 240,
-  unitFontSize: 72,
-  /** 弧の頂点を枠上端から何 px 上に置くか */
-  arcLift: 70,
+  unitFontSize: 108,
+  /** 音と音の間隔 */
+  gap: 22,
+  /** 音のベースライン */
+  baseline: 320,
+  /** 呼応していない音の色。読めるが前に出ない濃度にする */
+  dim: '#cbd5e1',
+  /** 弧の頂点を文字の上端から何 px 上に置くか */
+  arcLift: 60,
+  /** 弧の端点と文字の隙間 */
+  arcGap: 10,
   /** 入れ子の弧を 1 段ぶん持ち上げる量 */
-  arcNestStep: 48,
-  /** 弧の端点と枠上端の隙間 */
-  arcGap: 12,
-  arcWidth: 5,
+  arcNestStep: 44,
+  arcWidth: 6,
   /** タイトルの縦位置。複数行のときは行数に応じて上へずらし、重心を保つ */
   titleCenterY: 470,
-  titleFontSize: 44,
-  titleLineHeight: 56,
+  titleFontSize: 40,
+  titleLineHeight: 50,
   titleMaxLines: 2,
   siteY: 570,
-  siteFontSize: 28,
+  siteFontSize: 26,
 } as const;
 
 /**
