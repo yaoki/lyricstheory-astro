@@ -1,4 +1,4 @@
-import { CANVAS, COLORS, FONT_FAMILY, MARGIN_X, SITE_NAME, SYMMETRY } from '../layout';
+import { ACCENTS, CANVAS, COLORS, FONT_FAMILY, MARGIN_X, SITE_NAME, SYMMETRY } from '../layout';
 import { escapeXml, textBlock, widthEm, wrapText } from '../text';
 
 /**
@@ -8,11 +8,30 @@ import { escapeXml, textBlock, widthEm, wrapText } from '../text';
 export interface SymmetryFigure {
   kind: 'symmetry';
   units: string[];
-  highlight: number[];
+  /**
+   * 強調する位置。1 組なら [2, 4]、複数の呼応があるなら [[2, 4], [5, 7]]。
+   * 組ごとに色が変わり、それぞれ弧で結ばれる。
+   */
+  highlight: number[] | number[][];
+}
+
+type Accent = (typeof ACCENTS)[number];
+
+interface Span {
+  from: number;
+  to: number;
+  accent: Accent;
+}
+
+/** [2, 4] と [[2, 4], [5, 7]] の両方を受けて、組の配列に揃える */
+export function normalizeHighlight(highlight: number[] | number[][]): number[][] {
+  if (highlight.length === 0) return [];
+  return typeof highlight[0] === 'number' ? [highlight as number[]] : (highlight as number[][]);
 }
 
 export function symmetry(figure: SymmetryFigure, title: string): string {
-  const { units, highlight } = figure;
+  const { units } = figure;
+  const groups = normalizeHighlight(figure.highlight);
   const n = units.length;
 
   // units が多いと 140px 固定では版面をはみ出すため、使える幅に収まるよう一様に縮める
@@ -28,26 +47,33 @@ export function symmetry(figure: SymmetryFigure, title: string): string {
   const boxTop = SYMMETRY.boxCenterY - box / 2;
 
   const centerX = (i: number) => startX + i * (box + gap) + box / 2;
-  const isHighlighted = (i: number) => highlight.includes(i);
+  const accentOf = (i: number): Accent | null => {
+    const group = groups.findIndex((g) => g.includes(i));
+    return group === -1 ? null : ACCENTS[group % ACCENTS.length];
+  };
 
   const boxes = units
     .map((unit, i) => {
       const x = startX + i * (box + gap);
-      const on = isHighlighted(i);
+      const accent = accentOf(i);
       const rect =
         `<rect x="${r(x)}" y="${r(boxTop)}" width="${r(box)}" height="${r(box)}" rx="${r(radius)}" ` +
-        `fill="${on ? COLORS.accentFill : 'none'}" stroke="${on ? COLORS.accent : COLORS.boxStroke}" ` +
-        `stroke-width="${r(on ? 5 * scale : 3 * scale)}" />`;
-      return rect + unitText(unit, centerX(i), box, scale, on);
+        `fill="${accent ? accent.fill : 'none'}" stroke="${accent ? accent.stroke : COLORS.boxStroke}" ` +
+        `stroke-width="${r((accent ? 5 : 3) * scale)}" />`;
+      return rect + unitText(unit, centerX(i), box, scale, accent);
     })
     .join('');
 
-  // highlight が 1 つ以下なら結ぶ相手がいないので弧を描かない（§5.3）
-  const sorted = [...highlight].sort((a, b) => a - b);
-  const arc =
-    sorted.length >= 2
-      ? arcPath(centerX(sorted[0]), centerX(sorted[sorted.length - 1]), boxTop, scale)
-      : '';
+  // 結ぶ相手がいない組（要素が 1 つ以下）には弧を描かない
+  const spans: Span[] = groups.flatMap((group, i) =>
+    group.length >= 2
+      ? [{ from: Math.min(...group), to: Math.max(...group), accent: ACCENTS[i % ACCENTS.length] }]
+      : [],
+  );
+
+  const arcs = spans
+    .map((span) => arcPath(span, spans, centerX, boxTop, scale))
+    .join('');
 
   const maxTitleEm = (CANVAS.width - MARGIN_X * 2) / SYMMETRY.titleFontSize;
   const lines = wrapText(title, maxTitleEm, SYMMETRY.titleMaxLines);
@@ -57,7 +83,7 @@ export function symmetry(figure: SymmetryFigure, title: string): string {
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS.width}" height="${CANVAS.height}" viewBox="0 0 ${CANVAS.width} ${CANVAS.height}">`,
     `<rect width="${CANVAS.width}" height="${CANVAS.height}" fill="${COLORS.bg}" />`,
-    arc,
+    arcs,
     boxes,
     textBlock(lines, {
       x: MARGIN_X,
@@ -85,30 +111,52 @@ export function symmetry(figure: SymmetryFigure, title: string): string {
  * 「/t/」のような複数文字も入るため、推定幅が枠に収まるところまでフォントを落とす。
  * 縦位置は dominant-baseline を使わず、em の中心がおよそ 0.35em 上にある前提で置く。
  */
-function unitText(unit: string, cx: number, box: number, scale: number, on: boolean): string {
+function unitText(
+  unit: string,
+  cx: number,
+  box: number,
+  scale: number,
+  accent: Accent | null,
+): string {
   const inner = box * 0.82;
   const em = Math.max(widthEm(unit), 0.5);
   const fontSize = Math.min(SYMMETRY.unitFontSize * scale, inner / em);
   const baseline = SYMMETRY.boxCenterY + fontSize * 0.35;
   return (
     `<text x="${r(cx)}" y="${r(baseline)}" font-family="${FONT_FAMILY}" font-size="${r(fontSize)}" ` +
-    `font-weight="700" fill="${on ? COLORS.accent : COLORS.text}" text-anchor="middle">${escapeXml(unit)}</text>`
+    `font-weight="700" fill="${accent ? accent.stroke : COLORS.text}" text-anchor="middle">${escapeXml(unit)}</text>`
   );
 }
 
 /**
- * highlight 同士を結ぶ弧。
- * 二次ベジェは制御点の高さの半分までしか上がらないため、頂点を arcLift に合わせるには
- * 制御点をその 2 倍の高さに置く（仕様書の式をそのまま書くと弧が浅くなる）。
+ * 呼応する枠どうしを結ぶ弧。
+ *
+ * 二次ベジェは制御点の高さの半分までしか上がらないため、頂点を狙った高さに合わせるには
+ * 制御点をその 2 倍に置く。入れ子になっている弧は、内側と重ならないよう段を上げる。
  */
-function arcPath(x1: number, x2: number, boxTop: number, scale: number): string {
+function arcPath(
+  span: Span,
+  all: Span[],
+  centerX: (i: number) => number,
+  boxTop: number,
+  scale: number,
+): string {
+  const nesting = all.filter(
+    (other) =>
+      other !== span &&
+      other.from >= span.from &&
+      other.to <= span.to &&
+      (other.from > span.from || other.to < span.to),
+  ).length;
+
   const y = boxTop - SYMMETRY.arcGap * scale;
-  const apex = boxTop - SYMMETRY.arcLift;
+  const apex = boxTop - (SYMMETRY.arcLift + nesting * SYMMETRY.arcNestStep);
   const cy = 2 * apex - y;
-  const cx = (x1 + x2) / 2;
+  const x1 = centerX(span.from);
+  const x2 = centerX(span.to);
   return (
-    `<path d="M ${r(x1)} ${r(y)} Q ${r(cx)} ${r(cy)} ${r(x2)} ${r(y)}" fill="none" ` +
-    `stroke="${COLORS.accent}" stroke-width="${r(SYMMETRY.arcWidth)}" stroke-linecap="round" />`
+    `<path d="M ${r(x1)} ${r(y)} Q ${r((x1 + x2) / 2)} ${r(cy)} ${r(x2)} ${r(y)}" fill="none" ` +
+    `stroke="${span.accent.stroke}" stroke-width="${r(SYMMETRY.arcWidth)}" stroke-linecap="round" />`
   );
 }
 

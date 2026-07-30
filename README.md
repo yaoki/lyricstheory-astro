@@ -95,6 +95,64 @@ import LyricQuote from '../../../components/LyricQuote.astro';
 
 必要になった時点で追加予定：`<IPA>` `<QNotation>` `<PhonoSeq>` `<ConceptLink>`（MVP 原則）
 
+## OG 画像（音韻の図）
+
+elements カード 1 枚につき、X のサムネイル用の PNG（1200×630）が**ビルド時に自動生成される**。手で画像を作る必要はない。
+
+図は「何が繰り返されているか」を一目で示すことを狙っている。枠に音を並べ、呼応する音を強調し、そのあいだを弧で結ぶ。
+
+### 図を起こす
+
+フレーズを渡すだけで起こせる。呼応する音を `「」` で囲む。
+
+```bash
+npm run figure -- 'おと「し」て「し」まう'
+```
+
+frontmatter に貼る YAML が出て、プレビュー PNG が開く。
+
+```yaml
+figure:
+  kind: symmetry
+  units: ["お", "と", "し", "て", "し", "ま", "う"]
+  highlight: [2, 4]
+```
+
+- `「」` で囲んだ音が強調され、囲みどうしが弧で結ばれる
+- 前後の文脈もそのまま枠に並ぶ（対称がフレーズのどこで起きているかを図に残すため）
+- `units` の上限は 8 音。**著作権上のガードレール**で、超えたぶんは呼応する範囲を残したまま外側から落とされる
+- `figure` を書かなければ、タイトルとサイト名だけの絵になる（書き忘れても壊れない）
+
+同じフレーズに呼応が二組あるときは、二組目を `〈〉`、三組目を `〔〕` で囲む。組ごとに色が変わり、別々の弧で結ばれる。
+
+```bash
+npm run figure -- 'なく「し」〈た〉あ〈た〉「し」は'
+```
+
+```yaml
+figure:
+  kind: symmetry
+  units: ["な", "く", "し", "た", "あ", "た", "し", "は"]
+  highlight: [[2, 6], [3, 5]]   # 外側の「し…し」と内側の「た…た」
+```
+
+入れ子になっている弧は段違いに描かれるので、どちらがどちらを包んでいるかが読める。
+
+### 他のサイトへ持っていく
+
+生成部分はこのサイト固有の作りにほとんど依存していない。歌詞分析のブログを作る方は以下で移植できる（コードは MIT）。
+
+1. `npm i @resvg/resvg-js` を入れ、日本語の **ttf/otf** を `fonts/` に置く（Noto Sans JP など。OFL なら同梱してよい。woff/woff2 は読めない）
+2. `src/lib/og/` をまるごとコピーする。5 ファイルとも Astro にも本サイトにも依存しない関数で、タイトルと音の列を渡すと SVG 文字列が返るだけ
+3. `src/lib/og/layout.ts` の `SITE_NAME` と `COLORS` を自分のサイトのものに変える
+4. `src/pages/og/[slug].png.ts` をコピーし、`getCollection('elements')` を自分のコレクション名に変える
+5. コレクションの schema に `figure` を足す（`src/content.config.ts` の `figureSchema` をコピー）
+6. `<head>` に `og:image`（**絶対 URL**）と `twitter:card: summary_large_image` を出す。相対パスは X に無視される
+
+Astro 以外（Next.js / Eleventy 等）でも、4 の 20 行ほどを書き直せば動く。1〜3 と 5 はそのまま使える。
+
+**注意**: `loadSystemFonts: false` を明示してフォントを同梱すること。システムフォント任せにすると、日本語フォントの無いビルド環境で豆腐（□□□）になる。
+
 ## 貢献
 
 現時点では著者の個人ブログですが、事実誤認・誤字脱字の指摘や、公開議論の呼びかけを歓迎します。GitHub Issues か X（[@yaoki_dokidoki](https://x.com/yaoki_dokidoki)）へお願いします。

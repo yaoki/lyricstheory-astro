@@ -73,10 +73,22 @@ const figureSchema = z
     kind: z.enum(['symmetry']),
     // units の上限 8 は著作権上のガードレール（長い連続は歌詞の再現に近づく）。緩めないこと
     units: z.array(z.string().min(1).max(4)).min(2).max(8),
-    highlight: z.array(z.number().int().nonnegative()).default([]),
+    // 1 組なら [2, 4]、同じフレーズに複数の呼応があるなら [[2, 4], [5, 7]]
+    highlight: z
+      .union([
+        z.array(z.number().int().nonnegative()),
+        z.array(z.array(z.number().int().nonnegative()).min(1)),
+      ])
+      .default([]),
   })
   .superRefine((figure, ctx) => {
-    for (const index of figure.highlight) {
+    const groups: number[][] =
+      figure.highlight.length === 0
+        ? []
+        : typeof figure.highlight[0] === 'number'
+          ? [figure.highlight as number[]]
+          : (figure.highlight as number[][]);
+    for (const index of groups.flat()) {
       if (index >= figure.units.length) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,

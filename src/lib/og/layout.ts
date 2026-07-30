@@ -12,10 +12,18 @@ export const COLORS = {
   bg: '#f8fafc',
   text: '#0f172a',
   boxStroke: '#94a3b8',
-  accent: '#1d4ed8',
-  accentFill: '#dbeafe',
   muted: '#64748b',
 } as const;
+
+/**
+ * 呼応の組ごとの色。1 枚の図に複数の呼応があるとき、どの枠とどの枠が対応するかを色で分ける。
+ * 先頭はサイトのリンク色に合わせてある。
+ */
+export const ACCENTS = [
+  { stroke: '#1d4ed8', fill: '#dbeafe' }, // blue
+  { stroke: '#b45309', fill: '#fef3c7' }, // amber
+  { stroke: '#0f766e', fill: '#ccfbf1' }, // teal
+] as const;
 
 export const FONT_FAMILY = 'Noto Sans JP';
 
@@ -31,6 +39,8 @@ export const SYMMETRY = {
   unitFontSize: 72,
   /** 弧の頂点を枠上端から何 px 上に置くか */
   arcLift: 70,
+  /** 入れ子の弧を 1 段ぶん持ち上げる量 */
+  arcNestStep: 48,
   /** 弧の端点と枠上端の隙間 */
   arcGap: 12,
   arcWidth: 5,
