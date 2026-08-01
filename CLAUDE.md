@@ -144,6 +144,7 @@ COMITIA156 本で確定した三類型をそのまま使う。定義は `../comi
 - elements の全体形は `<曲slug>-<観察slug>`（例: `tadashii-machi-t-pivot`）
 - **観察 slug のなかでは、対象の音を末尾に綴る**（2026-08-02 明文化）。下の改称表が `wekapipo-fixed-vowel-a` について定めた原則を、語順の規則として一般化したもの。`houkiboshi-cv-repetition-kana` / `there-will-be-love-there-cv-repetition-ka` / `kuchibue-aba-ke` がこの形。**音が軸そのものであるピボット・ゼクエンツは例外**で、従来どおり音を先頭に置く（`t-pivot` / `k-pivot` / `tr-sequenz`）
 - **楽曲を対象としないカード（`type: principle` 等）は `<曲slug>-` を持たず、観察 slug のみで構成する**（例: `phoneme-base-voicing-neutral`。2026-08-02 追加）
+- **読みが確定していないカードは、観察名を置かず音だけで綴ってよい**（2026-08-02 追加。例: `tadashii-machi-dashita-tadashi`）。並べ替えとも倒置とも読める段階で観察名を入れると、slug が一方の読みを固定してしまうため。**読みが確定したら観察名を足して改名し、301 を張る**
 
 **注意**: この slug 規約は、上記「phoneme romaji 正規化ルール」とは**適用対象が異なる**。phoneme タグは促音を `q`・長音を単独表記とするが、slug は曲名の流通する読みをそのまま綴る（`yumeippai` / `tadashii`）。混同しないこと。
 
