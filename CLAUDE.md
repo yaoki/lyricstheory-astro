@@ -57,8 +57,9 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/theory-glos
 
 `type` は enum ではなく `z.string()`。カードが10〜20枚溜まってから enum 化を検討する。当面の推奨7語彙:
 
-`pivot | sequenz | rhyme | syllable | prosody | pattern | other`
+`pivot | sequenz | rhyme | syllable | prosody | pattern | principle | other`
 
+- **principle**: 楽曲を対象としない、記述方針そのもののカード（2026-08-02 追加）。分析の枠組みを決める判断を、個別の楽曲カードに従属させず独立に持たせる。第1号は `phoneme-base-voicing-neutral`（音素ベース・清濁統合）。楽曲カードからは related で参照する
 - **pattern**: 反復パターンの上位型。距離のバリエーション（連続反復・1音おき反復・2音おき反復・倒置反復 等）を含む。サブカテゴリの細分化は該当カードが5枚以上溜まってから判断する。
 
 ### 理論用語
@@ -93,6 +94,13 @@ COMITIA156 本で確定した三類型をそのまま使う。定義は `../comi
 4. ローマ字化はヘボン式を採用する（訓令式ではない）。例: `shi`（し）, `chi`（ち）, `tsu`（つ）, `fu`（ふ）, `ji`（じ）
 5. 拗音は2文字で表記する（例: `kya`, `sha`, `cho`）
 6. 母音単独は `a i u e o`
+7. **音節構造を観察対象とするカードに限り、1音節を1トークンに融合する**（2026-08-02 追加）。構成モーラを 1〜6 の綴りのまま連結する。例: 「けい」= `kei`、「ない」= `nai`、「きん」= `kin`、「きっ」= `kiq`。撥音・促音はルール1・2 の `n`・`q` が音節末子音としてトークン内に現れる。**長音を含む音節だけはルール3 の例外**として核母音を重ねる（「むー」= `muu`）。落とすと2モーラ目が消えて CVV を表せないため
+
+**7 を使ってよいのは、音の一致ではなく音節構造そのものを見ているカードだけ**である。実務上は `tags.repetition` を持たないカードがそれにあたる（c / v / cv のどれにも当てはまらないから持てない）。音の一致を見るカードは 1〜6 のまま1モーラ単位で書く。
+
+理由は、コリジョン・インデックス（上位仕様 §3、`phoneme × artist` の共起集計）では **phoneme タグが「その音について観察した」という申告として読まれる**ため。重音節のカードを `[ke, i, na, ki, n]` と分解すると、`ke` や `i` という音についての観察が存在しないのに「観察済み」として登録され、未共起ペアのバックログから本物の未探索が消える。逆に真の観察単位である `kei` は集計に一度も現れない。
+
+**融合トークンと1モーラトークンは文字列一致しない**（`kei` ≠ `ke` + `i`）。粒度を取り違えると同じ現象が集計上で分裂する（`sheena` / `shiina` 分裂と同型の事故）。迷ったら分解側に倒すこと。
 
 ### artist 表記の正規化ルール（重要・厳守）
 
@@ -102,6 +110,22 @@ COMITIA156 本で確定した三類型をそのまま使う。定義は `../comi
 - SOUL'd OUT → `souldout`
 - Mr.Children → `mrchildren`（公式表記 "Mr.Children" にスペースが無いため一語として結合し、記号のみ除去。`souldout` と同じ扱い。2026-07-27 決定）
 - 公式英語表記が存在しない場合のみヘボン式（例: 関ゆみ子 → `seki-yumiko`）
+
+**ハイフンにするか結合するかは、公式表記にスペースがあるかで決まる**（2026-08-02 明文化）。上の3例だけを見ると規則が割れているように読めるが、essays 側まで含めると全例が説明できる。
+
+| 公式表記 | slug | スペース |
+|---|---|---|
+| ASIAN KUNG-FU GENERATION | `asian-kung-fu-generation` | あり → ハイフン |
+| SEKAI NO OWARI | `sekai-no-owari` | あり → ハイフン |
+| Official髭男dism | `official-hige-dandism` | あり → ハイフン |
+| Sheena Ringo | `sheena-ringo` | あり → ハイフン |
+| the brilliant green | `the-brilliant-green` | あり → ハイフン |
+| THE HIGH-LOWS | `the-high-lows` | あり → ハイフン |
+| Mr.Children | `mrchildren` | なし → 結合 |
+| supercell / GLAY | `supercell` / `glay` | なし → 結合 |
+
+- **元表記にあるハイフンはそのまま残す**（`asian-kung-fu-generation` / `the-high-lows`）
+- `souldout` だけが例外。"SOUL'd OUT" はスペースがあるが、アポストロフィを落とすと `sould-out` になって読めないため結合した
 
 理由は二つ。
 
@@ -118,6 +142,8 @@ COMITIA156 本で確定した三類型をそのまま使う。定義は `../comi
 - **固有名詞のみ romaji**（`utada-hikaru` / `sekai-no-owari` / `dragon-night` / `tadashii-machi`）。アーティスト名は上記の artist 正規化ルールに従う
 - 音韻要素は綴りで表す（`where-to-place-ii-` / `where-to-place-nn-` / `i-dan-`）
 - elements の全体形は `<曲slug>-<観察slug>`（例: `tadashii-machi-t-pivot`）
+- **観察 slug のなかでは、対象の音を末尾に綴る**（2026-08-02 明文化）。下の改称表が `wekapipo-fixed-vowel-a` について定めた原則を、語順の規則として一般化したもの。`houkiboshi-cv-repetition-kana` / `there-will-be-love-there-cv-repetition-ka` / `kuchibue-aba-ke` がこの形。**音が軸そのものであるピボット・ゼクエンツは例外**で、従来どおり音を先頭に置く（`t-pivot` / `k-pivot` / `tr-sequenz`）
+- **楽曲を対象としないカード（`type: principle` 等）は `<曲slug>-` を持たず、観察 slug のみで構成する**（例: `phoneme-base-voicing-neutral`。2026-08-02 追加）
 
 **注意**: この slug 規約は、上記「phoneme romaji 正規化ルール」とは**適用対象が異なる**。phoneme タグは促音を `q`・長音を単独表記とするが、slug は曲名の流通する読みをそのまま綴る（`yumeippai` / `tadashii`）。混同しないこと。
 
@@ -144,6 +170,8 @@ COMITIA156 本で確定した三類型をそのまま使う。定義は `../comi
 - 観察名は yaoki が確定した呼称。形式ラベル（ABA、AABBAB 等）があれば括弧で末尾に
 
 `sources` frontmatter や `tags.artist` は機械可読側の情報。タイトルは人間可読側として、これらと重複しても独立に十分な情報を持たせる。
+
+**楽曲を対象としないカード（`type: principle` 等）はこの限りではない**（2026-08-02 追加）。曲を持たない以上、規約の目的（誰の・何の曲の観察かを単体で伝える）自体が当たらない。その場合は「何を決めるカードか」が単体で伝わる題を付ける（例: `音素ベースの記述方針──清濁を統合して数える`）。
 
 ### 引用ルール
 
