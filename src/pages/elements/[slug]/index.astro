@@ -2,6 +2,8 @@
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import LyricQuote from '../../../components/LyricQuote.astro';
+import Score from '../../../components/Score.astro';
+import { splitLinks } from '../../../lib/linkify';
 
 export async function getStaticPaths() {
   const entries = await getCollection('elements');
@@ -81,7 +83,7 @@ const ogImage = `/og/${entry.id}.png`;
     </div>
 
     <div class="post-body">
-      <Content components={{ LyricQuote }} />
+      <Content components={{ LyricQuote, Score }} />
     </div>
 
     <aside class="mt-12 border-t pt-6 text-sm">
@@ -104,7 +106,19 @@ const ogImage = `/og/${entry.id}.png`;
             <dd class="mt-1 text-gray-600">
               <ul class="list-disc space-y-1 pl-5">
                 {sources.map((source) => (
-                  <li>{source}</li>
+                  <li>
+                    {splitLinks(source).map((segment) =>
+                      segment.type === 'link' ? (
+                        <a
+                          href={segment.value}
+                          class="break-all text-blue-700 underline"
+                          target="_blank"
+                          rel="noopener noreferrer">{segment.value}</a>
+                      ) : (
+                        segment.value
+                      ),
+                    )}
+                  </li>
                 ))}
               </ul>
             </dd>

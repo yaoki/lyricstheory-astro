@@ -344,8 +344,51 @@ npx astro check   # 型・schema チェック
 ## MDX で使えるコンポーネント（現時点）
 
 - `<LyricQuote song artist lyricist [year] [cite]>` — 歌詞引用（schema.org Quotation 出力）
+- `<Score notes lyrics [direction] [startOctave] [caption] [abc]>` — 譜例（下記）
 - ルビショートハンド `[漢字|かんじ]` — remark プラグインで自動変換
 
 **elements カードでは `<LyricQuote>` を import せずに使える。** `src/pages/elements/[slug]/index.astro` が `<Content components={{ LyricQuote }} />` で渡している（2026-07-27 追加。それ以前は未配線で、カード内で使うとビルドが `Expected component LyricQuote to be defined` で落ちた）。blog 記事側は従来どおり MDX 冒頭での import が必要。
 
 必要になった時点で追加するコンポーネント：`<IPA>` `<QNotation>` `<PhonoSeq>` `<ConceptLink>`
+
+## 譜例（`<Score>`）
+
+2026-08-02 導入。**やおきはドイツ音名で指示し、Claude が `<Score>` に落とす。**
+
+```
+やおきの指示:  むうど: Des-C-As（下行）
+カードに書く:  <Score notes="Des-C-As" lyrics="む う ど" direction="down" />
+```
+
+- **オクターブは省略できる。** 省略時は `direction`（`down` / `up` / `near`）に従い、直前の音から最も近いものを取る。曖昧なときだけ `Des5` と明示する
+- 最初の音のオクターブは `startOctave`（既定 5＝中央ハの1つ上の段）
+- `lyrics` は音符と同数。数が合わなければビルドが止まる
+- ドイツ音名で書けない譜例は `abc` に ABC notation を直接渡す
+
+### H と B の罠（重要）
+
+ABC は英米音名なので、**ドイツ音名から機械的に写すと必ず事故る**。変換は `src/lib/score/german-to-abc.ts` に閉じてあるので、**手で ABC を書かない**。
+
+| ドイツ | 英米 / ABC |
+|---|---|
+| H | `B` |
+| B | `_B`（H の半音下。`Hes` とは書かない） |
+
+変化記号は `is`（＋1）/ `isis`（＋2）/ `es`（−1）/ `eses`（−2）。母音で終わる幹音は `s` だけ足す（E→Es、A→As）。
+
+### 実装と、Verovio の落とし穴
+
+**Verovio**（LGPL、WASM）でビルド時に SVG を焼く。C++ を WebAssembly にしたものなので **DOM を必要としない**。abcjs は音符の幅を測るのに DOM が要り jsdom を挟むことになるため採らなかった（2026-08-02 比較検討）。
+
+- **ABC の音符行には末尾に小節線 `|` が要る。** 無いと音符が1つも読まれないのに `loadData` は成功を返す（6.2.0 で実測）。`render.ts` が音符0を検知して例外にしてある
+- **改行は LF のみ。** CRLF だと同じく読まれない
+- 拍子記号は音符数と拍数を合わせるために入れているだけなので CSS で隠している（`M:none` は余計な記号を描くので使わない）
+- 音価はいまのところ四分音符固定。実際のリズムを主張したくなったら ABC 側で `_d2` のように書く
+- 色は `fill: currentColor`。Verovio は stroke だけ currentColor にするので、塗りはコンポーネント側で当てている
+- 実装は `src/lib/score/`（`german-to-abc.ts` / `render.ts`）と `src/components/Score.astro`。型宣言は `src/types/verovio.d.ts`
+
+### 譜例を出すときの原則
+
+**音名は書かない。** 譜面が音高を示すので、地の文に Des・As と書くと読者を選ぶだけになる（2026-08-02、やおき判断）。書くのは動き（下行・上行）だけでよい。
+
+**OG 画像には使えない。** 歌詞が `<text>` で描かれるためシステムフォントに依存する。カードページ（HTML）では閲覧者側のフォントで出るので問題ないが、OG 画像は `src/lib/og/` の別実装で、そちらはフォントを埋め込んでいる。混同しないこと。

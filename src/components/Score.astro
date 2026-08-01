@@ -1,0 +1,77 @@
+---
+/**
+ * 譜例。ドイツ音名で書いて、ビルド時に SVG へ焼く。
+ *
+ *   <Score notes="Des-C-As" lyrics="む う ど" direction="down" />
+ *
+ * オクターブは省略できる。省略時は direction に従って直前の音から最も近いものを取る。
+ * 曖昧なときだけ `Des5` のように明示する。ABC を直に渡したいときは abc を使う。
+ */
+import { germanToAbc, type Direction } from '../lib/score/german-to-abc';
+import { renderAbcToSvg } from '../lib/score/render';
+
+interface Props {
+  notes?: string;
+  lyrics?: string;
+  direction?: Direction;
+  startOctave?: number;
+  /** 図の外に置く短い説明。読み上げにも使う */
+  caption?: string;
+  /** ドイツ音名で書けない譜例のための逃げ道。指定すると notes は無視される */
+  abc?: string;
+}
+
+const { notes, lyrics, direction = 'near', startOctave = 5, caption, abc } = Astro.props;
+
+if (!abc && !notes) throw new Error('<Score> には notes か abc のどちらかが要ります');
+
+const source = abc ?? germanToAbc({ notes: notes!, lyrics, direction, startOctave });
+const svg = await renderAbcToSvg(source);
+
+const label = caption ?? (lyrics ? `譜例：${lyrics.trim().split(/\s+/).join('')}` : '譜例');
+---
+
+<figure class="score" role="img" aria-label={label}>
+  <Fragment set:html={svg} />
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+  .score {
+    margin: 1.6rem 0;
+    max-width: 340px;
+  }
+
+  .score :global(svg) {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  /* Verovio は stroke だけ currentColor にしてくれる。塗りはこちらで当てる */
+  .score :global(svg g),
+  .score :global(svg path),
+  .score :global(svg text),
+  .score :global(svg use) {
+    fill: currentColor;
+  }
+
+  /* 拍子記号は音符数と拍数を合わせるために入れているだけで、主張したい情報ではない */
+  .score :global(svg .meterSig) {
+    display: none;
+  }
+
+  /* 歌詞は Verovio 既定の Times ではなく本文のフォントで出す。
+     font-family は SVG のプレゼンテーション属性として出力されるが、
+     属性は CSS より弱いのでこちらが勝つ */
+  .score :global(svg text),
+  .score :global(svg tspan) {
+    font-family: inherit;
+  }
+
+  .score figcaption {
+    margin-top: 0.4rem;
+    font-size: 0.85em;
+    opacity: 0.7;
+  }
+</style>
