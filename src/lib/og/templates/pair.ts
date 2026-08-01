@@ -23,35 +23,90 @@ export function pair(figure: Omit<PairFigure, 'kind'>, ctx: FigureContext): stri
     );
   }
   const { rows, labels } = figure;
-  const cols = rows[0].length;
+  const mode = figure.mode ?? 'aligned';
+  // 展開では下の行が伸びている。列は長いほうに取る（aligned なら結果は同じ）
+  const cols = Math.max(rows[0].length, rows[1].length);
 
-  const available = CANVAS.width - MARGIN_X * 2 - PAIR.labelWidth;
-  const size = Math.min(PAIR.maxSize, (available - (cols - 1) * PAIR.gap) / cols);
-  const totalWidth = cols * size + (cols - 1) * PAIR.gap;
-  const startX = MARGIN_X + PAIR.labelWidth + (available - totalWidth) / 2;
-  const at = (i: number) => startX + i * (size + PAIR.gap) + size / 2;
+  // ラベル領域は実際の文字幅で取る。PAIR.labelWidth は「1-A」級の短いラベルを
+  // 前提にした既定値でしかなく、「ラストサビ」のような語を入れると音に重なる。
+  // ラベルは構造的対応を担う唯一の要素なので、縮めるのではなく領域を広げて逃がす
+  const labelWidth = Math.max(PAIR.labelWidth, maxLabelEm(labels) * PAIR.labelFontSize + PAIR.gap);
 
-  // 同じ位置で音が一致すれば反復、違えば差異。書き手が指定しなくても突き合わせれば決まる
-  const same = (i: number) => rows[0][i] === rows[1][i];
+  const available = CANVAS.width - MARGIN_X * 2 - labelWidth;
+  // 展開の図は音数が増える。間隔を既定のままにすると隙間が幅を食って字が潰れるので、
+  // 列数に応じて詰める
+  const gap = Math.min(PAIR.gap, (available / cols) * 0.18);
+  const size = Math.min(PAIR.maxSize, (available - (cols - 1) * gap) / cols);
+  const totalWidth = cols * size + (cols - 1) * gap;
+  const startX = MARGIN_X + labelWidth + (available - totalWidth) / 2;
+  const at = (i: number) => startX + i * (size + gap) + size / 2;
+
+  // 行間は字の大きさに従わせる。展開の図では音数が増えて字が小さくなるので、
+  // 既定の間隔のままだと 2 行が離れて散り、上下の対応が読み取りにくくなる。
+  // maxSize のときに従来の間隔と一致する係数にしてあり、既存カードの見た目は変わらない
+  // ただし行ラベルは字の大きさに連動しない（構造的対応を担うので縮めない）。
+  // 音に合わせて詰めるとラベル同士が重なるため、ラベルの高さを下限にする
+  const center = (PAIR.row1 + PAIR.row2) / 2;
+  const lineGap = Math.max(
+    PAIR.labelFontSize * 1.25,
+    (size * (PAIR.row2 - PAIR.row1)) / PAIR.maxSize,
+  );
+  const row1 = center - lineGap / 2;
+  const row2 = center + lineGap / 2;
+
+  // 一致の見方は mode で変わる。
+  //
+  // aligned は同じ列どうしの突き合わせ。同位置の対比なのでこれで足りる。
+  //
+  // expansion は順序保存的な共通ブロックの突き合わせ。展開の定義は「もとの並びが
+  // 順序保存的に保たれたまま、間隙に新しい要素が挿入される」であって、骨格は位置を
+  // ずらして残る。列で突き合わせると、その骨格（「わら」「ように」）を差異と描いてしまい、
+  // 展開が同位置の差し替えに見える
+  const paired = (i: number) => rows[0][i] !== undefined && rows[1][i] !== undefined;
+  const alignedSame = (i: number) => paired(i) && rows[0][i] === rows[1][i];
+
+  // 位置がずれた対応は列で結べないので、ブロックごとに色を変えて結ぶ。
+  // correspondences があればそれを使う（類音どうしや、順序が交差する対応は自動では拾えない）
+  const groups: [number[], number[]][] =
+    figure.correspondences?.map(([a, b]) => [[a], [b]]) ?? commonBlocks(rows[0], rows[1]);
+
+  const blockColor = new Map<string, string>();
+  (mode === 'expansion' ? groups : []).forEach((block, k) => {
+    const color = ACCENTS[k % ACCENTS.length].stroke;
+    block.forEach((positions, row) => positions.forEach((i) => blockColor.set(`${row}:${i}`, color)));
+  });
+
+  const fillOf = (row: number, i: number) =>
+    mode === 'expansion'
+      ? (blockColor.get(`${row}:${i}`) ?? COLORS.text)
+      : alignedSame(i)
+        ? ACCENTS[0].stroke
+        : COLORS.text;
 
   // 差異は帯だけで示し、文字は本文色のままにする。
   // ACCENTS は「対応している音」を指す色なので、差異に使うと同じ色が
-  // 反復と非反復の両方を指してしまう
-  const band = Array.from({ length: cols }, (_, i) =>
-    same(i)
-      ? ''
-      : `<rect x="${r(at(i) - size / 2 - PAIR.gap / 2)}" y="${r(PAIR.row1 - size * 0.95)}" ` +
-        `width="${r(size + PAIR.gap)}" height="${r(PAIR.row2 - PAIR.row1 + size * 1.2)}" rx="12" ` +
-        `fill="${ACCENTS[1].fill}" opacity="0.5" />`,
-  ).join('');
+  // 反復と非反復の両方を指してしまう。
+  //
+  // 帯は同位置の対比でしか意味を持たない。展開では対応が列からずれるため、
+  // 2 行をまたぐ矩形が「同じ位置の差異」を指さなくなる
+  const band =
+    mode === 'aligned'
+      ? Array.from({ length: cols }, (_, i) =>
+          !paired(i) || alignedSame(i)
+            ? ''
+            : `<rect x="${r(at(i) - size / 2 - gap / 2)}" y="${r(row1 - size * 0.95)}" ` +
+              `width="${r(size + gap)}" height="${r(row2 - row1 + size * 1.2)}" rx="12" ` +
+              `fill="${ACCENTS[1].fill}" opacity="0.5" />`,
+        ).join('')
+      : '';
 
   const glyphs = rows
     .map((row, k) =>
       row
         .map(
           (unit, i) =>
-            `<text x="${r(at(i))}" y="${r(k === 0 ? PAIR.row1 : PAIR.row2)}" font-family="${FONT_FAMILY}" ` +
-            `font-size="${r(size)}" font-weight="700" fill="${same(i) ? ACCENTS[0].stroke : COLORS.text}" ` +
+            `<text x="${r(at(i))}" y="${r(k === 0 ? row1 : row2)}" font-family="${FONT_FAMILY}" ` +
+            `font-size="${r(size)}" font-weight="700" fill="${fillOf(k, i)}" ` +
             `text-anchor="middle">${escapeXml(unit)}</text>`,
         )
         .join(''),
@@ -61,7 +116,7 @@ export function pair(figure: Omit<PairFigure, 'kind'>, ctx: FigureContext): stri
   const rowLabels = labels
     .map(
       (text, k) =>
-        `<text x="${MARGIN_X}" y="${r((k === 0 ? PAIR.row1 : PAIR.row2) - size * 0.16)}" ` +
+        `<text x="${MARGIN_X}" y="${r((k === 0 ? row1 : row2) - size * 0.16)}" ` +
         `font-family="${FONT_FAMILY}" font-size="${PAIR.labelFontSize}" font-weight="700" ` +
         `fill="${COLORS.text}">${escapeXml(text)}</text>`,
     )
@@ -93,4 +148,55 @@ export function pair(figure: Omit<PairFigure, 'kind'>, ctx: FigureContext): stri
 
 function r(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+/**
+ * 2 行の順序保存的な共通ブロックを返す（[上の行の位置, 下の行の位置] の組）。
+ *
+ * 展開では骨格が位置をずらして残る（「わらえますように」／「わらいながら…のように」の
+ * 「わら」「ように」）。列の突き合わせでは拾えないので、最長共通部分列で取る。
+ *
+ * 1 音だけの一致は落とす。助詞などの偶然の一致を骨格として描いてしまうため
+ */
+function commonBlocks(
+  a: readonly string[],
+  b: readonly string[],
+  minLength = 2,
+): [number[], number[]][] {
+  const dp: number[][] = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+  for (let i = a.length - 1; i >= 0; i--) {
+    for (let j = b.length - 1; j >= 0; j--) {
+      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+
+  const blocks: [number[], number[]][] = [];
+  let i = 0;
+  let j = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      const last = blocks[blocks.length - 1];
+      // 直前の一致と隣り合っていれば同じブロックに継ぐ
+      if (last && last[0].at(-1) === i - 1 && last[1].at(-1) === j - 1) {
+        last[0].push(i);
+        last[1].push(j);
+      } else {
+        blocks.push([[i], [j]]);
+      }
+      i++;
+      j++;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      i++;
+    } else {
+      j++;
+    }
+  }
+  return blocks.filter((block) => block[0].length >= minLength);
+}
+
+/** ラベルの最大幅を em で概算する。ASCII を半角、それ以外を全角として数える */
+function maxLabelEm(labels: readonly string[]): number {
+  const em = (text: string) =>
+    [...text].reduce((sum, ch) => sum + (ch.charCodeAt(0) < 0x80 ? 0.5 : 1), 0);
+  return Math.max(...labels.map(em));
 }

@@ -113,17 +113,26 @@ const pairFigure = z
     ]),
     // 回帰反復では構造的対応を担う要素。省略できない
     labels: z.tuple([z.string().min(1).max(8), z.string().min(1).max(8)]),
+    // aligned = 同位置の対比。expansion = 展開の対比（一方が伸びていること自体が観察）
+    mode: z.enum(['aligned', 'expansion']).default('aligned'),
+    // 上下の対応を手で指定する。省略すると順序保存的な共通ブロックを自動で取る。
+    // 類音どうしの対応や、順序が交差する対応は自動では拾えないため
+    correspondences: z.array(z.tuple([z.number().int().nonnegative(), z.number().int().nonnegative()])).optional(),
   })
   .superRefine((figure, ctx) => {
     // 列を揃えることは「同じ位置」という主張。音数が違うまま並べると
-    // 韻律の対応（対応の三要素の③）を断定したことになる。③は保留中なので止める
-    if (figure.rows[0].length !== figure.rows[1].length) {
+    // 韻律の対応（対応の三要素の③）を断定したことになる。③は保留中なので止める。
+    //
+    // ただし展開の観察では、揃えるほうが嘘になる。一方が伸びていることが観察の本体で、
+    // 揃う範囲まで切り詰めると、展開が同位置の差し替えに見える。mode で切り分ける
+    if (figure.mode === 'aligned' && figure.rows[0].length !== figure.rows[1].length) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['rows'],
         message:
           `2行の音数が違います（${figure.rows[0].length} と ${figure.rows[1].length}）。` +
-          '列が揃わない対比は、位置の対応を主張したことになるため描けません',
+          '列が揃わない対比は、位置の対応を主張したことになるため描けません。' +
+          '展開を見せたいなら mode: expansion を指定してください',
       });
     }
   });

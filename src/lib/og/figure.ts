@@ -29,10 +29,25 @@ export interface SymmetryFigure {
  */
 export interface PairFigure {
   kind: 'pair';
-  /** 上下に並べる 2 行。音数は揃っていること */
+  /** 上下に並べる 2 行。aligned では音数が揃っていること */
   rows: [string[], string[]];
   /** 左端に置く行ラベル（1-b / 2-b など）。回帰反復では構造的対応を担う要素 */
   labels: [string, string];
+  /**
+   * aligned（既定）= 同位置の対比。列を揃えることが「同じ位置」の主張になるため音数を揃える。
+   * expansion = 展開の対比。一方が伸びていること自体が観察なので、揃えるほうが嘘になる。
+   *
+   * expansion で切り詰めると、展開が同位置の差し替えに見える。長さの差は省略できない。
+   */
+  mode?: 'aligned' | 'expansion';
+  /**
+   * 上下の対応を手で指定する（[上の行の位置, 下の行の位置] の組）。
+   * 省略すると順序保存的な共通ブロックを自動で取る。
+   *
+   * 自動では拾えない対応（類音どうし、順序が交差する対応）を描くための逃げ道。
+   * 組ごとに色が変わる
+   */
+  correspondences?: [number, number][];
 }
 
 export type Figure = SymmetryFigure | PairFigure;
