@@ -30,3 +30,9 @@ http://www.lyricstheory.com/* https://lyricstheory.com/:splat 301
 # inversion は十二音技法では音程反転（反行）を指し、正反対に読まれるため。
 # 旧 URL は X に投稿済みのため 301 で保全する。
 /elements/hajimete-no-koi-ga-owaru-toki-consonant-inversion/  /elements/hajimete-no-koi-ga-owaru-toki-consonant-retrograde/  301
+
+# elements のスラッグ改名（2026-08-02）
+# anagram-abca の abca は改訂前の形式ラベルで、現行の title（ABA' → A'AB）と対応していなかった。
+# 本文が並べ替えと倒置の二案を保留したままなので、読みを断定する語を名前から外し、
+# 対象の音を綴る形にした（規約「音韻要素は綴りで表す」）。
+/elements/tadashii-machi-anagram-abca/  /elements/tadashii-machi-dashita-tadashi/  301
