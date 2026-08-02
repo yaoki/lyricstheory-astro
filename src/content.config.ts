@@ -194,7 +194,23 @@ const pivotFigure = z
     });
   });
 
-const figureSchema = z.union([singleFigure, pairFigure, pivotFigure]);
+// 子音の並びそのものを描く。2 つ以上の子音が交替し続ける範囲を見るとき、
+// 単位は個々の音節ではなく子音の並びになり、仮名の枠には載らない
+// （子音を持たない位置 Φ に対応する仮名がない）。
+//
+// **枠数の上限を持たない。** single の上限 8 は「仮名が連続して並ぶと歌詞の再現に
+// 近づく」ことによる制約で、子音記号の列は歌詞にならないため（ピボットの点と同じ理屈）。
+// 効くのは 1 行に入る幅だけで、それはレイアウト側が縮めて吸収する。
+const consonantFigure = z.object({
+  kind: z.literal('consonant'),
+  // 行 → 群 → 記号。群と群のあいだは図の上で離れる
+  rows: z
+    .array(z.array(z.array(z.string().min(1).max(2)).min(1)).min(1))
+    .min(1)
+    .max(2),
+});
+
+const figureSchema = z.union([singleFigure, pairFigure, pivotFigure, consonantFigure]);
 
 const elements = defineCollection({
   loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/elements' }),

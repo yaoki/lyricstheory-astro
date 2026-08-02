@@ -13,12 +13,15 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
   PhraseError,
+  parseConsonantRows,
   parsePhrase,
   parsePivotPhrase,
+  toConsonantYaml,
   toPivotYaml,
   toYaml,
 } from '../src/lib/og/phrase';
 import { renderPng } from '../src/lib/og/render';
+import { consonant } from '../src/lib/og/templates/consonant';
 import { pivot } from '../src/lib/og/templates/pivot';
 import { single } from '../src/lib/og/templates/single';
 
@@ -53,6 +56,11 @@ const USAGE = `
         'いつ「か」「か」ならず「か」なうって「き」め「こ」んで'
   例) npm run figure -- --pivot 'タ行子音' --repetition c \\
         'い「つ」かかならずかなうっ「て」きめこん「で」' 'ろ「と」うにまよっ「た」いのり'
+
+--consonant は子音の並びそのものを描きます。空白が群の区切り、1文字が1記号です。
+仮名を使わないので枠数の上限はありません。記号ごとに色が変わり、Φ だけ背景色になります。
+
+  例) npm run figure -- --consonant --repetition c 'tΦk kΦ tktΦ' 'Φtk ΦktΦtΦ'
 `;
 
 function main(): void {
@@ -64,6 +72,8 @@ function main(): void {
   let repetition = 'cv';
   // 子音ピボットの軸ラベル。指定すると囲みの外を伏せる図になる
   let pivotAxis: string | undefined;
+  // 子音の並びそのものを描くモード
+  let consonantMode = false;
   const positional: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
@@ -73,8 +83,34 @@ function main(): void {
     else if (arg === '--no-open') shouldOpen = false;
     else if (arg === '--repetition') repetition = args[++i] ?? 'cv';
     else if (arg === '--pivot') pivotAxis = args[++i] ?? '';
+    else if (arg === '--consonant') consonantMode = true;
     else if (arg === '-h' || arg === '--help') return console.log(USAGE);
     else positional.push(arg);
+  }
+
+  // 子音の並び。空白が群の区切りで、1 文字が 1 記号
+  if (consonantMode) {
+    const lines = positional.map((l) => l.trim()).filter((l) => l !== '');
+    if (lines.length === 0) {
+      console.error(USAGE);
+      process.exit(1);
+    }
+    let figure;
+    try {
+      figure = parseConsonantRows(lines);
+    } catch (error) {
+      if (error instanceof PhraseError) {
+        console.error(`\n  ${error.message}\n`);
+        process.exit(1);
+      }
+      throw error;
+    }
+    console.log(`\n${toConsonantYaml(figure)}\n`);
+    const file = out ?? path.join(tmpdir(), 'lyricstheory-figure-preview.png');
+    writeFileSync(file, renderPng(consonant(figure, { title, repetition })));
+    console.log(`プレビュー: ${file}`);
+    if (shouldOpen && process.platform === 'darwin') execFileSync('open', [file]);
+    return;
   }
 
   // ピボットは行ごとに渡すので、positional を連結せずそのまま行として扱う

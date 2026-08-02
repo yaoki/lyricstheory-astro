@@ -74,7 +74,22 @@ export interface PivotRow {
   pivots: { at: number; unit: string }[];
 }
 
-export type Figure = SingleFigure | PairFigure | PivotFigure;
+/**
+ * 子音の並びそのものを描く。
+ *
+ * 2 つ以上の子音が交替し続ける範囲を見るとき、単位は個々の音節ではなく子音の並びになる。
+ * 仮名の枠には載らない（子音を持たない位置 Φ は仮名で書けない）ので、記号を直接並べる。
+ *
+ * **枠数の上限を持たない。** single の上限 8 は「仮名が連続して並ぶと歌詞の再現に近づく」
+ * ことによる制約で、子音記号の列は歌詞にならないため。
+ */
+export interface ConsonantFigure {
+  kind: 'consonant';
+  /** 行ごとの群。群は連続した子音の並びで、群と群のあいだは離れている */
+  rows: string[][][];
+}
+
+export type Figure = SingleFigure | PairFigure | PivotFigure | ConsonantFigure;
 
 /** 図に添える、figure 以外の情報 */
 export interface FigureContext {

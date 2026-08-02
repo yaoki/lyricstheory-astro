@@ -13,6 +13,7 @@
 
 import {
   normalizeHighlight,
+  type ConsonantFigure,
   type Highlight,
   type PivotFigure,
   type SingleFigure,
@@ -229,6 +230,41 @@ export function toPivotYaml(figure: PivotFigure): string {
     for (const p of row.pivots) {
       lines.push(`        - { at: ${p.at}, unit: "${p.unit}" }`);
     }
+  }
+  return lines.join('\n');
+}
+
+/**
+ * 子音の並びを読む。本文に書いた並びをそのまま渡せる。
+ *
+ *   parseConsonantRows(['tΦk kΦ tktΦ', 'Φtk ΦktΦtΦ'])
+ *
+ * 空白が群の区切り、1 文字が 1 記号。仮名を使わないので枠数の上限はない。
+ */
+export function parseConsonantRows(lines: string[]): ConsonantFigure {
+  if (lines.length === 0 || lines.length > 2) {
+    throw new PhraseError(`行は 1〜2 行です（${lines.length} 行が渡されました）`);
+  }
+  const rows = lines.map((line) => {
+    const groups = line
+      .trim()
+      .split(/\s+/)
+      .filter((g) => g !== '')
+      .map((group) => [...group]);
+    if (groups.length === 0) {
+      throw new PhraseError('子音の並びを書いてください（例: tΦk kΦ tktΦ）');
+    }
+    return groups;
+  });
+  return { kind: 'consonant', rows };
+}
+
+/** 子音の並びの YAML */
+export function toConsonantYaml(figure: ConsonantFigure): string {
+  const lines = ['figure:', `  kind: ${figure.kind}`, '  rows:'];
+  for (const row of figure.rows) {
+    const groups = row.map((g) => `[${g.map((s) => `"${s}"`).join(', ')}]`).join(', ');
+    lines.push(`    - [${groups}]`);
   }
   return lines.join('\n');
 }
