@@ -24,7 +24,8 @@ export function pivot(figure: Omit<PivotFigure, 'kind'>, ctx: FigureContext): st
 
   // 字がセルからはみ出さないようにする。複数文字の枠（拗音など）は文字数で割る
   const maxUnitEm = Math.max(...rows.flatMap((row) => row.pivots.map((p) => widthEm(p.unit))), 1);
-  const size = Math.min(PIVOT.unitFontSize, cell / maxUnitEm);
+  const layout = PIVOT.layouts[rows.length] ?? PIVOT.layouts[4];
+  const size = Math.min(layout.maxSize, cell / maxUnitEm);
 
   const centerX = (index: number, rowLength: number): number => {
     // 短い行は中央に寄せず左を揃える。軸の矢印が行をまたいで一続きに見えるようにするため
@@ -32,11 +33,13 @@ export function pivot(figure: Omit<PivotFigure, 'kind'>, ctx: FigureContext): st
     return start + index * (cell + PIVOT.gap) + cell / 2;
   };
 
-  // 2 行のときは上に詰める。本文の図は y=400 で刈られるので、下段がそこを越えると欠ける
-  const firstBaseline = rows.length >= 2 ? PIVOT.baselineTwoRows : PIVOT.baseline;
+  // 行が増えたぶんは上に詰める。本文の図は y=400 で刈られるので、下の行がそこを越えると欠ける
+  const step = size * PIVOT.rowStepRatio;
+  const span = (rows.length - 1) * step;
+  const firstBaseline = Math.min(layout.baseline, PIVOT.bottomLimit - span);
 
   const body = rows
-    .map((row, rowIndex) => renderRow(row, rowIndex, firstBaseline, cell, size, centerX))
+    .map((row, rowIndex) => renderRow(row, firstBaseline + rowIndex * step, cell, size, centerX))
     .join('');
 
   // 軸の持続範囲。いちばん長い行の全幅にわたって伸ばす
@@ -76,13 +79,11 @@ export function pivot(figure: Omit<PivotFigure, 'kind'>, ctx: FigureContext): st
 /** 1 行ぶんの枠を描く。軸の音は文字、それ以外は伏せた印 */
 function renderRow(
   row: PivotRow,
-  rowIndex: number,
-  firstBaseline: number,
+  baseline: number,
   cell: number,
   size: number,
   centerX: (index: number, rowLength: number) => number,
 ): string {
-  const baseline = firstBaseline + rowIndex * PIVOT.rowStep;
   const byIndex = new Map(row.pivots.map((p) => [p.at, p.unit]));
   const parts: string[] = [];
 

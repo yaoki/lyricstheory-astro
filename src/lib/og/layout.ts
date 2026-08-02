@@ -237,20 +237,27 @@ export const PIVOT = {
    */
   axisY: 112,
   axisFontSize: 34,
-  /** 枠の列のベースライン（1 行のとき） */
-  baseline: 310,
   /**
-   * 2 行のときの 1 行目のベースライン。上に詰めてある。
-   * カードページの本文は OG 画像を y=400 で刈って出す（`src/pages/elements/[slug]/index.astro`）。
-   * 1 行めの位置のまま 2 行めを足すと、そこを越えて下段が欠ける
+   * 行数ごとの、1 行目のベースラインの目安と、音の大きさの上限。
+   *
+   * 行を増やすのはメロディの切れ目で割るためで、そのほうが読める（2026-08-02、やおき）。
+   * 1 行に詰め込むと 20 枠を超えて字が細り、どこで息を継ぐのかも図から落ちる。
    */
-  baselineTwoRows: 248,
-  /** 2 行のとき、2 行目をこれだけ下げる */
-  rowStep: 88,
+  layouts: {
+    1: { baseline: 310, maxSize: 76 },
+    2: { baseline: 248, maxSize: 76 },
+    3: { baseline: 205, maxSize: 62 },
+    4: { baseline: 170, maxSize: 50 },
+  } as Record<number, { baseline: number; maxSize: number }>,
+  /** 行送り＝音の大きさ × これ */
+  rowStepRatio: 1.5,
+  /**
+   * いちばん下の行のベースラインをここより下げない。
+   * カードページの本文は OG 画像を y=400 で刈るので、字の下出を見て手前で止める
+   */
+  bottomLimit: 384,
   /** 枠と枠の間隔 */
   gap: 12,
-  /** 文字を出す枠の最大の字の大きさ。セル幅がこれより狭ければセル幅に従う */
-  unitFontSize: 76,
   /** 伏せた枠の高さと角丸。幅はセル幅から gap を引いたもの */
   maskHeight: 26,
   maskRadius: 6,

@@ -188,8 +188,8 @@ export function parsePivotPhrase(lines: string[], axis: string): PivotFigure {
   if (axis.trim() === '') {
     throw new PhraseError('軸のラベルを指定してください（例: --pivot カ行子音）');
   }
-  if (lines.length === 0 || lines.length > 2) {
-    throw new PhraseError(`行は 1〜2 行です（${lines.length} 行が渡されました）`);
+  if (lines.length === 0 || lines.length > 4) {
+    throw new PhraseError(`行は 1〜4 行です（${lines.length} 行が渡されました）`);
   }
 
   const rows = lines.map((line) => {
@@ -203,9 +203,6 @@ export function parsePivotPhrase(lines: string[], axis: string): PivotFigure {
     const pivots = tokens.flatMap((token, index) =>
       token.group === null ? [] : [{ at: index, unit: token.text }],
     );
-    if (pivots.length === 0) {
-      throw new PhraseError('軸となる音を「」で囲んでください（例: いつ「か」「か」ならず「か」）');
-    }
     // 1 枠に押し込める文字数の上限は single と同じ。ここを緩めると、
     // 伏せた枠の間に長い連なりが現れて「伏せているから歌詞ではない」が崩れる
     const tooLong = pivots.find((p) => [...p.unit].length > 4);
@@ -218,6 +215,12 @@ export function parsePivotPhrase(lines: string[], axis: string): PivotFigure {
     return { length: tokens.length, pivots };
   });
 
+  // 行を割った結果、軸の音を持たない行が出るのは構わない。
+  // ただしどの行にも無ければ、何を見ている図なのか決まらない
+  if (rows.every((row) => row.pivots.length === 0)) {
+    throw new PhraseError('軸となる音を「」で囲んでください（例: いつ「か」「か」ならず「か」）');
+  }
+
   return { kind: 'pivot', axis, rows };
 }
 
@@ -226,6 +229,10 @@ export function toPivotYaml(figure: PivotFigure): string {
   const lines = ['figure:', `  kind: ${figure.kind}`, `  axis: "${figure.axis}"`, '  rows:'];
   for (const row of figure.rows) {
     lines.push(`    - length: ${row.length}`);
+    if (row.pivots.length === 0) {
+      lines.push('      pivots: []');
+      continue;
+    }
     lines.push('      pivots:');
     for (const p of row.pivots) {
       lines.push(`        - { at: ${p.at}, unit: "${p.unit}" }`);

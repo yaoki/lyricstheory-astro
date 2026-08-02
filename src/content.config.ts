@@ -158,18 +158,17 @@ const pivotFigure = z
       .array(
         z.object({
           length: z.number().int().min(2).max(24),
-          pivots: z
-            .array(
-              z.object({
-                at: z.number().int().nonnegative(),
-                unit: z.string().min(1).max(4),
-              }),
-            )
-            .min(1),
+          // 行を割った結果、軸の音を持たない行が出るのは構わない
+          pivots: z.array(
+            z.object({
+              at: z.number().int().nonnegative(),
+              unit: z.string().min(1).max(4),
+            }),
+          ),
         }),
       )
       .min(1)
-      .max(2),
+      .max(4),
   })
   .superRefine((figure, ctx) => {
     figure.rows.forEach((row, rowIndex) => {
