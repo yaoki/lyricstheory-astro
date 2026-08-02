@@ -61,6 +61,17 @@ const maturityLabel = MATURITY_LABELS[entry.data.maturity] ?? entry.data.maturit
 const description = `${entry.data.title}（elements・${maturityLabel}）`;
 // カードごとの OG 画像。実体は src/pages/og/[slug].png.ts がビルド時に生成する
 const ogImage = `/og/${entry.id}.png`;
+// 本文にも同じ絵を出す。画像下部のタイトルと署名はこのページの h1・出典と重複するため、
+// aspect-ratio で刈って図の部分だけを見せる。
+//
+// 切る位置 y=400 は、生成済み 31 枚を走査した実測値。図の下端の最大は y=391
+// （pretender-return-repetition。PAIR.row2=372 に maxSize=92 の字形の下出が乗る）、
+// タイトルの上端の最小は y=410（2 行に折り返したとき）。共通の空白帯 392〜409 の中央を取った。
+// 理論値では「し」の払いのようにベースラインより下へ出る分を落とすので、必ず実測すること。
+// 3 つ目の図の形（single / pair 以外）を足したときは、この 400 を測り直す。
+//
+// figure を持たないカードは fallback（タイトルだけの絵）になるため本文には出さない。
+const hasFigure = entry.data.figure !== undefined;
 ---
 
 <BaseLayout
@@ -81,6 +92,18 @@ const ogImage = `/og/${entry.id}.png`;
       <span class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600">{maturityLabel}</span>
       <span class="text-gray-500">最終更新: {entry.data.updated.toISOString().slice(0, 10)}</span>
     </div>
+
+    {hasFigure && (
+      <figure class="mb-8 aspect-[1200/400] overflow-hidden rounded-lg border border-gray-200">
+        <img
+          src={ogImage}
+          alt={`図: ${entry.data.title}`}
+          width="1200"
+          height="630"
+          class="block h-auto w-full"
+        />
+      </figure>
+    )}
 
     <div class="post-body">
       <Content components={{ LyricQuote, Score }} />
