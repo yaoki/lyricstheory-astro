@@ -252,6 +252,7 @@ export function parseConsonantPhrase(
   lines: string[],
   markLines: string[],
   fold = false,
+  subLines: string[] = [],
 ): ConsonantFigure {
   if (lines.length === 0 || lines.length > 4) {
     throw new PhraseError(`行は 1〜4 行です（${lines.length} 行が渡されました）`);
@@ -318,7 +319,25 @@ export function parseConsonantPhrase(
           '数が合わないと、どの音がどの子音かという対応が嘘になります',
       );
     }
-    return { units, marks: marked.map((at, i) => ({ at, symbol: symbols[i] })) };
+    // 下の段。渡されていれば上の段と同じ規則で割る
+    const subGroups = (subLines[rowIndex] ?? '')
+      .trim()
+      .split(/\s+/)
+      .filter((g) => g !== '');
+    const subs = fold ? subGroups : subGroups.flatMap((group) => [...group]);
+    if (subs.length > 0 && subs.length !== marked.length) {
+      throw new PhraseError(
+        `${rowIndex + 1} 行目: 囲んだ音が ${marked.length} 個、下の段の記号が ${subs.length} 個です`,
+      );
+    }
+    return {
+      units,
+      marks: marked.map((at, i) => ({
+        at,
+        symbol: symbols[i],
+        ...(subs.length > 0 ? { sub: subs[i] } : {}),
+      })),
+    };
   });
 
   return { kind: 'consonant', rows };
@@ -330,8 +349,10 @@ export function toConsonantYaml(figure: ConsonantFigure): string {
   for (const row of figure.rows) {
     lines.push(`    - units: [${row.units.map((u) => `"${u}"`).join(', ')}]`);
     lines.push('      marks:');
+    if (row.marks.length === 0) lines[lines.length - 1] = '      marks: []';
     for (const m of row.marks) {
-      lines.push(`        - { at: ${m.at}, symbol: "${m.symbol}" }`);
+      const sub = m.sub === undefined ? '' : `, sub: "${m.sub}"`;
+      lines.push(`        - { at: ${m.at}, symbol: "${m.symbol}"${sub} }`);
     }
   }
   return lines.join('\n');

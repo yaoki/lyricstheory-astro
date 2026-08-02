@@ -214,6 +214,8 @@ const consonantFigure = z
             z.object({
               at: z.number().int().nonnegative(),
               symbol: z.string().min(1).max(4),
+              // 下の段。保たれるものを上、動くものを下に置くときに使う
+              sub: z.string().min(1).max(4).optional(),
             }),
           ),
         }),

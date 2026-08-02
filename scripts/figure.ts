@@ -81,6 +81,8 @@ function main(): void {
   const markLines: string[] = [];
   // 囲みを 1 枠に畳む。2 モーラで 1 つの音節をなすこと自体が観察のときに使う
   let fold = false;
+  // 下の段（動くもの）。--marks と同じ数だけ渡す
+  const subLines: string[] = [];
   const positional: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
@@ -92,6 +94,7 @@ function main(): void {
     else if (arg === '--pivot') pivotAxis = args[++i] ?? '';
     else if (arg === '--marks') markLines.push(args[++i] ?? '');
     else if (arg === '--fold') fold = true;
+    else if (arg === '--subs') subLines.push(args[++i] ?? '');
     else if (arg === '-h' || arg === '--help') return console.log(USAGE);
     else positional.push(arg);
   }
@@ -105,7 +108,7 @@ function main(): void {
     }
     let figure;
     try {
-      figure = parseConsonantPhrase(lines, markLines, fold);
+      figure = parseConsonantPhrase(lines, markLines, fold, subLines);
     } catch (error) {
       if (error instanceof PhraseError) {
         console.error(`\n  ${error.message}\n`);

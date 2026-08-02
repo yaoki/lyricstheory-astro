@@ -94,8 +94,13 @@ export interface ConsonantFigure {
 export interface ConsonantRow {
   /** 行の音。1 音 1 枠で並ぶ */
   units: string[];
-  /** 記号を振る位置。at は units の添字、symbol は子音記号（t / k / Φ など） */
-  marks: { at: number; symbol: string }[];
+  /**
+   * 記号を振る位置。at は units の添字、symbol は上の段（子音記号など）。
+   *
+   * sub は下の段。「保たれるもの（子音）」と「動くもの（母音）」を上下に分けて
+   * 置くために使う。上下で別々に色が付くので、下だけが変わることが色でも見える
+   */
+  marks: { at: number; symbol: string; sub?: string }[];
 }
 
 export type Figure = SingleFigure | PairFigure | PivotFigure | ConsonantFigure;

@@ -19,11 +19,18 @@ const EMPTY = 'Φ';
 export function consonant(figure: Omit<ConsonantFigure, 'kind'>, ctx: FigureContext): string {
   const { rows } = figure;
 
-  // 記号ごとの色。Φ を除いた出現順に割り当てる。交替が色の交互として見えるようにする
+  // 記号ごとの色。Φ を除いた出現順に割り当てる。交替が色の交互として見えるようにする。
+  // 上の段と下の段は別々に色を配る。上が 1 色のまま下だけ変われば、
+  // 「保たれるもの／動くもの」の差がそのまま色の差になる
   const palette = new Map<string, string>();
   for (const { symbol } of rows.flatMap((row) => row.marks)) {
     if (symbol === EMPTY || palette.has(symbol)) continue;
     palette.set(symbol, ACCENTS[palette.size % ACCENTS.length].stroke);
+  }
+  const subPalette = new Map<string, string>();
+  for (const { sub } of rows.flatMap((row) => row.marks)) {
+    if (sub === undefined || sub === EMPTY || subPalette.has(sub)) continue;
+    subPalette.set(sub, ACCENTS[subPalette.size % ACCENTS.length].stroke);
   }
 
   const available = CANVAS.width - MARGIN_X * 2;
@@ -40,14 +47,15 @@ export function consonant(figure: Omit<ConsonantFigure, 'kind'>, ctx: FigureCont
   const step = size * CONSONANT.rowStepRatio;
   const span = (rows.length - 1) * step;
   // いちばん下の行は、括りと記号のぶんを見込んで手前で止める
+  const hasSub = rows.some((row) => row.marks.some((m) => m.sub !== undefined));
   const below =
     (SYMMETRY.groupTickGap + SYMMETRY.groupTickHeight) * (size / SYMMETRY.unitFontSize) +
     CONSONANT.markGap +
-    size * CONSONANT.markRatio;
+    size * CONSONANT.markRatio * (hasSub ? 1 + CONSONANT.subLineRatio : 1);
   const first = Math.min(layout.baseline, CONSONANT.bottomLimit - span - below);
 
   const body = rows
-    .map((row, i) => renderRow(row, first + i * step, cell, size, palette))
+    .map((row, i) => renderRow(row, first + i * step, cell, size, palette, subPalette))
     .join('');
 
   const maxTitleEm = available / CONSONANT.titleFontSize;
@@ -88,8 +96,10 @@ function renderRow(
   cell: number,
   size: number,
   palette: Map<string, string>,
+  subPalette: Map<string, string>,
 ): string {
   const byIndex = new Map(row.marks.map((m) => [m.at, m.symbol]));
+  const subByIndex = new Map(row.marks.flatMap((m) => (m.sub ? [[m.at, m.sub] as const] : [])));
   const parts: string[] = [];
 
   // 記号の縦位置は行のなかで揃える。畳んだ枠が 1 つでもあれば括りのぶんを見込む
@@ -137,6 +147,16 @@ function renderRow(
         `font-size="${r(markSize)}" font-weight="700" ` +
         `fill="${symbol === EMPTY ? COLORS.muted : (palette.get(symbol) ?? COLORS.text)}" ` +
         `text-anchor="middle">${escapeXml(symbol)}</text>`,
+    );
+
+    // 下の段。上が保たれるもの、下が動くもの
+    const sub = subByIndex.get(i);
+    if (sub === undefined) continue;
+    parts.push(
+      `<text x="${r(x)}" y="${r(markBaseline + markSize * CONSONANT.subLineRatio)}" ` +
+        `font-family="${FONT_FAMILY}" font-size="${r(markSize)}" font-weight="700" ` +
+        `fill="${sub === EMPTY ? COLORS.muted : (subPalette.get(sub) ?? COLORS.text)}" ` +
+        `text-anchor="middle">${escapeXml(sub)}</text>`,
     );
   }
   return parts.join('');
