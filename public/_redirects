@@ -36,3 +36,8 @@ http://www.lyricstheory.com/* https://lyricstheory.com/:splat 301
 # 本文が並べ替えと倒置の二案を保留したままなので、読みを断定する語を名前から外し、
 # 対象の音を綴る形にした（規約「音韻要素は綴りで表す」）。
 /elements/tadashii-machi-anagram-abca/  /elements/tadashii-machi-dashita-tadashi/  301
+
+# aba は形式ラベルで、子音ピボットは分布の観察であってパターンではない
+# （2026-08-02、やおき裁定。docs/theory-glossary.md「子音ピボット」）。
+# 観察の中身（中央で母音が動く）を綴る形に改めた。
+/elements/seishun-t-pivot-aba/  /elements/seishun-t-pivot-middle-vowel/  301
