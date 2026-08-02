@@ -248,7 +248,11 @@ export function toPivotYaml(figure: PivotFigure): string {
  * 囲みの数と記号の群の数、囲んだ音の数と群の文字数が一致していなければ止める。
  * ずれたまま図にすると、どの音がどの子音かという対応そのものが嘘になるため。
  */
-export function parseConsonantPhrase(lines: string[], markLines: string[]): ConsonantFigure {
+export function parseConsonantPhrase(
+  lines: string[],
+  markLines: string[],
+  fold = false,
+): ConsonantFigure {
   if (lines.length === 0 || lines.length > 2) {
     throw new PhraseError(`行は 1〜2 行です（${lines.length} 行が渡されました）`);
   }
@@ -259,23 +263,39 @@ export function parseConsonantPhrase(lines: string[], markLines: string[]): Cons
   }
 
   const rows = lines.map((line, rowIndex) => {
-    // 囲みの中も 1 音ずつ枠にする（single と違い、畳まない）。
-    // どの音がどの記号かを 1 対 1 で見せるのがこの図の目的だから
+    // 既定では囲みの中も 1 音ずつ枠にする。どの音がどの記号かを 1 対 1 で
+    // 見せるのがこの図の目的だから。
+    //
+    // fold のときは囲みを 1 枠に畳む。2 モーラで 1 つの音節をなしていること
+    // 自体が観察である場合（シラブル化）は、畳んだ形が主張そのものになる。
+    // 畳んだ枠には描画側が括りを付ける
     const units: string[] = [];
     const marked: number[] = [];
     let open = false;
+    let buffer = '';
     for (const ch of line) {
       if (ch === '「') {
         if (open) throw new PhraseError('「が」で閉じられていません');
         open = true;
+        buffer = '';
         continue;
       }
       if (ch === '」') {
         if (!open) throw new PhraseError('」に対応する「がありません');
         open = false;
+        if (fold) {
+          if (buffer === '') throw new PhraseError('「」の中が空です');
+          units.push(buffer);
+          marked.push(units.length - 1);
+          buffer = '';
+        }
         continue;
       }
       if (/[\s、,]/.test(ch)) continue;
+      if (open && fold) {
+        buffer += ch;
+        continue;
+      }
       const prev = units.length - 1;
       if (prev >= 0 && COMBINING.test(ch)) {
         units[prev] += ch;
@@ -289,11 +309,12 @@ export function parseConsonantPhrase(lines: string[], markLines: string[]): Cons
       throw new PhraseError('記号を振る範囲を「」で囲んでください');
     }
 
-    const symbols = markLines[rowIndex]
+    // fold では群がそのまま 1 記号（CVV など）。既定では群の 1 文字が 1 記号
+    const groups = markLines[rowIndex]
       .trim()
       .split(/\s+/)
-      .filter((g) => g !== '')
-      .flatMap((group) => [...group]);
+      .filter((g) => g !== '');
+    const symbols = fold ? groups : groups.flatMap((group) => [...group]);
     if (symbols.length !== marked.length) {
       throw new PhraseError(
         `${rowIndex + 1} 行目: 囲んだ音が ${marked.length} 個、記号が ${symbols.length} 個です。` +

@@ -214,7 +214,7 @@ const consonantFigure = z
             .array(
               z.object({
                 at: z.number().int().nonnegative(),
-                symbol: z.string().min(1).max(2),
+                symbol: z.string().min(1).max(4),
               }),
             )
             .min(1),

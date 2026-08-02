@@ -79,6 +79,8 @@ function main(): void {
   let pivotAxis: string | undefined;
   // 子音の並び。歌詞の行と、それに振る記号の行を別々に受け取る
   const markLines: string[] = [];
+  // 囲みを 1 枠に畳む。2 モーラで 1 つの音節をなすこと自体が観察のときに使う
+  let fold = false;
   const positional: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
@@ -89,6 +91,7 @@ function main(): void {
     else if (arg === '--repetition') repetition = args[++i] ?? 'cv';
     else if (arg === '--pivot') pivotAxis = args[++i] ?? '';
     else if (arg === '--marks') markLines.push(args[++i] ?? '');
+    else if (arg === '--fold') fold = true;
     else if (arg === '-h' || arg === '--help') return console.log(USAGE);
     else positional.push(arg);
   }
@@ -102,7 +105,7 @@ function main(): void {
     }
     let figure;
     try {
-      figure = parseConsonantPhrase(lines, markLines);
+      figure = parseConsonantPhrase(lines, markLines, fold);
     } catch (error) {
       if (error instanceof PhraseError) {
         console.error(`\n  ${error.message}\n`);

@@ -1,7 +1,7 @@
 import { frameBadge, footer } from '../chrome';
 import type { ConsonantFigure, ConsonantRow, FigureContext } from '../figure';
 import { ACCENTS, CANVAS, COLORS, CONSONANT, FONT_FAMILY, MARGIN_X, SYMMETRY } from '../layout';
-import { escapeXml, textBlock, widthEm, wrapText } from '../text';
+import { escapeXml, moraCount, textBlock, widthEm, wrapText } from '../text';
 
 /** 子音を持たない位置。色は当てず、背景に落とす */
 const EMPTY = 'Φ';
@@ -88,6 +88,21 @@ function renderRow(
       `<text x="${r(x)}" y="${r(baseline)}" font-family="${FONT_FAMILY}" font-size="${r(size)}" ` +
         `font-weight="700" fill="${fill}" text-anchor="middle">${escapeXml(row.units[i])}</text>`,
     );
+
+    // 複数のモーラを 1 枠に畳んだ枠には、single と同じ括りを付ける。
+    // 2 モーラで 1 つの音節をなしていること自体が観察であることが多いため
+    if (moraCount(row.units[i]) >= 2) {
+      const k = size / SYMMETRY.unitFontSize;
+      const half = cell / 2 - size * 0.05;
+      const ty = baseline + SYMMETRY.groupTickGap * k;
+      const th = SYMMETRY.groupTickHeight * k;
+      parts.push(
+        `<path d="M ${r(x - half)} ${r(ty)} L ${r(x - half)} ${r(ty + th)} ` +
+          `L ${r(x + half)} ${r(ty + th)} L ${r(x + half)} ${r(ty)}" fill="none" ` +
+          `stroke="${fill}" stroke-width="${r(SYMMETRY.groupTickWidth * k)}" ` +
+          `stroke-linecap="round" stroke-linejoin="round" />`,
+      );
+    }
     if (symbol === undefined) continue;
 
     // Φ は無彩色にする（ACCENTS を当てると「3 つ目の子音」に見える）が、
