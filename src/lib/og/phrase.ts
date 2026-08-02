@@ -160,8 +160,13 @@ function tokenize(phrase: string): Token[] {
   return tokens;
 }
 
-/** ピボットの点の上限。文字を出す枠の数に、single の units 上限をそのまま引き継ぐ */
-const MAX_PIVOTS = 8;
+/**
+ * ピボットでは**点の数を制限しない**（2026-08-02、やおき指摘）。
+ *
+ * single の上限 8 は「連続した音が並ぶと歌詞の再現に近づく」ことによる制約である。
+ * ピボットの点は伏せ字を挟んで散在するので、何点あっても歌詞にならない。
+ * 効くのは下の総枠数（レイアウト都合）と、1 枠 4 文字（連なりを畳むと歌詞の断片が出る）。
+ */
 /**
  * 1 行に置ける枠の総数。著作権ではなくレイアウト上の都合。
  * 24 枠で 1 枠あたり約 32px になり、カードページでは明瞭に読めるが（実測）、
@@ -212,14 +217,6 @@ export function parsePivotPhrase(lines: string[], axis: string): PivotFigure {
     }
     return { length: tokens.length, pivots };
   });
-
-  const exposed = rows.reduce((sum, row) => sum + row.pivots.length, 0);
-  if (exposed > MAX_PIVOTS) {
-    throw new PhraseError(
-      `囲んだ音が ${exposed} 個あります（上限 ${MAX_PIVOTS}）。` +
-        '伏せた枠は数に入りませんが、文字を出す枠は single と同じ制限を受けます',
-    );
-  }
 
   return { kind: 'pivot', axis, rows };
 }

@@ -141,10 +141,13 @@ const pairFigure = z
 // 箇所の数は 1（rows が 2 要素になるのは、観察が改行をまたいで途切れず続く場合。
 // 離れた 2 箇所の対比＝pair とは別物）。
 //
-// 呼応しない音は文字を出さず伏せる。**上限 8 は総枠数ではなく「文字を出す枠の数」に
-// 引き継ぐ**。上限の趣旨は歌詞の連続的な再現の防止であり、伏せ字はそれに当たらないため。
-// 総枠数の 24 は著作権ではなくレイアウト上の都合。24 枠で 1 枠約 32px、
-// カードページでは明瞭に読めるが SNS で 1/3 に縮むと苦しい（16 枠までが快適圏）。
+// 呼応しない音は文字を出さず伏せる。**点の数は制限しない**（2026-08-02、やおき指摘）。
+// single の上限 8 は「連続した音が並ぶと歌詞の再現に近づく」ことによる制約で、
+// 伏せ字を挟んで散在する点は何個あっても歌詞にならない。
+//
+// 効く制限は 2 つだけ。総枠数 24（著作権ではなくレイアウト上の都合。24 枠で 1 枠約 32px、
+// カードページでは明瞭に読めるが SNS で 1/3 に縮むと苦しい。16 枠までが快適圏）と、
+// 1 枠 4 文字（連なりを 1 枠に畳むと歌詞の断片がそのまま出るため）。
 const pivotFigure = z
   .object({
     kind: z.literal('pivot'),
@@ -169,17 +172,6 @@ const pivotFigure = z
       .max(2),
   })
   .superRefine((figure, ctx) => {
-    const exposed = figure.rows.reduce((sum, row) => sum + row.pivots.length, 0);
-    if (exposed > 8) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['rows'],
-        message:
-          `文字を出す枠が ${exposed} 個あります（上限 8）。` +
-          '上限は著作権上のガードレールで、伏せた枠は数に入りませんが、' +
-          '出す文字の数は single と同じ制限を受けます',
-      });
-    }
     figure.rows.forEach((row, rowIndex) => {
       const seen = new Set<number>();
       for (const { at } of row.pivots) {
