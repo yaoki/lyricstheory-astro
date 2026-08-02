@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { PhraseError, parsePhrase, toYaml } from '../src/lib/og/phrase';
 import { renderPng } from '../src/lib/og/render';
-import { symmetry } from '../src/lib/og/templates/symmetry';
+import { single } from '../src/lib/og/templates/single';
 
 const USAGE = `
 使い方:
@@ -84,7 +84,7 @@ function main(): void {
   }
 
   const file = out ?? path.join(tmpdir(), 'lyricstheory-figure-preview.png');
-  writeFileSync(file, renderPng(symmetry(figure, { title, repetition })));
+  writeFileSync(file, renderPng(single(figure, { title, repetition })));
   console.log(`プレビュー: ${file}`);
 
   if (shouldOpen && process.platform === 'darwin') {

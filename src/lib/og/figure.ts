@@ -15,8 +15,8 @@ export type Highlight = number[] | number[][];
  * 図の形は 1 種類に統一してある。何を見ているか（C / V / CV のどのフレームか）は
  * 図の形ではなく、カードの tags.repetition が決めるバッジと色で示す。
  */
-export interface SymmetryFigure {
-  kind: 'symmetry';
+export interface SingleFigure {
+  kind: 'single';
   units: string[];
   highlight: Highlight;
 }
@@ -50,7 +50,7 @@ export interface PairFigure {
   correspondences?: [number, number][];
 }
 
-export type Figure = SymmetryFigure | PairFigure;
+export type Figure = SingleFigure | PairFigure;
 
 /** 図に添える、figure 以外の情報 */
 export interface FigureContext {

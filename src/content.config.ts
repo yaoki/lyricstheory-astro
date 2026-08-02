@@ -66,14 +66,14 @@ const author = defineCollection({
 // OG 画像（/og/{slug}.png）に描く図の指定。任意。
 // figure を持たないカードは図なしのフォールバックで生成される。
 // 仕様: ../tasks/lyricstheory-og-symmetry-spec.md
-// 型の対応先: src/lib/og/templates/symmetry.ts の SymmetryFigure
-// 行数＝図に載せる箇所の数。1 箇所なら symmetry、離れた 2 箇所の対比なら pair。
+// 型の対応先: src/lib/og/templates/single.ts の SingleFigure
+// 行数＝図に載せる箇所の数。1 箇所なら single、離れた 2 箇所の対比なら pair。
 // 図の形が表すのは「何箇所載るか」であって、何を見ているか（フレーム）ではない。
 // フレームは tags.repetition が決め、左上のバッジと色で示す。
 // 3 つ目の形を足す前に、この規則で説明がつくかを必ず判定すること。
-const symmetryFigure = z
+const singleFigure = z
   .object({
-    kind: z.literal('symmetry'),
+    kind: z.literal('single'),
     // units の上限 8 は著作権上のガードレール（長い連続は歌詞の再現に近づく）。緩めないこと
     units: z.array(z.string().min(1).max(4)).min(2).max(8),
     // 1 組なら [2, 4]、同じフレーズに複数の呼応があるなら [[2, 4], [5, 7]]
@@ -137,7 +137,7 @@ const pairFigure = z
     }
   });
 
-const figureSchema = z.union([symmetryFigure, pairFigure]);
+const figureSchema = z.union([singleFigure, pairFigure]);
 
 const elements = defineCollection({
   loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/elements' }),

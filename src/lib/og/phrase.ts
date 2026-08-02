@@ -11,7 +11,7 @@
  * 規則で決まる変換なので、書き手が figure の座標や添字を考える必要はない。
  */
 
-import { normalizeHighlight, type Highlight, type SymmetryFigure } from './figure';
+import { normalizeHighlight, type Highlight, type SingleFigure } from './figure';
 
 /** 直前の音に結合する文字（拗音・小書き仮名・長音符） */
 const COMBINING = /[ゃゅょャュョぁぃぅぇぉァィゥェォヵヶーｰ]/;
@@ -29,7 +29,7 @@ const MAX_UNITS = 8;
 export class PhraseError extends Error {}
 
 export interface ParsedPhrase {
-  figure: SymmetryFigure;
+  figure: SingleFigure;
   /** 上限に収めるために落とした文脈の音数 */
   trimmed: { head: number; tail: number };
 }
@@ -102,7 +102,7 @@ export function parsePhrase(phrase: string): ParsedPhrase {
   const highlight: Highlight = ordered.length === 1 ? ordered[0] : ordered;
 
   return {
-    figure: { kind: 'symmetry', units, highlight },
+    figure: { kind: 'single', units, highlight },
     trimmed: { head: start, tail: tokens.length - 1 - end },
   };
 }
@@ -156,7 +156,7 @@ function tokenize(phrase: string): Token[] {
 }
 
 /** frontmatter にそのまま貼れる YAML を組み立てる */
-export function toYaml(figure: SymmetryFigure): string {
+export function toYaml(figure: SingleFigure): string {
   const units = figure.units.map((u) => `"${u}"`).join(', ');
   const groups = normalizeHighlight(figure.highlight);
   const highlight =

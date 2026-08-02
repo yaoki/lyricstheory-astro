@@ -1,5 +1,5 @@
 import { frameBadge, footer } from '../chrome';
-import { normalizeHighlight, type FigureContext, type SymmetryFigure } from '../figure';
+import { normalizeHighlight, type FigureContext, type SingleFigure } from '../figure';
 import { ACCENTS, CANVAS, COLORS, FONT_FAMILY, MARGIN_X, SYMMETRY } from '../layout';
 import { escapeXml, textBlock, widthEm, wrapText } from '../text';
 
@@ -21,7 +21,7 @@ interface Span {
  * （zod の推論は判別ユニオンにならず、kind 付きのまま渡すと型が合わないため）。
  * repetition はカードの tags.repetition（c | v | cv）。分析のフレームとして左上に掲げる。
  */
-export function symmetry(figure: Omit<SymmetryFigure, 'kind'>, ctx: FigureContext): string {
+export function single(figure: Omit<SingleFigure, 'kind'>, ctx: FigureContext): string {
   const { units } = figure;
   const groups = normalizeHighlight(figure.highlight);
 

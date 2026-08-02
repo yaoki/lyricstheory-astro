@@ -4,7 +4,7 @@ import { renderPng } from '../../lib/og/render';
 import { lyricistOf } from '../../lib/og/credit';
 import { fallback } from '../../lib/og/templates/fallback';
 import { pair } from '../../lib/og/templates/pair';
-import { symmetry } from '../../lib/og/templates/symmetry';
+import { single } from '../../lib/og/templates/single';
 
 /**
  * elements カード 1 枚につき OG 画像 1 枚をビルド時に生成する。
@@ -33,7 +33,7 @@ export const GET: APIRoute<Props> = ({ props }) => {
     data.figure?.kind === 'pair'
       ? pair(data.figure, ctx)
       : data.figure
-        ? symmetry(data.figure, ctx)
+        ? single(data.figure, ctx)
         : fallback(ctx);
 
   return new Response(new Uint8Array(renderPng(svg)), {
