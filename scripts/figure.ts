@@ -11,8 +11,15 @@ import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { PhraseError, parsePhrase, toYaml } from '../src/lib/og/phrase';
+import {
+  PhraseError,
+  parsePhrase,
+  parsePivotPhrase,
+  toPivotYaml,
+  toYaml,
+} from '../src/lib/og/phrase';
 import { renderPng } from '../src/lib/og/render';
+import { pivot } from '../src/lib/og/templates/pivot';
 import { single } from '../src/lib/og/templates/single';
 
 const USAGE = `
@@ -35,6 +42,16 @@ const USAGE = `
 図の左上にそのフレームが掲げられ、呼応の色が変わります。
 
   例) npm run figure -- --repetition v '「き」も「ち」'
+
+--pivot <軸ラベル> を付けると子音ピボットの図になります。
+書き方は同じですが、囲みの外は**伏せた印**になり文字が出ません。
+そのため上限8は総枠数ではなく、囲んだ音の数に掛かります（1行は20枠まで）。
+行をまたいで続くピボットは、行ごとに分けて渡します（最大2行）。
+
+  例) npm run figure -- --pivot 'カ行子音' --repetition c \\
+        'いつ「か」「か」ならず「か」なうって「き」め「こ」んで'
+  例) npm run figure -- --pivot 'タ行子音' --repetition c \\
+        'い「つ」かかならずかなうっ「て」きめこん「で」' 'ろ「と」うにまよっ「た」いのり'
 `;
 
 function main(): void {
@@ -44,6 +61,8 @@ function main(): void {
   let shouldOpen = true;
   // カードの tags.repetition にあたる。図の左上に掲げる分析のフレーム
   let repetition = 'cv';
+  // 子音ピボットの軸ラベル。指定すると囲みの外を伏せる図になる
+  let pivotAxis: string | undefined;
   const positional: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
@@ -52,8 +71,34 @@ function main(): void {
     else if (arg === '--out') out = args[++i];
     else if (arg === '--no-open') shouldOpen = false;
     else if (arg === '--repetition') repetition = args[++i] ?? 'cv';
+    else if (arg === '--pivot') pivotAxis = args[++i] ?? '';
     else if (arg === '-h' || arg === '--help') return console.log(USAGE);
     else positional.push(arg);
+  }
+
+  // ピボットは行ごとに渡すので、positional を連結せずそのまま行として扱う
+  if (pivotAxis !== undefined) {
+    const lines = positional.map((line) => line.trim()).filter((line) => line !== '');
+    if (lines.length === 0) {
+      console.error(USAGE);
+      process.exit(1);
+    }
+    let figure;
+    try {
+      figure = parsePivotPhrase(lines, pivotAxis);
+    } catch (error) {
+      if (error instanceof PhraseError) {
+        console.error(`\n  ${error.message}\n`);
+        process.exit(1);
+      }
+      throw error;
+    }
+    console.log(`\n${toPivotYaml(figure)}\n`);
+    const file = out ?? path.join(tmpdir(), 'lyricstheory-figure-preview.png');
+    writeFileSync(file, renderPng(pivot(figure, { title, repetition })));
+    console.log(`プレビュー: ${file}`);
+    if (shouldOpen && process.platform === 'darwin') execFileSync('open', [file]);
+    return;
   }
 
   const phrase = positional.join(' ').trim();

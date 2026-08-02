@@ -11,7 +11,12 @@
  * 規則で決まる変換なので、書き手が figure の座標や添字を考える必要はない。
  */
 
-import { normalizeHighlight, type Highlight, type SingleFigure } from './figure';
+import {
+  normalizeHighlight,
+  type Highlight,
+  type PivotFigure,
+  type SingleFigure,
+} from './figure';
 
 /** 直前の音に結合する文字（拗音・小書き仮名・長音符） */
 const COMBINING = /[ゃゅょャュョぁぃぅぇぉァィゥェォヵヶーｰ]/;
@@ -153,6 +158,83 @@ function tokenize(phrase: string): Token[] {
     throw new PhraseError(`${BRACKETS[open][0]}が${BRACKETS[open][1]}で閉じられていません`);
   }
   return tokens;
+}
+
+/** ピボットの点の上限。文字を出す枠の数に、single の units 上限をそのまま引き継ぐ */
+const MAX_PIVOTS = 8;
+/**
+ * 1 行に置ける枠の総数。著作権ではなくレイアウト上の都合。
+ * 24 枠で 1 枠あたり約 32px になり、カードページでは明瞭に読めるが（実測）、
+ * SNS で 1/3 に縮むと 11px 前後で苦しい。16 枠までが快適圏。
+ */
+const MAX_PIVOT_LENGTH = 24;
+
+/**
+ * ピボット用のフレーズを読む。
+ *
+ * 書き方は single と同じで、軸となる音を「」で囲む。違うのは囲みの外の扱いで、
+ * single が文字を並べるのに対し、こちらは**伏せる**（図には印だけが出て文字は出ない）。
+ * そのため上限 8 は総枠数ではなく、囲んだ音の数に掛かる。
+ *
+ * 行をまたいで続くピボットは、行ごとに分けて渡す（最大 2 行）。
+ * これは離れた 2 箇所の対比（pair）ではなく、1 箇所が改行を含むという意味である。
+ */
+export function parsePivotPhrase(lines: string[], axis: string): PivotFigure {
+  if (axis.trim() === '') {
+    throw new PhraseError('軸のラベルを指定してください（例: --pivot カ行子音）');
+  }
+  if (lines.length === 0 || lines.length > 2) {
+    throw new PhraseError(`行は 1〜2 行です（${lines.length} 行が渡されました）`);
+  }
+
+  const rows = lines.map((line) => {
+    const tokens = tokenize(line);
+    if (tokens.length > MAX_PIVOT_LENGTH) {
+      throw new PhraseError(
+        `1 行が ${tokens.length} 枠あり、上限の ${MAX_PIVOT_LENGTH} 枠を超えます。` +
+          '（枠が細くなりすぎて、SNS で縮んだときに読めなくなります）',
+      );
+    }
+    const pivots = tokens.flatMap((token, index) =>
+      token.group === null ? [] : [{ at: index, unit: token.text }],
+    );
+    if (pivots.length === 0) {
+      throw new PhraseError('軸となる音を「」で囲んでください（例: いつ「か」「か」ならず「か」）');
+    }
+    // 1 枠に押し込める文字数の上限は single と同じ。ここを緩めると、
+    // 伏せた枠の間に長い連なりが現れて「伏せているから歌詞ではない」が崩れる
+    const tooLong = pivots.find((p) => [...p.unit].length > 4);
+    if (tooLong !== undefined) {
+      throw new PhraseError(
+        `「${tooLong.unit}」は1枠に収まりません（1枠は4文字まで）。` +
+          'ピボットは1音ずつ散らばる様子を見る図なので、連なりを1枠に畳むなら single を使ってください',
+      );
+    }
+    return { length: tokens.length, pivots };
+  });
+
+  const exposed = rows.reduce((sum, row) => sum + row.pivots.length, 0);
+  if (exposed > MAX_PIVOTS) {
+    throw new PhraseError(
+      `囲んだ音が ${exposed} 個あります（上限 ${MAX_PIVOTS}）。` +
+        '伏せた枠は数に入りませんが、文字を出す枠は single と同じ制限を受けます',
+    );
+  }
+
+  return { kind: 'pivot', axis, rows };
+}
+
+/** ピボットの YAML。frontmatter にそのまま貼れる */
+export function toPivotYaml(figure: PivotFigure): string {
+  const lines = ['figure:', `  kind: ${figure.kind}`, `  axis: "${figure.axis}"`, '  rows:'];
+  for (const row of figure.rows) {
+    lines.push(`    - length: ${row.length}`);
+    lines.push('      pivots:');
+    for (const p of row.pivots) {
+      lines.push(`        - { at: ${p.at}, unit: "${p.unit}" }`);
+    }
+  }
+  return lines.join('\n');
 }
 
 /** frontmatter にそのまま貼れる YAML を組み立てる */

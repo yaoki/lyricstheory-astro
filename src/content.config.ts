@@ -137,7 +137,72 @@ const pairFigure = z
     }
   });
 
-const figureSchema = z.union([singleFigure, pairFigure]);
+// 子音ピボット。single の**表示のバリエーション**であって 3 つ目の形ではない。
+// 箇所の数は 1（rows が 2 要素になるのは、観察が改行をまたいで途切れず続く場合。
+// 離れた 2 箇所の対比＝pair とは別物）。
+//
+// 呼応しない音は文字を出さず伏せる。**上限 8 は総枠数ではなく「文字を出す枠の数」に
+// 引き継ぐ**。上限の趣旨は歌詞の連続的な再現の防止であり、伏せ字はそれに当たらないため。
+// 総枠数の 24 は著作権ではなくレイアウト上の都合。24 枠で 1 枠約 32px、
+// カードページでは明瞭に読めるが SNS で 1/3 に縮むと苦しい（16 枠までが快適圏）。
+const pivotFigure = z
+  .object({
+    kind: z.literal('pivot'),
+    // 上部に掲げる軸のラベル。「カ行子音」など。tags.phoneme から機械生成しないのは、
+    // 清濁をまたぐ軸（/t/ に「だ」「で」を含める等）の但し書きが自動では書けないため
+    axis: z.string().min(1).max(12),
+    rows: z
+      .array(
+        z.object({
+          length: z.number().int().min(2).max(24),
+          pivots: z
+            .array(
+              z.object({
+                at: z.number().int().nonnegative(),
+                unit: z.string().min(1).max(4),
+              }),
+            )
+            .min(1),
+        }),
+      )
+      .min(1)
+      .max(2),
+  })
+  .superRefine((figure, ctx) => {
+    const exposed = figure.rows.reduce((sum, row) => sum + row.pivots.length, 0);
+    if (exposed > 8) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['rows'],
+        message:
+          `文字を出す枠が ${exposed} 個あります（上限 8）。` +
+          '上限は著作権上のガードレールで、伏せた枠は数に入りませんが、' +
+          '出す文字の数は single と同じ制限を受けます',
+      });
+    }
+    figure.rows.forEach((row, rowIndex) => {
+      const seen = new Set<number>();
+      for (const { at } of row.pivots) {
+        if (at >= row.length) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['rows', rowIndex, 'pivots'],
+            message: `at の ${at} は length（${row.length}）の範囲外です`,
+          });
+        }
+        if (seen.has(at)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['rows', rowIndex, 'pivots'],
+            message: `at の ${at} が重複しています。1 つの位置に置ける音は 1 つです`,
+          });
+        }
+        seen.add(at);
+      }
+    });
+  });
+
+const figureSchema = z.union([singleFigure, pairFigure, pivotFigure]);
 
 const elements = defineCollection({
   loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/elements' }),

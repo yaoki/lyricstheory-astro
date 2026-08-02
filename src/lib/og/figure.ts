@@ -50,7 +50,31 @@ export interface PairFigure {
   correspondences?: [number, number][];
 }
 
-export type Figure = SingleFigure | PairFigure;
+/**
+ * 子音ピボット。軸の子音が、母音を変えながら行の端から端まで散らばって現れる。
+ *
+ * single の**表示のバリエーション**であって、3 つ目の「形」ではない。
+ * 行数＝図に載せる箇所の数という規則の上では 1 箇所（rows が 2 要素になるのは
+ * 観察が改行をまたいで途切れず続く場合で、離れた 2 箇所の対比ではない）。
+ *
+ * 呼応しない音は文字を出さず、伏せた印だけを置く。詳細は layout.ts の PIVOT。
+ */
+export interface PivotFigure {
+  kind: 'pivot';
+  /** 上部に掲げる軸のラベル（「カ行子音」など）。持続範囲の矢印がここから伸びる */
+  axis: string;
+  /** 1 行につき、総モーラ数と、軸の音が現れる位置 */
+  rows: PivotRow[];
+}
+
+export interface PivotRow {
+  /** その行の総モーラ数。伏せた枠を含む枠の総数になる */
+  length: number;
+  /** 軸の音。at は 0 起点の位置、unit は出す文字 */
+  pivots: { at: number; unit: string }[];
+}
+
+export type Figure = SingleFigure | PairFigure | PivotFigure;
 
 /** 図に添える、figure 以外の情報 */
 export interface FigureContext {

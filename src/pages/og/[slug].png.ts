@@ -4,6 +4,7 @@ import { renderPng } from '../../lib/og/render';
 import { lyricistOf } from '../../lib/og/credit';
 import { fallback } from '../../lib/og/templates/fallback';
 import { pair } from '../../lib/og/templates/pair';
+import { pivot } from '../../lib/og/templates/pivot';
 import { single } from '../../lib/og/templates/single';
 
 /**
@@ -32,9 +33,11 @@ export const GET: APIRoute<Props> = ({ props }) => {
   const svg =
     data.figure?.kind === 'pair'
       ? pair(data.figure, ctx)
-      : data.figure
-        ? single(data.figure, ctx)
-        : fallback(ctx);
+      : data.figure?.kind === 'pivot'
+        ? pivot(data.figure, ctx)
+        : data.figure
+          ? single(data.figure, ctx)
+          : fallback(ctx);
 
   return new Response(new Uint8Array(renderPng(svg)), {
     headers: { 'Content-Type': 'image/png' },
