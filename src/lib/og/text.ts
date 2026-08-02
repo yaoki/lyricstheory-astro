@@ -19,6 +19,20 @@ export function charWidthEm(ch: string): number {
   return HALF_WIDTH.test(ch) ? 0.5 : 1;
 }
 
+/** 直前の音に結合する文字（拗音・小書き仮名・長音符）。1 音として数えない */
+export const COMBINING = /[ゃゅょャュョぁぃぅぇぉァィゥェォヵヶーｰ]/;
+
+/**
+ * 1 枠が何モーラぶんか。
+ *
+ * 「しゃ」は 2 文字だが 1 モーラ、「かな」は 2 文字で 2 モーラ。
+ * 図で「複数の音を 1 枠に畳んである」ことを示すかどうかの判定に使う
+ * （畳んだ枠には括りを付けるが、拗音には付けない）。
+ */
+export function moraCount(unit: string): number {
+  return [...unit].filter((ch) => !COMBINING.test(ch)).length;
+}
+
 export function widthEm(text: string): number {
   return [...text].reduce((sum, ch) => sum + charWidthEm(ch), 0);
 }

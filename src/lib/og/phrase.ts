@@ -18,8 +18,7 @@ import {
   type SingleFigure,
 } from './figure';
 
-/** 直前の音に結合する文字（拗音・小書き仮名・長音符） */
-const COMBINING = /[ゃゅょャュョぁぃぅぇぉァィゥェォヵヶーｰ]/;
+import { COMBINING } from './text';
 
 /** 囲みの種類。並び順がそのまま呼応の組になる */
 const BRACKETS: ReadonlyArray<readonly [string, string]> = [

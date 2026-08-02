@@ -1,7 +1,7 @@
 import { frameBadge, footer } from '../chrome';
 import { normalizeHighlight, type FigureContext, type SingleFigure } from '../figure';
 import { ACCENTS, CANVAS, COLORS, FONT_FAMILY, MARGIN_X, SYMMETRY } from '../layout';
-import { escapeXml, textBlock, widthEm, wrapText } from '../text';
+import { escapeXml, moraCount, textBlock, widthEm, wrapText } from '../text';
 
 type Accent = (typeof ACCENTS)[number];
 
@@ -60,6 +60,26 @@ export function single(figure: Omit<SingleFigure, 'kind'>, ctx: FigureContext): 
     })
     .join('');
 
+  // 複数のモーラを 1 枠に畳んだ枠には、下に括りを付ける。
+  // 「かな」のような 2 モーラのフィギュアが、隣り合う 2 枠と見分けがつかなくなるため。
+  // 拗音（2 文字だが 1 モーラ）には付けない
+  const ties = units
+    .map((unit, i) => {
+      if (moraCount(unit) < 2) return '';
+      const accent = accentOf(i);
+      const half = widths[i] / 2 - size * 0.05;
+      const y = SYMMETRY.baseline + SYMMETRY.groupTickGap * scale;
+      const h = SYMMETRY.groupTickHeight * scale;
+      const x1 = centers[i] - half;
+      const x2 = centers[i] + half;
+      return (
+        `<path d="M ${r(x1)} ${r(y)} L ${r(x1)} ${r(y + h)} L ${r(x2)} ${r(y + h)} L ${r(x2)} ${r(y)}" ` +
+        `fill="none" stroke="${accent ? accent.stroke : SYMMETRY.dim}" ` +
+        `stroke-width="${r(SYMMETRY.groupTickWidth * scale)}" stroke-linecap="round" stroke-linejoin="round" />`
+      );
+    })
+    .join('');
+
   // 結ぶ相手がいない組（要素が 1 つ以下）には弧を描かない
   const spans: Span[] = groups.flatMap((group, i) =>
     group.length >= 2
@@ -79,6 +99,7 @@ export function single(figure: Omit<SingleFigure, 'kind'>, ctx: FigureContext): 
     frameBadge(ctx.repetition),
     arcs,
     glyphs,
+    ties,
     textBlock(lines, {
       x: MARGIN_X,
       baseline,
