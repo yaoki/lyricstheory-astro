@@ -174,8 +174,10 @@ export const CONSONANT = {
   gap: 10,
   /** 音の上に振る記号の、音に対する大きさの比 */
   markRatio: 0.62,
-  /** 記号と音の隙間 */
-  markGap: 10,
+  /** 記号と、その上にあるもの（音、または括り）との隙間 */
+  markGap: 12,
+  /** 括りがある行では詰める。括りと記号を近づけたぶん、次の行との距離が稼げる */
+  markGapAfterTie: 4,
   /**
    * 行数ごとの、1 行目のベースラインの目安と、音の大きさの上限。
    *
@@ -189,11 +191,11 @@ export const CONSONANT = {
   layouts: {
     1: { baseline: 300, maxSize: 62 },
     2: { baseline: 250, maxSize: 62 },
-    3: { baseline: 200, maxSize: 48 },
-    4: { baseline: 165, maxSize: 40 },
+    3: { baseline: 200, maxSize: 46 },
+    4: { baseline: 160, maxSize: 34 },
   } as Record<number, { baseline: number; maxSize: number }>,
-  /** 行送り＝音の大きさ × これ。1 行の占有（記号＋音＋括り）を賄う */
-  rowStepRatio: 2.0,
+  /** 行送り＝音の大きさ × これ。1 行の占有（音＋括り＋記号）を賄う */
+  rowStepRatio: 2.2,
   /**
    * いちばん下の行のベースラインをここより下げない。
    * カードページの本文は OG 画像を y=400 で刈るので、括りのぶんを見て手前で止める

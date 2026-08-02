@@ -35,11 +35,16 @@ export function consonant(figure: Omit<ConsonantFigure, 'kind'>, ctx: FigureCont
   const layout = CONSONANT.layouts[rows.length] ?? CONSONANT.layouts[4];
   const size = Math.min(layout.maxSize, cell / maxEm);
 
-  // 行送りは音の大きさから決める。1 行は記号（上）・音・括り（下）を占めるので、
-  // 固定値だと音が大きいときに次の行の記号が前の行の括りへ食い込む
+  // 行送りは音の大きさから決める。1 行は音・括り・記号を縦に積むので、
+  // 固定値だと音が大きいときに次の行の音が前の行の記号へ食い込む
   const step = size * CONSONANT.rowStepRatio;
   const span = (rows.length - 1) * step;
-  const first = Math.min(layout.baseline, CONSONANT.bottomLimit - span);
+  // いちばん下の行は、括りと記号のぶんを見込んで手前で止める
+  const below =
+    (SYMMETRY.groupTickGap + SYMMETRY.groupTickHeight) * (size / SYMMETRY.unitFontSize) +
+    CONSONANT.markGap +
+    size * CONSONANT.markRatio;
+  const first = Math.min(layout.baseline, CONSONANT.bottomLimit - span - below);
 
   const body = rows
     .map((row, i) => renderRow(row, first + i * step, cell, size, palette))
@@ -70,7 +75,13 @@ export function consonant(figure: Omit<ConsonantFigure, 'kind'>, ctx: FigureCont
   ].join('');
 }
 
-/** 1 行ぶん。音を並べ、記号を持つ音の上に記号を振る */
+/**
+ * 1 行ぶん。音を並べ、記号を持つ音の**下**に記号を振る。
+ *
+ * 記号は音の上ではなく下に置く（2026-08-02、やおき指示）。畳んだ枠には括りが付くので、
+ * 記号を上に置くと括りと記号が音を挟んで離れ、どれがどの枠のものか読みにくくなる。
+ * 括りのすぐ下に記号を置けば、「ここまでが 1 枠、その構造はこれ」と続けて読める。
+ */
 function renderRow(
   row: ConsonantRow,
   baseline: number,
@@ -81,10 +92,18 @@ function renderRow(
   const byIndex = new Map(row.marks.map((m) => [m.at, m.symbol]));
   const parts: string[] = [];
 
+  // 記号の縦位置は行のなかで揃える。畳んだ枠が 1 つでもあれば括りのぶんを見込む
+  const k = size / SYMMETRY.unitFontSize;
+  const hasTie = row.units.some((u) => moraCount(u) >= 2);
+  const tieBottom = hasTie ? (SYMMETRY.groupTickGap + SYMMETRY.groupTickHeight) * k : 0;
+  const markSize = size * CONSONANT.markRatio;
+  const gapAbove = hasTie ? CONSONANT.markGapAfterTie : CONSONANT.markGap;
+  const markBaseline = baseline + tieBottom + gapAbove + markSize * 0.94;
+
   for (let i = 0; i < row.units.length; i++) {
     const x = MARGIN_X + i * (cell + CONSONANT.gap) + cell / 2;
     const symbol = byIndex.get(i);
-    // 記号を持たない音は背景に落とす。交替が起きている範囲を浮かび上がらせるため
+    // 記号を持たない音は背景に落とす。観察の範囲を浮かび上がらせるため
     const fill =
       symbol === undefined
         ? SYMMETRY.dim
@@ -97,10 +116,8 @@ function renderRow(
         `font-weight="700" fill="${fill}" text-anchor="middle">${escapeXml(row.units[i])}</text>`,
     );
 
-    // 複数のモーラを 1 枠に畳んだ枠には、single と同じ括りを付ける。
-    // 2 モーラで 1 つの音節をなしていること自体が観察であることが多いため
+    // 複数のモーラを 1 枠に畳んだ枠には、single と同じ括りを付ける
     if (moraCount(row.units[i]) >= 2) {
-      const k = size / SYMMETRY.unitFontSize;
       const half = cell / 2 - size * 0.05;
       const ty = baseline + SYMMETRY.groupTickGap * k;
       const th = SYMMETRY.groupTickHeight * k;
@@ -114,12 +131,10 @@ function renderRow(
     if (symbol === undefined) continue;
 
     // Φ は無彩色にする（ACCENTS を当てると「3 つ目の子音」に見える）が、
-    // dim では薄すぎて読めない。「子音を持たない位置」であること自体は
-    // 読み取ってほしい情報なので muted を当てる（2026-08-02、やおき指摘）
-    const markSize = size * CONSONANT.markRatio;
+    // dim では薄すぎて読めないので muted を当てる
     parts.push(
-      `<text x="${r(x)}" y="${r(baseline - size * 0.94 - CONSONANT.markGap)}" ` +
-        `font-family="${FONT_FAMILY}" font-size="${r(markSize)}" font-weight="700" ` +
+      `<text x="${r(x)}" y="${r(markBaseline)}" font-family="${FONT_FAMILY}" ` +
+        `font-size="${r(markSize)}" font-weight="700" ` +
         `fill="${symbol === EMPTY ? COLORS.muted : (palette.get(symbol) ?? COLORS.text)}" ` +
         `text-anchor="middle">${escapeXml(symbol)}</text>`,
     );
