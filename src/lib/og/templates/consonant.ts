@@ -32,11 +32,17 @@ export function consonant(figure: Omit<ConsonantFigure, 'kind'>, ctx: FigureCont
   const longest = Math.max(...rows.map((row) => row.units.length));
   const cell = (available - (longest - 1) * CONSONANT.gap) / longest;
   const maxEm = Math.max(...rows.flatMap((row) => row.units.map((u) => widthEm(u))), 1);
-  const size = Math.min(CONSONANT.unitFontSize, cell / maxEm);
+  const layout = CONSONANT.layouts[rows.length] ?? CONSONANT.layouts[4];
+  const size = Math.min(layout.maxSize, cell / maxEm);
 
-  const firstBaseline = rows.length >= 2 ? CONSONANT.baselineTwoRows : CONSONANT.baseline;
+  // 行送りは音の大きさから決める。1 行は記号（上）・音・括り（下）を占めるので、
+  // 固定値だと音が大きいときに次の行の記号が前の行の括りへ食い込む
+  const step = size * CONSONANT.rowStepRatio;
+  const span = (rows.length - 1) * step;
+  const first = Math.min(layout.baseline, CONSONANT.bottomLimit - span);
+
   const body = rows
-    .map((row, i) => renderRow(row, firstBaseline + i * CONSONANT.rowStep, cell, size, palette))
+    .map((row, i) => renderRow(row, first + i * step, cell, size, palette))
     .join('');
 
   const maxTitleEm = available / CONSONANT.titleFontSize;
@@ -46,7 +52,9 @@ export function consonant(figure: Omit<ConsonantFigure, 'kind'>, ctx: FigureCont
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS.width}" height="${CANVAS.height}" viewBox="0 0 ${CANVAS.width} ${CANVAS.height}">`,
     `<rect width="${CANVAS.width}" height="${CANVAS.height}" fill="${COLORS.bg}" />`,
-    frameBadge(ctx.repetition),
+    // 3 行以上のときは分析のフレームのバッジを出さない。
+    // 図が上へ伸びてバッジの座る位置（左上）と重なるため
+    rows.length <= 2 ? frameBadge(ctx.repetition) : '',
     body,
     textBlock(lines, {
       x: MARGIN_X,

@@ -253,8 +253,8 @@ export function parseConsonantPhrase(
   markLines: string[],
   fold = false,
 ): ConsonantFigure {
-  if (lines.length === 0 || lines.length > 2) {
-    throw new PhraseError(`行は 1〜2 行です（${lines.length} 行が渡されました）`);
+  if (lines.length === 0 || lines.length > 4) {
+    throw new PhraseError(`行は 1〜4 行です（${lines.length} 行が渡されました）`);
   }
   if (markLines.length !== lines.length) {
     throw new PhraseError(
@@ -305,9 +305,6 @@ export function parseConsonantPhrase(
       if (open) marked.push(units.length - 1);
     }
     if (open) throw new PhraseError('「が」で閉じられていません');
-    if (marked.length === 0) {
-      throw new PhraseError('記号を振る範囲を「」で囲んでください');
-    }
 
     // fold では群がそのまま 1 記号（CVV など）。既定では群の 1 文字が 1 記号
     const groups = markLines[rowIndex]

@@ -169,19 +169,36 @@ export const FALLBACK = {
  * 交替が起きている範囲を浮かび上がらせる。
  */
 export const CONSONANT = {
-  /** 歌詞の音の大きさ。セル幅がこれより狭ければセル幅に従う */
-  unitFontSize: 62,
+
   /** 音と音の間隔 */
   gap: 10,
   /** 音の上に振る記号の、音に対する大きさの比 */
   markRatio: 0.62,
   /** 記号と音の隙間 */
   markGap: 10,
-  /** 1 行のときのベースライン */
-  baseline: 300,
-  /** 2 行のときの 1 行目のベースライン。本文の切り出し y=400 を越えないよう詰める */
-  baselineTwoRows: 250,
-  rowStep: 104,
+  /**
+   * 行数ごとの、1 行目のベースラインの目安と、音の大きさの上限。
+   *
+   * 行を増やすのはメロディの切れ目で割るためで（重音節が行頭に立つことが見える）、
+   * 増えたぶんは 1 行を小さくして収める。
+   *
+   * **行送りは固定値にせず、音の大きさから計算する**（rowStepRatio）。
+   * 1 行は「記号（上）＋音＋括り（下）」を占めるので、固定値だと音が大きいときに
+   * 次の行の記号が前の行の括りへ食い込む。
+   */
+  layouts: {
+    1: { baseline: 300, maxSize: 62 },
+    2: { baseline: 250, maxSize: 62 },
+    3: { baseline: 200, maxSize: 48 },
+    4: { baseline: 165, maxSize: 40 },
+  } as Record<number, { baseline: number; maxSize: number }>,
+  /** 行送り＝音の大きさ × これ。1 行の占有（記号＋音＋括り）を賄う */
+  rowStepRatio: 2.0,
+  /**
+   * いちばん下の行のベースラインをここより下げない。
+   * カードページの本文は OG 画像を y=400 で刈るので、括りのぶんを見て手前で止める
+   */
+  bottomLimit: 380,
   titleCenterY: 470,
   titleFontSize: 40,
   titleLineHeight: 50,

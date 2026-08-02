@@ -210,18 +210,16 @@ const consonantFigure = z
       .array(
         z.object({
           units: z.array(z.string().min(1).max(4)).min(2).max(24),
-          marks: z
-            .array(
-              z.object({
-                at: z.number().int().nonnegative(),
-                symbol: z.string().min(1).max(4),
-              }),
-            )
-            .min(1),
+          marks: z.array(
+            z.object({
+              at: z.number().int().nonnegative(),
+              symbol: z.string().min(1).max(4),
+            }),
+          ),
         }),
       )
       .min(1)
-      .max(2),
+      .max(4),
   })
   .superRefine((figure, ctx) => {
     figure.rows.forEach((row, rowIndex) => {
