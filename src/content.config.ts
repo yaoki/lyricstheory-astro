@@ -194,21 +194,48 @@ const pivotFigure = z
     });
   });
 
-// 子音の並びそのものを描く。2 つ以上の子音が交替し続ける範囲を見るとき、
-// 単位は個々の音節ではなく子音の並びになり、仮名の枠には載らない
-// （子音を持たない位置 Φ に対応する仮名がない）。
+// 子音の並びを、歌詞の上に振って見せる。2 つ以上の子音が交替し続ける範囲を見るとき、
+// 単位は個々の音節ではなく子音の並びになる。
 //
-// **枠数の上限を持たない。** single の上限 8 は「仮名が連続して並ぶと歌詞の再現に
-// 近づく」ことによる制約で、子音記号の列は歌詞にならないため（ピボットの点と同じ理屈）。
-// 効くのは 1 行に入る幅だけで、それはレイアウト側が縮めて吸収する。
-const consonantFigure = z.object({
-  kind: z.literal('consonant'),
-  // 行 → 群 → 記号。群と群のあいだは図の上で離れる
-  rows: z
-    .array(z.array(z.array(z.string().min(1).max(2)).min(1)).min(1))
-    .min(1)
-    .max(2),
-});
+// 記号だけを並べた版は「誰にもわからない」ので採らない（2026-08-02、やおき指摘）。
+// 図はブログを読みに行かなくても単体で伝わる強度を持たなければならず、
+// 抽象（記号）と実音（歌詞）の対応こそが図の本体になる。
+//
+// 歌詞はカード本文が既に <LyricQuote> で引用している範囲と同じものを出すので、
+// 引用の総量は増えない。行の長さの上限 24 はレイアウト上の都合。
+const consonantFigure = z
+  .object({
+    kind: z.literal('consonant'),
+    rows: z
+      .array(
+        z.object({
+          units: z.array(z.string().min(1).max(4)).min(2).max(24),
+          marks: z
+            .array(
+              z.object({
+                at: z.number().int().nonnegative(),
+                symbol: z.string().min(1).max(2),
+              }),
+            )
+            .min(1),
+        }),
+      )
+      .min(1)
+      .max(2),
+  })
+  .superRefine((figure, ctx) => {
+    figure.rows.forEach((row, rowIndex) => {
+      for (const { at } of row.marks) {
+        if (at >= row.units.length) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['rows', rowIndex, 'marks'],
+            message: `at の ${at} は units（${row.units.length} 要素）の範囲外です`,
+          });
+        }
+      }
+    });
+  });
 
 const figureSchema = z.union([singleFigure, pairFigure, pivotFigure, consonantFigure]);
 

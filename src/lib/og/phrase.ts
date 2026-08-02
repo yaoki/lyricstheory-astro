@@ -235,27 +235,74 @@ export function toPivotYaml(figure: PivotFigure): string {
 }
 
 /**
- * 子音の並びを読む。本文に書いた並びをそのまま渡せる。
+ * 子音の並びを、歌詞に対応づけて読む。
  *
- *   parseConsonantRows(['tΦk kΦ tktΦ', 'Φtk ΦktΦtΦ'])
+ * 歌詞の側はカード本文の <LyricQuote> をそのまま渡せる（記号を振る範囲が「」で
+ * 囲まれている）。記号の側は本文に書いた並びをそのまま渡せる。
  *
- * 空白が群の区切り、1 文字が 1 記号。仮名を使わないので枠数の上限はない。
+ *   parseConsonantPhrase(
+ *     ['そこからながれ「ていけ」るようなせ「かい」をみ「つけたい」'],
+ *     ['tΦk kΦ tktΦ'],
+ *   )
+ *
+ * 囲みの数と記号の群の数、囲んだ音の数と群の文字数が一致していなければ止める。
+ * ずれたまま図にすると、どの音がどの子音かという対応そのものが嘘になるため。
  */
-export function parseConsonantRows(lines: string[]): ConsonantFigure {
+export function parseConsonantPhrase(lines: string[], markLines: string[]): ConsonantFigure {
   if (lines.length === 0 || lines.length > 2) {
     throw new PhraseError(`行は 1〜2 行です（${lines.length} 行が渡されました）`);
   }
-  const rows = lines.map((line) => {
-    const groups = line
+  if (markLines.length !== lines.length) {
+    throw new PhraseError(
+      `歌詞が ${lines.length} 行、記号が ${markLines.length} 行あります。数を合わせてください`,
+    );
+  }
+
+  const rows = lines.map((line, rowIndex) => {
+    // 囲みの中も 1 音ずつ枠にする（single と違い、畳まない）。
+    // どの音がどの記号かを 1 対 1 で見せるのがこの図の目的だから
+    const units: string[] = [];
+    const marked: number[] = [];
+    let open = false;
+    for (const ch of line) {
+      if (ch === '「') {
+        if (open) throw new PhraseError('「が」で閉じられていません');
+        open = true;
+        continue;
+      }
+      if (ch === '」') {
+        if (!open) throw new PhraseError('」に対応する「がありません');
+        open = false;
+        continue;
+      }
+      if (/[\s、,]/.test(ch)) continue;
+      const prev = units.length - 1;
+      if (prev >= 0 && COMBINING.test(ch)) {
+        units[prev] += ch;
+        continue;
+      }
+      units.push(ch);
+      if (open) marked.push(units.length - 1);
+    }
+    if (open) throw new PhraseError('「が」で閉じられていません');
+    if (marked.length === 0) {
+      throw new PhraseError('記号を振る範囲を「」で囲んでください');
+    }
+
+    const symbols = markLines[rowIndex]
       .trim()
       .split(/\s+/)
       .filter((g) => g !== '')
-      .map((group) => [...group]);
-    if (groups.length === 0) {
-      throw new PhraseError('子音の並びを書いてください（例: tΦk kΦ tktΦ）');
+      .flatMap((group) => [...group]);
+    if (symbols.length !== marked.length) {
+      throw new PhraseError(
+        `${rowIndex + 1} 行目: 囲んだ音が ${marked.length} 個、記号が ${symbols.length} 個です。` +
+          '数が合わないと、どの音がどの子音かという対応が嘘になります',
+      );
     }
-    return groups;
+    return { units, marks: marked.map((at, i) => ({ at, symbol: symbols[i] })) };
   });
+
   return { kind: 'consonant', rows };
 }
 
@@ -263,8 +310,11 @@ export function parseConsonantRows(lines: string[]): ConsonantFigure {
 export function toConsonantYaml(figure: ConsonantFigure): string {
   const lines = ['figure:', `  kind: ${figure.kind}`, '  rows:'];
   for (const row of figure.rows) {
-    const groups = row.map((g) => `[${g.map((s) => `"${s}"`).join(', ')}]`).join(', ');
-    lines.push(`    - [${groups}]`);
+    lines.push(`    - units: [${row.units.map((u) => `"${u}"`).join(', ')}]`);
+    lines.push('      marks:');
+    for (const m of row.marks) {
+      lines.push(`        - { at: ${m.at}, symbol: "${m.symbol}" }`);
+    }
   }
   return lines.join('\n');
 }

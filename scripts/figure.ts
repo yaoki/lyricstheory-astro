@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
   PhraseError,
-  parseConsonantRows,
+  parseConsonantPhrase,
   parsePhrase,
   parsePivotPhrase,
   toConsonantYaml,
@@ -57,10 +57,15 @@ const USAGE = `
   例) npm run figure -- --pivot 'タ行子音' --repetition c \\
         'い「つ」かかならずかなうっ「て」きめこん「で」' 'ろ「と」うにまよっ「た」いのり'
 
---consonant は子音の並びそのものを描きます。空白が群の区切り、1文字が1記号です。
-仮名を使わないので枠数の上限はありません。記号ごとに色が変わり、Φ だけ背景色になります。
+--marks <記号の並び> を付けると、歌詞の音の上に子音記号を振る図になります。
+記号を振る範囲を「」で囲み、--marks に対応する記号を渡します（空白は群の区切り）。
+囲んだ音の数と記号の数が合わないと止まります（対応が嘘になるため）。
+行ごとに --marks を1つずつ、歌詞と同じ順で渡します。
 
-  例) npm run figure -- --consonant --repetition c 'tΦk kΦ tktΦ' 'Φtk ΦktΦtΦ'
+  例) npm run figure -- --repetition c \\
+        --marks 'tΦk kΦ tktΦ' --marks 'Φtk ΦktΦtΦ' \\
+        'そこからながれ「ていけ」るようなせ「かい」をみ「つけたい」' \\
+        '「いつか」はだれかのために「いきていたい」'
 `;
 
 function main(): void {
@@ -72,8 +77,8 @@ function main(): void {
   let repetition = 'cv';
   // 子音ピボットの軸ラベル。指定すると囲みの外を伏せる図になる
   let pivotAxis: string | undefined;
-  // 子音の並びそのものを描くモード
-  let consonantMode = false;
+  // 子音の並び。歌詞の行と、それに振る記号の行を別々に受け取る
+  const markLines: string[] = [];
   const positional: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
@@ -83,13 +88,13 @@ function main(): void {
     else if (arg === '--no-open') shouldOpen = false;
     else if (arg === '--repetition') repetition = args[++i] ?? 'cv';
     else if (arg === '--pivot') pivotAxis = args[++i] ?? '';
-    else if (arg === '--consonant') consonantMode = true;
+    else if (arg === '--marks') markLines.push(args[++i] ?? '');
     else if (arg === '-h' || arg === '--help') return console.log(USAGE);
     else positional.push(arg);
   }
 
-  // 子音の並び。空白が群の区切りで、1 文字が 1 記号
-  if (consonantMode) {
+  // 子音の並びを歌詞に振る。--marks を行数ぶん渡す
+  if (markLines.length > 0) {
     const lines = positional.map((l) => l.trim()).filter((l) => l !== '');
     if (lines.length === 0) {
       console.error(USAGE);
@@ -97,7 +102,7 @@ function main(): void {
     }
     let figure;
     try {
-      figure = parseConsonantRows(lines);
+      figure = parseConsonantPhrase(lines, markLines);
     } catch (error) {
       if (error instanceof PhraseError) {
         console.error(`\n  ${error.message}\n`);
