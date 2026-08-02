@@ -44,10 +44,10 @@ export function consonant(figure: Omit<ConsonantFigure, 'kind'>, ctx: FigureCont
 
   // 行送りは音の大きさから決める。1 行は音・括り・記号を縦に積むので、
   // 固定値だと音が大きいときに次の行の音が前の行の記号へ食い込む
-  const step = size * CONSONANT.rowStepRatio;
+  const hasSub = rows.some((row) => row.marks.some((m) => m.sub !== undefined));
+  const step = size * (hasSub ? CONSONANT.rowStepRatioWithSub : CONSONANT.rowStepRatio);
   const span = (rows.length - 1) * step;
   // いちばん下の行は、括りと記号のぶんを見込んで手前で止める
-  const hasSub = rows.some((row) => row.marks.some((m) => m.sub !== undefined));
   const below =
     (SYMMETRY.groupTickGap + SYMMETRY.groupTickHeight) * (size / SYMMETRY.unitFontSize) +
     CONSONANT.markGap +

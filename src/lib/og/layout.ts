@@ -198,6 +198,8 @@ export const CONSONANT = {
   } as Record<number, { baseline: number; maxSize: number }>,
   /** 行送り＝音の大きさ × これ。1 行の占有（音＋括り＋記号）を賄う */
   rowStepRatio: 2.2,
+  /** 記号が 2 段ある行は、そのぶん行送りを広げる */
+  rowStepRatioWithSub: 2.9,
   /**
    * いちばん下の行のベースラインをここより下げない。
    * カードページの本文は OG 画像を y=400 で刈るので、括りのぶんを見て手前で止める
