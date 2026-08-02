@@ -1,4 +1,4 @@
-import { frameBadge, footer } from '../chrome';
+import { footer } from '../chrome';
 import type { FigureContext, PivotFigure, PivotRow } from '../figure';
 import { ACCENTS, CANVAS, COLORS, FONT_FAMILY, MARGIN_X, PIVOT, SYMMETRY } from '../layout';
 import { escapeXml, textBlock, widthEm, wrapText } from '../text';
@@ -52,8 +52,9 @@ export function pivot(figure: Omit<PivotFigure, 'kind'>, ctx: FigureContext): st
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS.width}" height="${CANVAS.height}" viewBox="0 0 ${CANVAS.width} ${CANVAS.height}">`,
     `<rect width="${CANVAS.width}" height="${CANVAS.height}" fill="${COLORS.bg}" />`,
-    frameBadge(ctx.repetition),
-    // 軸のラベルと、それが持続する範囲を示す矢印
+    // 分析のフレーム（C反復 / V反復 / CV反復）のバッジは出さない。
+    // あれはパターンと方向を表す語で、ピボットはパターンではないため（2026-08-02、やおき）。
+    // 左上に掲げるのは軸そのもの（「カ行子音」）と、それが持続する範囲の矢印。
     `<text x="${MARGIN_X}" y="${PIVOT.axisY}" font-family="${FONT_FAMILY}" ` +
       `font-size="${PIVOT.axisFontSize}" font-weight="700" fill="${ACCENTS[0].stroke}">${axisLabel}</text>`,
     arrow(arrowFrom, arrowTo, PIVOT.axisY - PIVOT.axisFontSize * 0.3),
