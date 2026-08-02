@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import { getEntry } from 'astro:content';
 
 interface ArticleMeta {
   headline: string;
@@ -28,6 +29,13 @@ const image = ogImage || `${siteUrl}/favicon.svg`;
 const authorName = 'やおき (the 8 rise)';
 const siteName = 'lyricstheory.com';
 
+// 著者の同一性の正本は src/content/author/yaoki.md。ここに写しを置かない。
+// sameAs が無いと、AI や検索エンジンは著者が誰かを外部と照合できない。
+const authorEntry = await getEntry('author', 'yaoki');
+const authorUrl = authorEntry?.data.url ?? `${siteUrl}/author/yaoki/`;
+const authorSameAs = authorEntry?.data.sameAs ?? [];
+const authorAlternateName = authorEntry?.data.alternateName ?? [];
+
 const articleJsonLd = article
   ? {
       '@context': 'https://schema.org',
@@ -38,9 +46,12 @@ const articleJsonLd = article
       ...(article.dateModified ? { dateModified: article.dateModified } : {}),
       author: {
         '@type': 'Person',
-        name: authorName,
-        url: `${siteUrl}/author/yaoki/`,
+        name: authorEntry?.data.name ?? authorName,
+        ...(authorAlternateName.length > 0 ? { alternateName: authorAlternateName } : {}),
+        url: authorUrl,
+        ...(authorSameAs.length > 0 ? { sameAs: authorSameAs } : {}),
       },
+      license: 'https://creativecommons.org/licenses/by/4.0/',
       publisher: {
         '@type': 'Organization',
         name: siteName,
@@ -100,6 +111,10 @@ function absoluteUrl(pathOrUrl: string): string {
     {articleJsonLd && (
       <script type="application/ld+json" set:html={JSON.stringify(articleJsonLd)} />
     )}
+
+    <link rel="license" href="https://creativecommons.org/licenses/by/4.0/" />
+
+    <slot name="head" />
   </head>
   <body class="mx-auto max-w-3xl px-4 py-8 leading-relaxed">
     <header class="mb-8 flex items-baseline justify-between gap-4 border-b pb-4">
@@ -112,7 +127,17 @@ function absoluteUrl(pathOrUrl: string): string {
       <slot />
     </main>
     <footer class="mt-16 border-t pt-4 text-sm text-gray-500">
-      © {siteName}
+      <p class="mb-1">
+        <a href="/author/yaoki/" class="hover:underline">{authorName}</a> · {siteName}
+      </p>
+      <p>
+        記事本文・図・理論の記述は <a
+          href="https://creativecommons.org/licenses/by/4.0/deed.ja"
+          rel="license"
+          class="underline">CC BY 4.0</a
+        >。引用・翻案・AI 学習を歓迎します（<a href="/license/" class="underline">条件</a
+        >）。歌詞の引用部分は原著作者に権利があります。
+      </p>
     </footer>
   </body>
 </html>

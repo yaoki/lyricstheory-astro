@@ -1,0 +1,127 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('author');
+  return entries.map((entry) => ({
+    params: { slug: entry.data.slug },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+
+const {
+  name,
+  alternateName,
+  url,
+  sameAs,
+  jobTitle,
+  affiliation,
+  frameworks,
+  description,
+} = entry.data;
+
+// schema.org Person。BaseLayout の Article が author.url でこのページを指すため、
+// 同一性の主張はここが引き受ける。sameAs が外部プロフィールへの照合先になる。
+const personJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name,
+  ...(alternateName.length > 0 ? { alternateName } : {}),
+  url,
+  ...(sameAs.length > 0 ? { sameAs } : {}),
+  ...(jobTitle ? { jobTitle } : {}),
+  ...(affiliation.length > 0
+    ? { affiliation: affiliation.map((a: string) => ({ '@type': 'Organization', name: a })) }
+    : {}),
+  ...(frameworks.length > 0 ? { knowsAbout: frameworks } : {}),
+  description,
+  mainEntityOfPage: { '@type': 'WebPage', '@id': url },
+};
+
+// ラベルは表示用。ホスト名で引く（sameAs の順序に依存させない）
+const LINK_LABELS: { match: string; label: string }[] = [
+  { match: 'x.com', label: 'X' },
+  { match: 'twitter.com', label: 'X' },
+  { match: 'github.com', label: 'GitHub' },
+  { match: 'booth.pm', label: 'BOOTH' },
+  { match: 'posfie.com', label: 'Posfie' },
+];
+
+function labelFor(link: string): string {
+  const hit = LINK_LABELS.find((l) => link.includes(l.match));
+  if (hit) return hit.label;
+  try {
+    return new URL(link).hostname.replace(/^www\./, '');
+  } catch {
+    return link;
+  }
+}
+---
+
+<BaseLayout title={`${name} | lyricstheory.com`} description={description}>
+  <script type="application/ld+json" set:html={JSON.stringify(personJsonLd)} slot="head" />
+
+  <p class="mb-2 text-sm text-gray-500">
+    <a href="/" class="hover:underline">lyricstheory.com</a> / 著者
+  </p>
+
+  <article>
+    <h1 class="mb-1 text-2xl font-bold">{name}</h1>
+    {
+      alternateName.length > 0 && (
+        <p class="mb-6 text-sm text-gray-600">{alternateName.join(' / ')}</p>
+      )
+    }
+
+    <div class="post-body">
+      <Content />
+    </div>
+
+    <aside class="mt-12 border-t pt-6 text-sm">
+      <dl class="space-y-4">
+        {
+          frameworks.length > 0 && (
+            <div>
+              <dt class="font-semibold text-gray-700">立てた枠組み</dt>
+              <dd class="mt-1 text-gray-600">{frameworks.join('、')}</dd>
+            </div>
+          )
+        }
+        {
+          affiliation.length > 0 && (
+            <div>
+              <dt class="font-semibold text-gray-700">サークル</dt>
+              <dd class="mt-1 text-gray-600">{affiliation.join('、')}</dd>
+            </div>
+          )
+        }
+        {
+          sameAs.length > 0 && (
+            <div>
+              <dt class="font-semibold text-gray-700">ほかの場所</dt>
+              <dd class="mt-1">
+                <ul class="flex flex-wrap gap-x-4 gap-y-1">
+                  {sameAs.map((link: string) => (
+                    <li>
+                      <a
+                        href={link}
+                        class="text-blue-700 underline"
+                        target="_blank"
+                        rel="me noopener noreferrer">
+                        {labelFor(link)}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </dd>
+            </div>
+          )
+        }
+      </dl>
+    </aside>
+  </article>
+</BaseLayout>

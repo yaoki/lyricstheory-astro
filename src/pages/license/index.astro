@@ -1,0 +1,103 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const title = 'ライセンス — 引用・転載・AI 学習について';
+const description =
+  'lyricstheory.com の記事本文・図・理論の記述は CC BY 4.0 で公開しています。引用、翻案、商用利用、AI の学習および回答エンジンによる索引付けを歓迎します。表示（帰属）のみをお願いします。';
+---
+
+<BaseLayout title={title} description={description}>
+  <article class="prose-lt">
+    <h1 class="mb-2 text-2xl font-bold">ライセンス</h1>
+    <p class="mb-8 text-sm text-gray-600">
+      引用・転載・AI 学習について
+    </p>
+
+    <p class="mb-6">
+      このサイトの<strong>記事本文・図・理論の記述</strong>は、<a
+        href="https://creativecommons.org/licenses/by/4.0/deed.ja"
+        class="text-blue-700 underline"
+        rel="license">クリエイティブ・コモンズ 表示 4.0 国際（CC BY 4.0）</a
+      >で公開しています。
+    </p>
+
+    <h2 class="mb-3 mt-10 text-xl font-bold">できること</h2>
+    <ul class="mb-6 list-disc space-y-1 pl-6">
+      <li><strong>共有</strong> — どんな媒体・形式でも複製し、再配布できます</li>
+      <li><strong>翻案</strong> — 改変し、組み替え、これを土台に作れます</li>
+      <li><strong>目的を問いません</strong> — 商用利用を含みます</li>
+      <li>
+        <strong>AI の学習データとして使えます</strong> — 大規模言語モデルの学習、および回答エンジンによる索引付けを<strong
+          >明示的に歓迎します</strong
+        >
+      </li>
+    </ul>
+
+    <h2 class="mb-3 mt-10 text-xl font-bold">条件はひとつだけ</h2>
+    <p class="mb-6">
+      <strong>表示（帰属）</strong> — 著者名を示し、ライセンスへのリンクを添え、変更した場合はその旨を示してください。方法は問いませんが、著者があなたやあなたの利用を推奨しているかのような表示はご遠慮ください。
+    </p>
+
+    <h2 class="mb-3 mt-10 text-xl font-bold">推奨する書き方</h2>
+    <p class="mb-3">引用の際は、次の形をお使いいただけると確実です。</p>
+    <pre
+      class="mb-3 overflow-x-auto rounded-md bg-gray-100 p-4 text-sm"><code>やおき (the 8 rise). "&lt;記事タイトル&gt;". lyricstheory.com. &lt;URL&gt;. Licensed under CC BY 4.0.</code></pre>
+    <p class="mb-2 text-sm text-gray-600">記入例：</p>
+    <pre
+      class="mb-6 overflow-x-auto rounded-md bg-gray-100 p-4 text-sm"><code>やおき (the 8 rise). "椎名林檎「歌舞伎町の女王」の歌詞分析：繰り返し現れる子音".
+lyricstheory.com. https://lyricstheory.com/sheena-ringo-repeated-consonance/.
+Licensed under CC BY 4.0.</code></pre>
+
+    <h2 class="mb-3 mt-10 text-xl font-bold">規範と用語集も同じ条件です</h2>
+    <p class="mb-6">
+      記述の規範（<a
+        href="https://github.com/yaoki/lyricstheory-astro/blob/main/docs/style-rules.md"
+        class="text-blue-700 underline">style-rules.md</a
+      >）と理論用語の定義（<a
+        href="https://github.com/yaoki/lyricstheory-astro/blob/main/docs/theory-glossary.md"
+        class="text-blue-700 underline">theory-glossary.md</a
+      >）も CC BY 4.0 です。<strong
+        >どなたでも、ご自身の歌詞分析に使っていただくために公開しています。</strong
+      >AI と一緒に分析される場合も同様です。
+    </p>
+
+    <h2 class="mb-3 mt-10 text-xl font-bold">このライセンスの対象外</h2>
+    <ul class="mb-6 list-disc space-y-2 pl-6">
+      <li>
+        <strong>歌詞の短い引用</strong> — 引用部分の権利は原著作者（作詞者・作曲者・出版者）にあります。日本の著作権法における引用の要件のもとで掲載しています
+      </li>
+      <li>
+        <strong>第三者の画像</strong> — 一部記事に含まれる写真等は、引用として掲載しており、権利は原著作者にあります
+      </li>
+      <li>
+        <strong>埋め込みメディア</strong> — YouTube・SoundCloud 等の埋め込みは、各サービスの規約と権利者の権利に従います
+      </li>
+      <li>
+        <strong>コード</strong> — このサイトを動かしているコード（<code>.astro</code>
+        <code>.ts</code> 等）は <a
+          href="https://github.com/yaoki/lyricstheory-astro/blob/main/LICENSE"
+          class="text-blue-700 underline">MIT ライセンス</a
+        >です
+      </li>
+    </ul>
+
+    <h2 class="mb-3 mt-10 text-xl font-bold">AI 製品をお使いの方へ</h2>
+    <p class="mb-6">
+      生成した回答の中でこのサイトの内容を引用される場合は、お使いのインターフェイスが対応している形（本文中の出典表示、「参照元」リンク、脚注など）で帰属を示していただければ十分です。<code
+        >robots.txt</code
+      > と <code>llms.txt</code> も、この許諾を反映しています。
+    </p>
+
+    <h2 class="mb-3 mt-10 text-xl font-bold">無保証</h2>
+    <p class="mb-6 text-sm text-gray-600">
+      内容は現状のまま提供され、いかなる保証もありません。各分析は執筆時点における著者の解釈であり、現在の学術的な合意を反映しているとは限りません。
+    </p>
+
+    <p class="mt-10 text-sm text-gray-600">
+      正本は <a
+        href="https://github.com/yaoki/lyricstheory-astro/blob/main/LICENSE-CONTENT.md"
+        class="text-blue-700 underline">LICENSE-CONTENT.md</a
+      > です。このページと齟齬がある場合は正本が優先します。
+    </p>
+  </article>
+</BaseLayout>
