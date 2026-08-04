@@ -25,7 +25,12 @@ export function pivot(figure: Omit<PivotFigure, 'kind'>, ctx: FigureContext): st
   // 字がセルからはみ出さないようにする。複数文字の枠（拗音など）は文字数で割る
   const maxUnitEm = Math.max(...rows.flatMap((row) => row.pivots.map((p) => widthEm(p.unit))), 1);
   const layout = PIVOT.layouts[rows.length] ?? PIVOT.layouts[4];
-  const size = Math.min(layout.maxSize, cell / maxUnitEm);
+
+  // セル幅だけで字の大きさを決めると、枠数の多い行（20 超）で 32px まで細り、
+  // SNS で 1/3 に縮んだとき読めなくなる（2026-08-04、やおき指摘）。
+  // ピボットの字は隣り合わず散在するため、セルをはみ出して書いても重ならない。
+  // 伏せた帯は字の手前で切るので、はみ出しても帯には食い込まない
+  const size = Math.min(layout.maxSize, Math.max(cell, PIVOT.minSize) / maxUnitEm);
 
   const centerX = (index: number, rowLength: number): number => {
     // 短い行は中央に寄せず左を揃える。軸の矢印が行をまたいで一続きに見えるようにするため
@@ -87,24 +92,48 @@ function renderRow(
   const byIndex = new Map(row.pivots.map((p) => [p.at, p.unit]));
   const parts: string[] = [];
 
+  // 帯は字と同じ視覚的中心に置き、高さも字に比例させる。
+  // ベースラインからの距離を固定値にしていたため、字が細る図で帯だけが上に浮いていた
+  const maskHeight = Math.max(size * PIVOT.maskHeightRatio, 8);
+  const maskTop = baseline - size * PIVOT.opticalCenterRatio - maskHeight / 2;
+  // 字の左右に空ける余白。ここで帯を切るので、字が枠幅を超えても帯に食い込まない
+  const clearance = size * 0.55;
+
+  // 伏せた音は、連続するぶんを1本の帯に畳む。1音ずつ四角を並べると、枠数が20を超えた
+  // あたりで点の列にしか見えず、軸の音がそこに埋もれる（2026-08-04、やおき指摘）。
+  // 畳んでも各音の位置は動かないので、ピボットの本体である粗密は保たれる
+  let runStart: number | null = null;
+
+  const flushRun = (endExclusive: number): void => {
+    if (runStart === null) return;
+    const head = runStart > 0 ? clearance : PIVOT.gap / 2;
+    const tail = endExclusive < row.length ? clearance : PIVOT.gap / 2;
+    const left = centerX(runStart, row.length) - cell / 2 + head;
+    const right = centerX(endExclusive - 1, row.length) + cell / 2 - tail;
+    runStart = null;
+    // 字と字の隙間に置ける帯が短すぎるときは出さない。点になって散らかるだけで、
+    // そこに音があることは字と字の間隔がすでに示している
+    if (right - left < PIVOT.minMaskWidth) return;
+    parts.push(
+      `<rect x="${r(left)}" y="${r(maskTop)}" width="${r(right - left)}" ` +
+        `height="${r(maskHeight)}" rx="${PIVOT.maskRadius}" fill="${SYMMETRY.dim}" />`,
+    );
+  };
+
   for (let i = 0; i < row.length; i++) {
-    const x = centerX(i, row.length);
     const unit = byIndex.get(i);
     if (unit === undefined) {
-      // 伏せた音。文字を出さないので歌詞は再現されない
-      const w = Math.max(cell - PIVOT.gap * 0.5, 6);
-      parts.push(
-        `<rect x="${r(x - w / 2)}" y="${r(baseline - PIVOT.maskOffset)}" width="${r(w)}" ` +
-          `height="${PIVOT.maskHeight}" rx="${PIVOT.maskRadius}" fill="${SYMMETRY.dim}" />`,
-      );
+      if (runStart === null) runStart = i;
       continue;
     }
+    flushRun(i);
     parts.push(
-      `<text x="${r(x)}" y="${r(baseline)}" font-family="${FONT_FAMILY}" ` +
+      `<text x="${r(centerX(i, row.length))}" y="${r(baseline)}" font-family="${FONT_FAMILY}" ` +
         `font-size="${r(size)}" font-weight="700" fill="${ACCENTS[0].stroke}" ` +
         `text-anchor="middle">${escapeXml(unit)}</text>`,
     );
   }
+  flushRun(row.length);
   return parts.join('');
 }
 
