@@ -24,8 +24,18 @@ export function pair(figure: Omit<PairFigure, 'kind'>, ctx: FigureContext): stri
   }
   const { rows, labels } = figure;
   const mode = figure.mode ?? 'aligned';
-  // 展開では下の行が伸びている。列は長いほうに取る（aligned なら結果は同じ）
-  const cols = Math.max(rows[0].length, rows[1].length);
+
+  // 折り返し位置で各行を段に割る。長い展開をメロディの切れ目（2 小節ごと）で割ると、
+  // 音数を減らさずに字を大きくできる（2026-08-04、やおき提案）。
+  // 34 音を 1 行に引き伸ばしていたカードでは字が 17px まで落ちていた
+  const wraps = figure.wraps ?? [[], []];
+  const segments = rows.map((row, k) => {
+    const cuts = [0, ...(wraps[k] ?? []), row.length];
+    return cuts.slice(0, -1).map((start, i) => ({ start, end: cuts[i + 1] }));
+  });
+  const lineCount = segments[0].length + segments[1].length;
+  // 列は最も長い段に取る。短い段は左を揃える（同じ 1 音の幅を段ごとに変えない）
+  const cols = Math.max(...segments.flat().map((s) => s.end - s.start));
 
   // ラベル領域は実際の文字幅で取る。PAIR.labelWidth は「1-A」級の短いラベルを
   // 前提にした既定値でしかなく、「ラストサビ」のような語を入れると音に重なる。
@@ -36,7 +46,14 @@ export function pair(figure: Omit<PairFigure, 'kind'>, ctx: FigureContext): stri
   // 展開の図は音数が増える。間隔を既定のままにすると隙間が幅を食って字が潰れるので、
   // 列数に応じて詰める
   const gap = Math.min(PAIR.gap, (available / cols) * 0.18);
-  const size = Math.min(PAIR.maxSize, (available - (cols - 1) * gap) / cols);
+  // 縦に積む段が増えたぶんは字を小さくする。使える縦の範囲から逆算するので、
+  // 段が何段でも下端（タイトルの手前）を越えない。2 段なら従来と同じ値になる
+  const byHeight =
+    lineCount > 1
+      ? (((PAIR.bottomLimit - PAIR.topLimit) / (lineCount - 1)) * PAIR.maxSize) /
+        (PAIR.row2 - PAIR.row1)
+      : PAIR.maxSize;
+  const size = Math.min(PAIR.maxSize, (available - (cols - 1) * gap) / cols, byHeight);
   const totalWidth = cols * size + (cols - 1) * gap;
   const startX = MARGIN_X + labelWidth + (available - totalWidth) / 2;
   const at = (i: number) => startX + i * (size + gap) + size / 2;
@@ -47,12 +64,20 @@ export function pair(figure: Omit<PairFigure, 'kind'>, ctx: FigureContext): stri
   // ただし行ラベルは字の大きさに連動しない（構造的対応を担うので縮めない）。
   // 音に合わせて詰めるとラベル同士が重なるため、ラベルの高さを下限にする
   const center = (PAIR.row1 + PAIR.row2) / 2;
+  // ラベルは各行の先頭の段にだけ付く。折り返して段が増えれば、ラベル同士の間隔は
+  // 段数ぶん自然に開くので、下限もそのぶん緩めてよい
   const lineGap = Math.max(
-    PAIR.labelFontSize * 1.25,
+    (PAIR.labelFontSize * 1.25) / segments[0].length,
     (size * (PAIR.row2 - PAIR.row1)) / PAIR.maxSize,
   );
-  const row1 = center - lineGap / 2;
-  const row2 = center + lineGap / 2;
+  // 段は上から順に積む。上の行の段がすべて出てから、下の行の段が続く。
+  // 中央に置くと下端がタイトルに食い込むので、下端で頭打ちにする
+  const totalSpan = (lineCount - 1) * lineGap;
+  const firstY = Math.min(center - totalSpan / 2, PAIR.bottomLimit - totalSpan);
+  const yOf = (k: number, segIndex: number) =>
+    firstY + (k === 0 ? segIndex : segments[0].length + segIndex) * lineGap;
+  const row1 = yOf(0, 0);
+  const row2 = yOf(1, 0);
 
   // 一致の見方は mode で変わる。
   //
@@ -103,14 +128,20 @@ export function pair(figure: Omit<PairFigure, 'kind'>, ctx: FigureContext): stri
         ).join('')
       : '';
 
+  // 色（対応）は元の位置で決まるので、折り返しても対応の読み取りは変わらない
   const glyphs = rows
     .map((row, k) =>
-      row
-        .map(
-          (unit, i) =>
-            `<text x="${r(at(i))}" y="${r(k === 0 ? row1 : row2)}" font-family="${FONT_FAMILY}" ` +
-            `font-size="${r(size)}" font-weight="700" fill="${fillOf(k, i)}" ` +
-            `text-anchor="middle">${escapeXml(unit)}</text>`,
+      segments[k]
+        .map((seg, si) =>
+          row
+            .slice(seg.start, seg.end)
+            .map(
+              (unit, j) =>
+                `<text x="${r(at(j))}" y="${r(yOf(k, si))}" font-family="${FONT_FAMILY}" ` +
+                `font-size="${r(size)}" font-weight="700" fill="${fillOf(k, seg.start + j)}" ` +
+                `text-anchor="middle">${escapeXml(unit)}</text>`,
+            )
+            .join(''),
         )
         .join(''),
     )

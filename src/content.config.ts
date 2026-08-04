@@ -118,6 +118,9 @@ const pairFigure = z
     // 上下の対応を手で指定する。省略すると順序保存的な共通ブロックを自動で取る。
     // 類音どうしの対応や、順序が交差する対応は自動では拾えないため
     correspondences: z.array(z.tuple([z.number().int().nonnegative(), z.number().int().nonnegative()])).optional(),
+    // 各行を折り返す位置。長い展開をメロディの切れ目で割り、音数を減らさずに字を大きくする。
+    // aligned では列の突き合わせが成り立たなくなるので使えない
+    wraps: z.tuple([z.array(z.number().int().positive()), z.array(z.number().int().positive())]).optional(),
   })
   .superRefine((figure, ctx) => {
     // 列を揃えることは「同じ位置」という主張。音数が違うまま並べると
@@ -125,6 +128,17 @@ const pairFigure = z
     //
     // ただし展開の観察では、揃えるほうが嘘になる。一方が伸びていることが観察の本体で、
     // 揃う範囲まで切り詰めると、展開が同位置の差し替えに見える。mode で切り分ける
+    // aligned は列の突き合わせで一致を判定する。折り返すと列が段ごとに振り出しに戻るため、
+    // 「同じ位置」という主張が成り立たなくなる
+    if (figure.mode === 'aligned' && figure.wraps?.some((cuts) => cuts.length > 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['wraps'],
+        message:
+          'aligned では wraps を使えません。列を揃えることが「同じ位置」の主張なので、' +
+          '折り返すとその主張が成り立ちません',
+      });
+    }
     if (figure.mode === 'aligned' && figure.rows[0].length !== figure.rows[1].length) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
