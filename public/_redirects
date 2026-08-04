@@ -41,3 +41,9 @@ http://www.lyricstheory.com/* https://lyricstheory.com/:splat 301
 # （2026-08-02、やおき裁定。docs/theory-glossary.md「子音ピボット」）。
 # 観察の中身（中央で母音が動く）を綴る形に改めた。
 /elements/seishun-t-pivot-aba/  /elements/seishun-t-pivot-middle-vowel/  301
+
+# WordPress 時代（2015〜2022）に稼働していた RSS フィードの正規 URL。
+# Wayback Machine で /feed/ 自体が 200 を返していたことを確認済み。
+# フィードリーダーに登録済みの購読者が残っている可能性があるため、URL を保ったまま
+# 現行のフィード実装へ透過的に書き換える（リダイレクトではなく 200）。
+/feed/  /feed/index.xml  200

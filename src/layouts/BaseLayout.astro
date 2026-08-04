@@ -81,6 +81,7 @@ function absoluteUrl(pathOrUrl: string): string {
     {description && <meta name="description" content={description} />}
     <link rel="canonical" href={pageUrl} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate" type="application/rss+xml" title="lyricstheory.com" href="/feed/index.xml" />
 
     <meta property="og:type" content={article ? 'article' : 'website'} />
     <meta property="og:title" content={title} />
