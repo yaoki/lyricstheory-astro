@@ -8,7 +8,7 @@
  * 出た YAML をカードの frontmatter に貼れば、次のビルドで OG 画像がその図になる。
  */
 import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
@@ -66,7 +66,64 @@ const USAGE = `
         --marks 'tΦk kΦ tktΦ' --marks 'Φtk ΦktΦtΦ' \\
         'そこからながれ「ていけ」るようなせ「かい」をみ「つけたい」' \\
         '「いつか」はだれかのために「いきていたい」'
+
+--card <slug> を付けると、出た YAML をそのカードの frontmatter に**直接書き込みます**。
+既に figure があれば差し替えます。タイトルもカードから読むので --title は要りません。
+貼り付けの手間が消えるぶん速く、貼り間違いも起きません。
+
+  例) npm run figure -- --card esora-k-pivot-chorus \\
+        --pivot 'カ行子音' '「き」お「く」「か」ら「け」すために'
 `;
+
+const CARDS_DIR = 'src/content/elements';
+
+/** カードの .mdx の場所。--card はスラッグだけ受け取る */
+function cardPath(slug: string): string {
+  return path.join(process.cwd(), CARDS_DIR, `${slug}.mdx`);
+}
+
+/**
+ * 出た YAML をカードの frontmatter に書き込む。
+ * 既存の figure ブロック（次のトップレベルキーの手前まで）があれば差し替え、
+ * なければ created: の直前に挿す（schema の並び順に合わせる）。
+ */
+function writeToCard(slug: string, yaml: string): void {
+  const file = cardPath(slug);
+  const source = readFileSync(file, 'utf-8');
+  const block = `${yaml.trimEnd()}\n`;
+  const existing = /^figure:\n(?:[ \t-].*\n)*/m;
+  const hasFigure = existing.test(source);
+  const next = hasFigure
+    ? source.replace(existing, block)
+    : source.replace(/^created:/m, `${block}created:`);
+  // 差し込めたかは「文字列が変わったか」では測れない。同じ図を作り直すと変わらないため
+  if (!hasFigure && next === source) {
+    console.error(`\n  ${slug} に figure を差し込めませんでした（created: が見つかりません）\n`);
+    process.exit(1);
+  }
+  writeFileSync(file, next);
+  console.log(`書き込み: ${CARDS_DIR}/${slug}.mdx`);
+}
+
+/** 図に載せるタイトルはカードの title と同じでよい。二重に書かせない */
+function readCardTitle(slug: string): string {
+  const match = readFileSync(cardPath(slug), 'utf-8').match(/^title:\s*["'](.+)["']\s*$/m);
+  return match?.[1] ?? '';
+}
+
+/** YAML を出し、必要ならカードに書き込み、プレビュー PNG を作る */
+function emit(
+  yaml: string,
+  svg: string,
+  opts: { out?: string; card?: string; shouldOpen: boolean },
+): void {
+  console.log(`\n${yaml}\n`);
+  if (opts.card) writeToCard(opts.card, yaml);
+  const file = opts.out ?? path.join(tmpdir(), 'lyricstheory-figure-preview.png');
+  writeFileSync(file, renderPng(svg));
+  console.log(`プレビュー: ${file}`);
+  if (opts.shouldOpen && process.platform === 'darwin') execFileSync('open', [file]);
+}
 
 function main(): void {
   const args = process.argv.slice(2);
@@ -83,6 +140,8 @@ function main(): void {
   let fold = false;
   // 下の段（動くもの）。--marks と同じ数だけ渡す
   const subLines: string[] = [];
+  // 書き込み先のカード。指定すると frontmatter に直接入る
+  let card: string | undefined;
   const positional: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
@@ -95,9 +154,13 @@ function main(): void {
     else if (arg === '--marks') markLines.push(args[++i] ?? '');
     else if (arg === '--fold') fold = true;
     else if (arg === '--subs') subLines.push(args[++i] ?? '');
+    else if (arg === '--card') card = args[++i];
     else if (arg === '-h' || arg === '--help') return console.log(USAGE);
     else positional.push(arg);
   }
+
+  // 図のタイトルはカードの title と同じでよい。--title を書いたときだけそちらを使う
+  if (title === '' && card !== undefined) title = readCardTitle(card);
 
   // 子音の並びを歌詞に振る。--marks を行数ぶん渡す
   if (markLines.length > 0) {
@@ -116,11 +179,11 @@ function main(): void {
       }
       throw error;
     }
-    console.log(`\n${toConsonantYaml(figure)}\n`);
-    const file = out ?? path.join(tmpdir(), 'lyricstheory-figure-preview.png');
-    writeFileSync(file, renderPng(consonant(figure, { title, repetition })));
-    console.log(`プレビュー: ${file}`);
-    if (shouldOpen && process.platform === 'darwin') execFileSync('open', [file]);
+    emit(toConsonantYaml(figure), consonant(figure, { title, repetition }), {
+      out,
+      card,
+      shouldOpen,
+    });
     return;
   }
 
@@ -141,11 +204,7 @@ function main(): void {
       }
       throw error;
     }
-    console.log(`\n${toPivotYaml(figure)}\n`);
-    const file = out ?? path.join(tmpdir(), 'lyricstheory-figure-preview.png');
-    writeFileSync(file, renderPng(pivot(figure, { title, repetition })));
-    console.log(`プレビュー: ${file}`);
-    if (shouldOpen && process.platform === 'darwin') execFileSync('open', [file]);
+    emit(toPivotYaml(figure), pivot(figure, { title, repetition }), { out, card, shouldOpen });
     return;
   }
 
@@ -167,22 +226,15 @@ function main(): void {
   }
 
   const { figure, trimmed } = parsed;
-  console.log(`\n${toYaml(figure)}\n`);
   if (trimmed.head > 0 || trimmed.tail > 0) {
     const parts = [
       trimmed.head > 0 ? `前を${trimmed.head}音` : '',
       trimmed.tail > 0 ? `後ろを${trimmed.tail}音` : '',
     ].filter(Boolean);
-    console.log(`※ 8音に収めるため、文脈の${parts.join('・')}落としました\n`);
+    console.log(`\n※ 8音に収めるため、文脈の${parts.join('・')}落としました`);
   }
 
-  const file = out ?? path.join(tmpdir(), 'lyricstheory-figure-preview.png');
-  writeFileSync(file, renderPng(single(figure, { title, repetition })));
-  console.log(`プレビュー: ${file}`);
-
-  if (shouldOpen && process.platform === 'darwin') {
-    execFileSync('open', [file]);
-  }
+  emit(toYaml(figure), single(figure, { title, repetition }), { out, card, shouldOpen });
 }
 
 main();
