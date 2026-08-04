@@ -16,7 +16,11 @@ const NO_LINE_END = '（〔［｛〈《「『【〘〖‘“';
 const HALF_WIDTH = /[\x20-\x7e｡-ﾟ]/;
 
 export function charWidthEm(ch: string): number {
-  return HALF_WIDTH.test(ch) ? 0.5 : 1;
+  if (HALF_WIDTH.test(ch)) return 0.5;
+  // 拗音の小書き仮名と長音記号は送りが狭い。全角1文字ぶんで数えると、「りゅ」を含む
+  // 行だけ枠の見積もりが2倍になり、行全体の字が半分に縮む（2026-08-04 に実測）
+  if (COMBINING.test(ch)) return 0.55;
+  return 1;
 }
 
 /** 直前の音に結合する文字（拗音・小書き仮名・長音符）。1 音として数えない */

@@ -23,6 +23,10 @@ export const ACCENTS = [
   { stroke: '#1d4ed8', fill: '#dbeafe' }, // blue
   { stroke: '#b45309', fill: '#fef3c7' }, // amber
   { stroke: '#0f766e', fill: '#ccfbf1' }, // teal
+  // 4 色目以降は、呼応が 4 組以上あるカードのために足した。3 色で巡回させていたため、
+  // 1 組目と 4 組目が同じ色になり「色が組を指す」という約束が壊れていた（2026-08-04）
+  { stroke: '#7e22ce', fill: '#f3e8ff' }, // purple
+  { stroke: '#be123c', fill: '#ffe4e6' }, // rose
 ] as const;
 
 export const FONT_FAMILY = 'Noto Sans JP';
