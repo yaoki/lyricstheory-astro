@@ -109,6 +109,29 @@ const hasFigure = entry.data.figure !== undefined;
       <Content components={{ LyricQuote, Score }} />
     </div>
 
+    {/*
+      関連は本文のすぐ後に置く。タグや出典と同じ枠（下の aside）に入れていたときは、
+      罫線を挟んだ機械可読な情報の列に埋もれて気づかれなかった（2026-08-04、やおき指摘）。
+      読み終えた直後がいちばん次のカードへ行きたい瞬間なので、そこに置く
+    */}
+    {relatedLinks.length > 0 && (
+      <nav class="mt-10">
+        <h2 class="mb-2 text-sm font-semibold text-gray-700">関連</h2>
+        <ul class="list-disc space-y-1 pl-5">
+          {relatedLinks.map((link) => (
+            <li>
+              <a href={link.href} class="text-blue-700 underline">
+                {link.title}
+              </a>
+              <span class="ml-1 text-xs text-gray-400">
+                {link.kind === 'essay' ? '(essay)' : '(element)'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    )}
+
     <aside class="mt-12 border-t pt-6 text-sm">
       <dl class="space-y-4">
         {(phoneme.length > 0 || repetition || artist.length > 0 || era || lang) && (
@@ -141,25 +164,6 @@ const hasFigure = entry.data.figure !== undefined;
                         segment.value
                       ),
                     )}
-                  </li>
-                ))}
-              </ul>
-            </dd>
-          </div>
-        )}
-        {relatedLinks.length > 0 && (
-          <div>
-            <dt class="font-semibold text-gray-700">関連</dt>
-            <dd class="mt-1">
-              <ul class="list-disc space-y-1 pl-5">
-                {relatedLinks.map((link) => (
-                  <li>
-                    <a href={link.href} class="text-blue-700 underline">
-                      {link.title}
-                    </a>
-                    <span class="ml-1 text-xs text-gray-400">
-                      {link.kind === 'essay' ? '(essay)' : '(element)'}
-                    </span>
                   </li>
                 ))}
               </ul>
