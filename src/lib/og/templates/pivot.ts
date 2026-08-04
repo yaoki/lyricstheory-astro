@@ -97,8 +97,22 @@ function renderRow(
   // ベースラインからの距離を固定値にしていたため、字が細る図で帯だけが上に浮いていた
   const maskHeight = Math.max(size * PIVOT.maskHeightRatio, 8);
   const maskTop = baseline - size * PIVOT.opticalCenterRatio - maskHeight / 2;
-  // 字の左右に空ける余白。ここで帯を切るので、字が枠幅を超えても帯に食い込まない
-  const clearance = size * 0.55;
+
+  // 隣に軸の音がある字だけ、枠に収まる大きさへ落とす。
+  // textLength + lengthAdjust で横に潰す方式は、縦がそのままなので字が縦長になる
+  // （2026-08-04、やおき指摘「縦に伸びてます」）。font-size を下げれば字形は崩れない。
+  // 隣が伏せ字なら落とさない。はみ出しても、帯の端を下の inkHalf で逃がすため
+  const sizeAt = (i: number): number => {
+    const unit = byIndex.get(i);
+    if (unit === undefined) return 0;
+    const crowded = byIndex.has(i - 1) || byIndex.has(i + 1);
+    return crowded ? Math.min(size, cell / widthEm(unit)) : size;
+  };
+  /** その枠の字が、中心からどれだけ横に張り出しているか */
+  const inkHalf = (i: number): number => {
+    const unit = byIndex.get(i);
+    return unit === undefined ? 0 : (widthEm(unit) * sizeAt(i)) / 2;
+  };
 
   // 伏せた音は、連続するぶんを1本の帯に畳む。1音ずつ四角を並べると、枠数が20を超えた
   // あたりで点の列にしか見えず、軸の音がそこに埋もれる（2026-08-04、やおき指摘）。
@@ -110,10 +124,18 @@ function renderRow(
     const first = runStart;
     const last = endExclusive - 1;
     runStart = null;
-    const head = first > 0 ? clearance : PIVOT.gap / 2;
-    const tail = endExclusive < row.length ? clearance : PIVOT.gap / 2;
-    const left = centerX(first, row.length) - cell / 2 + head;
-    const right = centerX(last, row.length) + cell / 2 - tail;
+    // 帯の端は、隣の字が実際にどこまで張り出しているかで決める。
+    // 字の大きさから一律に引いていたため、はみ出す字の隣で帯が食い込んでいた
+    const left = Math.max(
+      centerX(first, row.length) - cell / 2 + PIVOT.gap / 2,
+      first > 0 ? centerX(first - 1, row.length) + inkHalf(first - 1) + PIVOT.gap / 2 : -Infinity,
+    );
+    const right = Math.min(
+      centerX(last, row.length) + cell / 2 - PIVOT.gap / 2,
+      endExclusive < row.length
+        ? centerX(endExclusive, row.length) - inkHalf(endExclusive) - PIVOT.gap / 2
+        : Infinity,
+    );
     const cy = maskTop + maskHeight / 2;
     if (right - left >= PIVOT.minMaskWidth) {
       parts.push(
@@ -138,18 +160,10 @@ function renderRow(
       continue;
     }
     flushRun(i);
-    // 字がセル幅を**超えるときだけ**押し込む。判定を「隣に軸の音があるか」でやると、
-    // 枠が広い図で字がセルまで引き伸ばされる（lengthAdjust は縮めるだけでなく伸ばす。
-    // 2026-08-04、やおき指摘「横に伸びてます」）。
-    // 超える場合は2つ。隣り合う軸の音（実測でインク間隔 1px のカードがあった）と、
-    // 拗音のように 2em ある字（フォントの送りは小書き仮名も 1em ある）
-    const natural = widthEm(unit) * size;
-    const fit =
-      natural > cell ? ` textLength="${r(cell)}" lengthAdjust="spacingAndGlyphs"` : '';
     parts.push(
       `<text x="${r(centerX(i, row.length))}" y="${r(baseline)}" font-family="${FONT_FAMILY}" ` +
-        `font-size="${r(size)}" font-weight="700" fill="${ACCENTS[0].stroke}" ` +
-        `text-anchor="middle"${fit}>${escapeXml(unit)}</text>`,
+        `font-size="${r(sizeAt(i))}" font-weight="700" fill="${ACCENTS[0].stroke}" ` +
+        `text-anchor="middle">${escapeXml(unit)}</text>`,
     );
   }
   flushRun(row.length);
