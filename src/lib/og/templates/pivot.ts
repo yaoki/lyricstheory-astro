@@ -106,17 +106,27 @@ function renderRow(
 
   const flushRun = (endExclusive: number): void => {
     if (runStart === null) return;
-    const head = runStart > 0 ? clearance : PIVOT.gap / 2;
-    const tail = endExclusive < row.length ? clearance : PIVOT.gap / 2;
-    const left = centerX(runStart, row.length) - cell / 2 + head;
-    const right = centerX(endExclusive - 1, row.length) + cell / 2 - tail;
+    const first = runStart;
+    const last = endExclusive - 1;
     runStart = null;
-    // 字と字の隙間に置ける帯が短すぎるときは出さない。点になって散らかるだけで、
-    // そこに音があることは字と字の間隔がすでに示している
-    if (right - left < PIVOT.minMaskWidth) return;
+    const head = first > 0 ? clearance : PIVOT.gap / 2;
+    const tail = endExclusive < row.length ? clearance : PIVOT.gap / 2;
+    const left = centerX(first, row.length) - cell / 2 + head;
+    const right = centerX(last, row.length) + cell / 2 - tail;
+    const cy = maskTop + maskHeight / 2;
+    if (right - left >= PIVOT.minMaskWidth) {
+      parts.push(
+        `<rect x="${r(left)}" y="${r(maskTop)}" width="${r(right - left)}" ` +
+          `height="${r(maskHeight)}" rx="${PIVOT.maskRadius}" fill="${SYMMETRY.dim}" />`,
+      );
+      return;
+    }
+    // 帯にするには隙間が狭い。空けたままにすると隣り合う軸の音が連続しているように
+    // 見えてしまう（2026-08-04、やおき指摘）。1音でも、そこに音があることは必ず示す。
+    // 太さは帯と揃える。細くすると SNS で 1/3 に縮んだとき消える
+    const cx = (centerX(first, row.length) + centerX(last, row.length)) / 2;
     parts.push(
-      `<rect x="${r(left)}" y="${r(maskTop)}" width="${r(right - left)}" ` +
-        `height="${r(maskHeight)}" rx="${PIVOT.maskRadius}" fill="${SYMMETRY.dim}" />`,
+      `<circle cx="${r(cx)}" cy="${r(cy)}" r="${r(maskHeight / 2)}" fill="${SYMMETRY.dim}" />`,
     );
   };
 
