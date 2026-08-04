@@ -81,7 +81,7 @@ export function pair(figure: Omit<PairFigure, 'kind'>, ctx: FigureContext): stri
   // aligned は差異を帯で示す設計なので、そちらの文字は本文色のまま
   const fillOf = (row: number, i: number) =>
     mode === 'expansion'
-      ? (blockColor.get(`${row}:${i}`) ?? SYMMETRY.dim)
+      ? (blockColor.get(`${row}:${i}`) ?? SYMMETRY.dimText)
       : alignedSame(i)
         ? ACCENTS[0].stroke
         : COLORS.text;

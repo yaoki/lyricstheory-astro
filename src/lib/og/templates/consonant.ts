@@ -116,7 +116,7 @@ function renderRow(
     // 記号を持たない音は背景に落とす。観察の範囲を浮かび上がらせるため
     const fill =
       symbol === undefined
-        ? SYMMETRY.dim
+        ? SYMMETRY.dimText
         : symbol === EMPTY
           ? COLORS.text
           : (palette.get(symbol) ?? COLORS.text);

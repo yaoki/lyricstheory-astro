@@ -22,15 +22,16 @@ export function pivot(figure: Omit<PivotFigure, 'kind'>, ctx: FigureContext): st
   const available = CANVAS.width - MARGIN_X * 2;
   const cell = (available - (longest - 1) * PIVOT.gap) / longest;
 
-  // 字がセルからはみ出さないようにする。複数文字の枠（拗音など）は文字数で割る
-  const maxUnitEm = Math.max(...rows.flatMap((row) => row.pivots.map((p) => widthEm(p.unit))), 1);
   const layout = PIVOT.layouts[rows.length] ?? PIVOT.layouts[4];
 
   // セル幅だけで字の大きさを決めると、枠数の多い行（20 超）で 32px まで細り、
   // SNS で 1/3 に縮んだとき読めなくなる（2026-08-04、やおき指摘）。
-  // ピボットの字は隣り合わず散在するため、セルをはみ出して書いても重ならない。
-  // 伏せた帯は字の手前で切るので、はみ出しても帯には食い込まない
-  const size = Math.min(layout.maxSize, Math.max(cell, PIVOT.minSize) / maxUnitEm);
+  // 伏せた帯は字の手前で切るので、セルをはみ出して書いても帯には食い込まない。
+  //
+  // 枠の見積もり（拗音なら 2em）で字の大きさを割っていたため、「ちゃ」「りゅ」を含む
+  // 行だけ字が半分になっていた（実測で 29.1px。他の 1 行カードは 58〜76px）。
+  // 割らない。1 枠に収まらない字は下の textLength で押し込む
+  const size = Math.min(layout.maxSize, Math.max(cell, PIVOT.minSize));
 
   const centerX = (index: number, rowLength: number): number => {
     // 短い行は中央に寄せず左を揃える。軸の矢印が行をまたいで一続きに見えるようにするため
@@ -137,10 +138,17 @@ function renderRow(
       continue;
     }
     flushRun(i);
+    // 字をセル幅に押し込むのは2つの場合。
+    // (1) 隣の枠にも軸の音があるとき。散在しているあいだははみ出しても重ならないが、
+    //     隣り合うと接する（実測でインク間隔 1px のカードがあり、縮小すると一塊に見えた）
+    // (2) 拗音のように 1 枠より広い字。フォントの送りは小書き仮名も 1em なので「ちゃ」は 2em ある
+    const crowded = byIndex.has(i - 1) || byIndex.has(i + 1);
+    const wide = widthEm(unit) > 1;
+    const fit = crowded || wide ? ` textLength="${r(cell)}" lengthAdjust="spacingAndGlyphs"` : '';
     parts.push(
       `<text x="${r(centerX(i, row.length))}" y="${r(baseline)}" font-family="${FONT_FAMILY}" ` +
         `font-size="${r(size)}" font-weight="700" fill="${ACCENTS[0].stroke}" ` +
-        `text-anchor="middle">${escapeXml(unit)}</text>`,
+        `text-anchor="middle"${fit}>${escapeXml(unit)}</text>`,
     );
   }
   flushRun(row.length);

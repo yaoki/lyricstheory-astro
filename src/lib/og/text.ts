@@ -16,12 +16,13 @@ const NO_LINE_END = '（〔［｛〈《「『【〘〖‘“';
 const HALF_WIDTH = /[\x20-\x7e｡-ﾟ]/;
 
 export function charWidthEm(ch: string): number {
-  if (HALF_WIDTH.test(ch)) return 0.5;
-  // 拗音の小書き仮名と長音記号は送りが狭い。全角1文字ぶんで数えると、「りゅ」を含む
-  // 行だけ枠の見積もりが2倍になり、行全体の字が半分に縮む（2026-08-04 に実測）
-  if (COMBINING.test(ch)) return 0.55;
-  return 1;
+  return HALF_WIDTH.test(ch) ? 0.5 : 1;
 }
+// 2026-08-04: 小書き仮名（ゃゅょ・っ）と長音記号を 0.55em として扱った時期があるが、
+// 撤回した。fonts/NotoSansJP-Bold.ttf の送り幅を実測すると、これらは「あ」「か」と
+// 同じ 1em である。0.55 は過小評価で、枠幅より広く描かれることになる。
+// 「りゅ」を含む行で字が細っていた問題は、ここではなく pivot 側の
+// 「枠の見積もりで字の大きさを割っていた」ことが原因だった（そちらで解決済み）。
 
 /** 直前の音に結合する文字（拗音・小書き仮名・長音符）。1 音として数えない */
 export const COMBINING = /[ゃゅょャュョぁぃぅぇぉァィゥェォヵヶーｰ]/;
@@ -80,8 +81,17 @@ export function wrapText(text: string, maxWidthEm: number, maxLines: number): st
     const w = widthEm(ch);
 
     if (width + w > maxWidthEm) {
-      // 行頭禁則: あふれた文字が行頭に来られないものなら、はみ出しを許して現在行に残す
-      const keep = line !== '' && ch.length === 1 && NO_LINE_START.includes(ch) && overflowed < 2;
+      // 行頭禁則: あふれた文字が行頭に来られないものなら、はみ出しを許して現在行に残す。
+      // ただし**幅でも縛る**。文字数だけで 2 まで許していたため、「…同音「X」）」で
+      // 終わるタイトルは「」と）の2文字がどちらも禁則に当たり、全角2文字ぶん（80px）が
+      // 右マージンを食い切って版面外へ落ちていた（2026-08-04、3枚で実測）
+      const slackEm = 1;
+      const keep =
+        line !== '' &&
+        ch.length === 1 &&
+        NO_LINE_START.includes(ch) &&
+        overflowed < 2 &&
+        width + w <= maxWidthEm + slackEm;
       if (keep) {
         overflowed++;
       } else if (line !== '') {

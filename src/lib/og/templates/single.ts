@@ -54,7 +54,7 @@ export function single(figure: Omit<SingleFigure, 'kind'>, ctx: FigureContext): 
       const accent = accentOf(i);
       return (
         `<text x="${r(centers[i])}" y="${r(SYMMETRY.baseline)}" font-family="${FONT_FAMILY}" ` +
-        `font-size="${r(size)}" font-weight="700" fill="${accent ? accent.stroke : SYMMETRY.dim}" ` +
+        `font-size="${r(size)}" font-weight="700" fill="${accent ? accent.stroke : SYMMETRY.dimText}" ` +
         `text-anchor="middle">${escapeXml(unit)}</text>`
       );
     })
@@ -74,7 +74,7 @@ export function single(figure: Omit<SingleFigure, 'kind'>, ctx: FigureContext): 
       const x2 = centers[i] + half;
       return (
         `<path d="M ${r(x1)} ${r(y)} L ${r(x1)} ${r(y + h)} L ${r(x2)} ${r(y + h)} L ${r(x2)} ${r(y)}" ` +
-        `fill="none" stroke="${accent ? accent.stroke : SYMMETRY.dim}" ` +
+        `fill="none" stroke="${accent ? accent.stroke : SYMMETRY.dimText}" ` +
         `stroke-width="${r(SYMMETRY.groupTickWidth * scale)}" stroke-linecap="round" stroke-linejoin="round" />`
       );
     })
