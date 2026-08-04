@@ -1,6 +1,6 @@
 import { footer, frameBadge } from '../chrome';
 import type { FigureContext, PairFigure } from '../figure';
-import { ACCENTS, CANVAS, COLORS, FONT_FAMILY, MARGIN_X, PAIR } from '../layout';
+import { ACCENTS, CANVAS, COLORS, FONT_FAMILY, MARGIN_X, PAIR, SYMMETRY } from '../layout';
 import { escapeXml, textBlock, wrapText } from '../text';
 
 /**
@@ -76,9 +76,12 @@ export function pair(figure: Omit<PairFigure, 'kind'>, ctx: FigureContext): stri
     block.forEach((positions, row) => positions.forEach((i) => blockColor.set(`${row}:${i}`, color)));
   });
 
+  // 展開・圧縮では、対応から外れた音を single と同じ薄色に落とす。本文色のままだと
+  // 落ちた音のほうが濃く、骨格より目立ってしまう（2026-08-04、やおき指摘）。
+  // aligned は差異を帯で示す設計なので、そちらの文字は本文色のまま
   const fillOf = (row: number, i: number) =>
     mode === 'expansion'
-      ? (blockColor.get(`${row}:${i}`) ?? COLORS.text)
+      ? (blockColor.get(`${row}:${i}`) ?? SYMMETRY.dim)
       : alignedSame(i)
         ? ACCENTS[0].stroke
         : COLORS.text;
