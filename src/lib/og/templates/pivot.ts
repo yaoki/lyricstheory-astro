@@ -138,13 +138,14 @@ function renderRow(
       continue;
     }
     flushRun(i);
-    // 字をセル幅に押し込むのは2つの場合。
-    // (1) 隣の枠にも軸の音があるとき。散在しているあいだははみ出しても重ならないが、
-    //     隣り合うと接する（実測でインク間隔 1px のカードがあり、縮小すると一塊に見えた）
-    // (2) 拗音のように 1 枠より広い字。フォントの送りは小書き仮名も 1em なので「ちゃ」は 2em ある
-    const crowded = byIndex.has(i - 1) || byIndex.has(i + 1);
-    const wide = widthEm(unit) > 1;
-    const fit = crowded || wide ? ` textLength="${r(cell)}" lengthAdjust="spacingAndGlyphs"` : '';
+    // 字がセル幅を**超えるときだけ**押し込む。判定を「隣に軸の音があるか」でやると、
+    // 枠が広い図で字がセルまで引き伸ばされる（lengthAdjust は縮めるだけでなく伸ばす。
+    // 2026-08-04、やおき指摘「横に伸びてます」）。
+    // 超える場合は2つ。隣り合う軸の音（実測でインク間隔 1px のカードがあった）と、
+    // 拗音のように 2em ある字（フォントの送りは小書き仮名も 1em ある）
+    const natural = widthEm(unit) * size;
+    const fit =
+      natural > cell ? ` textLength="${r(cell)}" lengthAdjust="spacingAndGlyphs"` : '';
     parts.push(
       `<text x="${r(centerX(i, row.length))}" y="${r(baseline)}" font-family="${FONT_FAMILY}" ` +
         `font-size="${r(size)}" font-weight="700" fill="${ACCENTS[0].stroke}" ` +
