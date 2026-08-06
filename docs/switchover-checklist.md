@@ -91,6 +91,24 @@ curl -I https://lyricstheory.com/sheena-ringo-repeated-consonance/
 - [ ] `docs/dead-links-todo.md` — 歌詞タイム閉鎖リンク差し替え、YouTube 削除動画3本の対応
 - [ ] `docs/posfie-migration-todo.md` — Posfie 記事のブログ集約
 
-## Phase 6: Coreserver 解約
+## 切替成功後の DNS 掃除（Cloudflare 管理画面で）〔完了・2026-08-06 実測確認〕
 
-Cloudflare 上で全サイトの安定稼働を 1 週間確認できたら、Coreserver 契約を解約する。他の静的サイトも Cloudflare Pages に移動済みであること。
+Coreserver 時代の DNS レコードが Cloudflare にインポートされていたので、不要なものを削除し、代わりに「メールを送らないドメイン」であることを明示するレコードを置いた。**下は 2026-08-06 に `dig` で実際に引いて確かめた結果**である。
+
+- [x] `A *.lyricstheory.com` (163.44.177.18) — 削除済み（`dig +short A <存在しないサブドメイン>.lyricstheory.com` が空）
+- [x] `AAAA *.lyricstheory.com` (IPv6) — 同上
+- [x] `MX lyricstheory.com` — 削除済み（`dig +short MX` が空）
+- [x] `TXT _dmarc.lyricstheory.com` (`v=DMARC1; p=none;`) — 下の推奨値に置き換え済み
+- [x] `TXT lyricstheory.com` SPF (`v=spf1 ... include:mxr.valueserver.jp ~all`) — 下の推奨値に置き換え済み
+
+**代わりに設定するもの**（スパム対策としてメール未使用の証明）：
+- [x] `TXT lyricstheory.com` SPF: `v=spf1 -all` — 設定済み（`dig +short TXT lyricstheory.com` で確認）
+- [x] `TXT _dmarc.lyricstheory.com` DMARC: `v=DMARC1; p=reject; adkim=s; aspf=s;` — 設定済み
+
+なお `TXT lyricstheory.com` には Google Search Console の所有権確認レコード（`google-site-verification=...`）も入っている。これは必要なものなので消さない。
+
+## Phase 6: Coreserver 解約〔完了〕
+
+- [x] Coreserver 契約の解約（2026-08-06、やおき確認）
+
+**このファイルは 2026-08-06 まで、上の2項目が未完了のまま残っていた。**実態と2段階ずれていたため、残作業を数えるときに誤って計上した。以後、済んだ項目はその場でチェックを入れること。
