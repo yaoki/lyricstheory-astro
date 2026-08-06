@@ -63,6 +63,9 @@ wraps: [[17], [17, 31]]   # 各行を折り返す位置（音の index）
 
 - **`kuchibue-consecutive-as-special-case`** — 3箇所を束ねるメタカード。図を持てない
 - **`ame-nochi-hare-syllabification`** — 現在 `kind: consonant` を流用しているが、34音のうち記号が付くのは3つだけで**91%が薄色**になる。consonant は「交替が起きている範囲を浮かび上がらせる」機構なので、浮かび上がらせる範囲が存在しない。テンプレートの取り違え
+- **`there-will-be-love-there-cv-repetition-ka`** — 2行に散る「か」5点（AAA ／ AA）。E章から移した（2026-08-06、やおき裁定）。consonant を流用すれば図は出るが、上と同型の取り違えを1枚増やすことになるので作らない
+
+3枚に共通するのは、**箇所が3つ以上あって、その全部を1枚に載せないと観察が成り立たない**という形である。上の規則（箇所の数＝行数）で言えば行が3本以上要るということになる。ただし `there-will-be-love-there-cv-repetition-ka` は「1行のなかに3点」＋「別の1行のなかに2点」なので、行を増やすだけで済むのか、行内の点の数も同時に扱う必要があるのかは、実装前に判定する。
 
 ### D-4. pivot が軸を1本しか持てない
 
@@ -85,16 +88,26 @@ wraps: [[17], [17, 31]]   # 各行を折り返す位置（音の index）
 - **`there-will-be-love-there-tk-alternation`** — 記号が 22.1px、SNS 1/3 で 7.4px となり `t` `k` `Φ` の判別がつかない。規約が「抽象（記号）と実音（歌詞）の対応こそが図の本体」と定めている、その本体の半分が消える
 - `CONSONANT.markRatio`（0.62）を 0.75 程度まで上げると 26.7px になる。ただし23列という制約は残る
 
-## E. 図を持たないカード（6枚のうち4枚は作れる）
+## E. 図を持たないカード（6枚のうち2枚は作成済み。今の道具で作れるものは尽きた）
 
-コマンドは `docs/` 外のセッション記録にある。要点だけ。
-
-- `seishun-t-pivot-middle-vowel` → **pivot で作れる**（コマンド1行）
-- `seishun-cv-repetition-ta` → **single で作れる**（ただし呼応範囲が8音ちょうどで文脈は入らない）
-- `there-will-be-love-there-cv-repetition-ka` → **consonant 流用で作れる**（single は呼応範囲14音で上限に当たる）
+- `seishun-t-pivot-middle-vowel` → **作成済み**（2026-08-06。pivot、14枠に て・と・て の3点。軸ラベルは同曲の既存2枚に合わせて「タ行子音ピボット」）
+- `seishun-cv-repetition-ta` → **作成済み**（2026-08-06。single、`highlight: [0,2,7]`。8音上限で前を6音落としたため左に文脈は入らない）
+- `there-will-be-love-there-cv-repetition-ka` → **D-3 待ち**（2026-08-06 に分類を訂正）。以前ここに「consonant 流用で作れる」と書いたが誤り。実測すると1行目は24音に記号3つ、2行目は17音に記号2つで、**着色12% / 薄色88%** となり D-3 が `ame-nochi-hare-syllabification` を取り違えと判定した数字（91%薄色）とほぼ同じになる。consonant は「2つ以上の子音が交替し続ける範囲」の型だが、このカードの観察は「か」1つの反復で交替がない。single も1行目の呼応範囲が15音で上限8を超え、2行目だけに縮めると AAA ／ AA という観察自体が図から落ちる
 - `there-will-be-love-there-return-repetition` → **D-2 待ち**
 - `kuchibue-consecutive-as-special-case` → **D-3 待ち**
 - `phoneme-base-voicing-neutral` → **図は不要**。`type: principle` で楽曲を対象としないため、現行の4形式（いずれも歌詞のモーラを単位とする）に対象が存在しない
+
+## G. figure-critic に通していない図（2026-08-06 時点）
+
+`.claude/agents/figure-critic.md` は「図を新しく作ったとき・図の描画コードを変えたときに**必ず通す**」と定めているが、下の3枚は未判定のまま置いてある（2026-08-06、やおき了承「あとでやるならいいですよ」）。
+
+- `seishun-t-pivot-middle-vowel`（新規・pivot・手がかり付き）
+- `seishun-cv-repetition-ta`（新規・single）
+- `there-will-be-love-there-t-pivot`（既存だが、手がかりを足した描画コードで2行の図がどう出るかの確認用に再生成）
+
+**通すときは lyricstheory-astro をカレントにしたセッションで実行すること。** 別リポジトリ（360channel 等）をカレントにしたセッションからは、このリポジトリの `.claude/agents/` が読まれず `Agent type 'figure-critic' not found` になる（2026-08-06 実測）。
+
+判定してほしいのは、手がかり（`PIVOT.hintFontSize` / `hintGapRatio`）を足したことで図の本体が読みにくくなっていないか、主従が逆転していないか。**手がかり自体が小さくて読みにくいことは不合格の理由にしない**（2026-08-06、やおき「最悪可読性が低くてもフィーリングでわかればよし」）。
 
 ## F. その他の実測所見（不合格ではない）
 
