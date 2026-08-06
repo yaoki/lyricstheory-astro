@@ -172,6 +172,12 @@ const pivotFigure = z
       .array(
         z.object({
           length: z.number().int().min(2).max(24),
+          // 伏せた枠が歌詞のどこを指しているかを、行の上に小さく添える（2026-08-06 追加）。
+          // 出すのはカード本文が既に <LyricQuote> で引用している範囲と同じものなので、
+          // 引用の総量は増えない（consonant と同じ考え方）。
+          // **可能な限り全文**を出し、行に収まらない長さのときだけ頭と末尾を残して
+          // 「…」で畳む（やおき指示）。畳む閾値は phrase.ts の HINT_MAX_EM
+          text: z.string().max(64).optional(),
           // 行を割った結果、軸の音を持たない行が出るのは構わない
           pivots: z.array(
             z.object({

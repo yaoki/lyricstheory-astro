@@ -39,8 +39,11 @@ export function pivot(figure: Omit<PivotFigure, 'kind'>, ctx: FigureContext): st
     return start + index * (cell + PIVOT.gap) + cell / 2;
   };
 
-  // 行が増えたぶんは上に詰める。本文の図は y=400 で刈られるので、下の行がそこを越えると欠ける
-  const step = size * PIVOT.rowStepRatio;
+  // 行が増えたぶんは上に詰める。本文の図は y=400 で刈られるので、下の行がそこを越えると欠ける。
+  // 手がかりを持つ行があるときは、そのぶん行送りを広げる。広げないと手がかりが自分の行より
+  // 上の行に密着し、縮小版で1行目の枠と1つの塊に読める（2026-08-06、figure-critic 不合格）
+  const hasHint = rows.some((row) => row.text !== undefined && row.text !== '');
+  const step = size * PIVOT.rowStepRatio + (hasHint ? PIVOT.hintFontSize * PIVOT.hintRowStepAdd : 0);
   const span = (rows.length - 1) * step;
   const firstBaseline = Math.min(layout.baseline, PIVOT.bottomLimit - span);
 
@@ -92,6 +95,19 @@ function renderRow(
 ): string {
   const byIndex = new Map(row.pivots.map((p) => [p.at, p.unit]));
   const parts: string[] = [];
+
+  // 伏せた枠が歌詞のどこを指しているかを、行の上に小さく添える（2026-08-06、やおき指示）。
+  // 出すのは軸の音を含む一部だけで、残りは phrase.ts 側で「…」に畳んである。
+  // 行の幅に収まらなければ字を縮める。左端は行の左端に合わせ、どの音から始まる手がかりかを揃える
+  if (row.text !== undefined && row.text !== '') {
+    const rowWidth = row.length * cell + (row.length - 1) * PIVOT.gap;
+    const hintSize = Math.min(PIVOT.hintFontSize, rowWidth / widthEm(row.text));
+    parts.push(
+      `<text x="${MARGIN_X}" y="${r(baseline - size * PIVOT.hintGapRatio)}" ` +
+        `font-family="${FONT_FAMILY}" font-size="${r(hintSize)}" fill="${COLORS.muted}">` +
+        `${escapeXml(row.text)}</text>`,
+    );
+  }
 
   // 帯は字と同じ視覚的中心に置き、高さも字に比例させる。
   // ベースラインからの距離を固定値にしていたため、字が細る図で帯だけが上に浮いていた

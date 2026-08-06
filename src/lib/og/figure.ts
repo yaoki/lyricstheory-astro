@@ -83,6 +83,13 @@ export interface PivotRow {
   length: number;
   /** 軸の音。at は 0 起点の位置、unit は出す文字 */
   pivots: { at: number; unit: string }[];
+  /**
+   * その行の歌詞。伏せた枠が何の語だったかを、図の上に小さく添える（2026-08-06 追加）。
+   *
+   * 出すのはカード本文が既に <LyricQuote> で引用している範囲と同じものなので、
+   * 引用の総量は増えない（consonant と同じ考え方）。省略すれば出ない。
+   */
+  text?: string;
 }
 
 /**

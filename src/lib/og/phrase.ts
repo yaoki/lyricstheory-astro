@@ -19,7 +19,7 @@ import {
   type SingleFigure,
 } from './figure';
 
-import { COMBINING } from './text';
+import { COMBINING, widthEm } from './text';
 
 /** 囲みの種類。並び順がそのまま呼応の組になる */
 const BRACKETS: ReadonlyArray<readonly [string, string]> = [
@@ -175,6 +175,53 @@ function tokenize(phrase: string): Token[] {
 const MAX_PIVOT_LENGTH = 24;
 
 /**
+ * 手がかりを全文で出せる上限。`PIVOT.hintFontSize`（34px）のまま行幅（1200 − 80×2 = 1040px）に
+ * 収まる長さがここ（1040 ÷ 34 ≒ 30.6em）。超えると字が縮み始めるので、縮めずに畳む
+ */
+const HINT_MAX_EM = 30;
+
+/** 畳むときに頭へ残す音数 */
+const HINT_HEAD = 7;
+
+/**
+ * 畳むときに末尾へ残す音数。頭だけでは、軸の音が行の後ろ半分に散るカードで
+ * どこを指しているのか掴めない（2026-08-06、やおき「brilliant green は末尾をつけてみて」）
+ */
+const HINT_TAIL = 5;
+
+/**
+ * 伏せた枠が歌詞のどこを指しているかを示す手がかりを作る（2026-08-06 追加）。
+ *
+ * **可能な限り全文を出す**（2026-08-06、やおき「可能な限り pivot は全文にしてほしいかな」
+ * 「全文を出した方が親切に決まっています」）。
+ *
+ * 出すのはカード本文が既に `<LyricQuote>` で引用している範囲と同じものなので、
+ * repo の引用総量は増えない（consonant と同じ考え方）。
+ *
+ * **全文が入らない行だけ、頭と末尾を残して「…」で畳む**（2026-08-06、やおき
+ * 「全文が難しい時は、ヒントを出す。その閾値は一旦任せます」）。
+ *
+ * 閾値は「手がかりの字が `PIVOT.hintFontSize`（34px）を保てる最大長」に取ってある。
+ * 行幅 1040px ÷ 34px ≒ 30.6em なので 30em。ここを超えると `pivot.ts` が字を縮めるので、
+ * 縮めるより畳むほうを選ぶ、という線引きである。**この閾値で全文が通ったとしても、
+ * 実際に直感的かどうかを決めるのは figure-critic の判定**（2026-08-06、やおき
+ * 「直感的かどうかはジャッジが決めればいい」）。落ちたらそのカードだけ手がかりを短くする。
+ */
+function pivotHint(tokens: Token[]): string | undefined {
+  if (tokens.length === 0) return undefined;
+  const join = (from: number, to: number): string =>
+    tokens
+      .slice(from, to)
+      .map((token) => token.text)
+      .join('');
+  const full = join(0, tokens.length);
+  if (widthEm(full) <= HINT_MAX_EM) return full;
+  // 畳んでも短くならないなら全文のまま（頭と末尾で行の全部を覆う短い行）
+  if (tokens.length <= HINT_HEAD + HINT_TAIL) return full;
+  return `${join(0, HINT_HEAD)}…${join(tokens.length - HINT_TAIL, tokens.length)}`;
+}
+
+/**
  * ピボット用のフレーズを読む。
  *
  * 書き方は single と同じで、軸となる音を「」で囲む。違うのは囲みの外の扱いで、
@@ -212,7 +259,8 @@ export function parsePivotPhrase(lines: string[], axis: string): PivotFigure {
           'ピボットは1音ずつ散らばる様子を見る図なので、連なりを1枠に畳むなら single を使ってください',
       );
     }
-    return { length: tokens.length, pivots };
+    // 伏せた枠が歌詞のどこを指しているかを示す手がかり。全文は出さない（上の pivotHint）
+    return { length: tokens.length, pivots, text: pivotHint(tokens) };
   });
 
   // 行を割った結果、軸の音を持たない行が出るのは構わない。
@@ -229,6 +277,7 @@ export function toPivotYaml(figure: PivotFigure): string {
   const lines = ['figure:', `  kind: ${figure.kind}`, `  axis: "${figure.axis}"`, '  rows:'];
   for (const row of figure.rows) {
     lines.push(`    - length: ${row.length}`);
+    if (row.text !== undefined && row.text !== '') lines.push(`      text: "${row.text}"`);
     if (row.pivots.length === 0) {
       lines.push('      pivots: []');
       continue;
