@@ -284,4 +284,64 @@ const elements = defineCollection({
   }),
 });
 
-export const collections = { blog, concept, author, elements };
+// 推薦図書。Zotero の蔵書から選書したものを 1 冊 1 ファイルで持つ。
+// 本文はやおき自身が書くレビュー。Claude は代筆しない（書誌情報だけから書けば
+// 印象批評か幻覚になる。金銭を伴う以上、誤帰属の損害が普段と違う）。
+//
+// アフィリエイトの URL は frontmatter に持たせず、asin とトラッキング ID から
+// ページ側で組み立てる。ID を変えるとき 1 箇所で済ませるため。
+const books = defineCollection({
+  loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/books' }),
+  schema: z.object({
+    title: z.string(),
+    author: z.string(),
+    publisher: z.string().optional(),
+    year: z.string().optional(),
+    isbn13: z.string().regex(/^97[89]\d{10}$/, 'ISBN-13 をハイフン無しで書く'),
+    // ISBN-10 と一致する。978 始まりなら計算で出せるが、実在は必ず別途検証すること
+    // （ISBN が正しくても amazon.co.jp にその版が無いことがある。2026-08-06 実測）
+    asin: z.string().regex(/^[0-9]{9}[0-9X]$/),
+    // 読者層の仮説。A=知的好奇心（理論の知識なし） / B=批評の方法論 / C=制作
+    // どの本が売れたかで層を逆算するので、層が分離できない選書は計測器にならない
+    layer: z.enum(['A', 'B', 'C']),
+    priceJPY: z.number().int().positive().optional(),
+    // 「この本を拙著◯章で使った」の内部リンク。書棚から本文へ張ると被引用性が立つ
+    usedIn: z
+      .array(z.object({ label: z.string(), href: z.string() }))
+      .default([]),
+    created: z.coerce.date(),
+    updated: z.coerce.date(),
+    // レビュー本文が書かれるまでは公開しない。スタブが並ぶと信用を損なうため既定は true
+    draft: z.boolean().default(true),
+  }),
+});
+
+// 推薦 Web 文献。書籍（books）とは役割が違う。
+//
+// books は計測器で、どの本が売れたかから読者層を逆算する。webrefs は収益にならない。
+// 代わりに持つのは**自分の領域の境界を示す機能**で、隣接領域の書き手を挙げることで
+// 「あちらは和声、こちらは歌詞の音」という線が読者に見える。
+//
+// Web は消える。書籍と違って URL が死ぬので lastChecked を持たせ、定期的に検証する。
+const webrefs = defineCollection({
+  loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/webrefs' }),
+  schema: z.object({
+    // 連載名・チャンネル名。人ではなく「その媒体」の名前
+    title: z.string(),
+    author: z.string(),
+    url: z.string().url(),
+    kind: z.enum(['youtube', 'note', 'blog', 'site', 'podcast', 'x']),
+    // 同じ書き手の別媒体（YouTube の人が note も書いている、など）
+    also: z
+      .array(z.object({ kind: z.string(), url: z.string().url() }))
+      .default([]),
+    // リンクが生きていることを最後に確認した日
+    lastChecked: z.coerce.date(),
+    created: z.coerce.date(),
+    updated: z.coerce.date(),
+    // 「なぜ薦めるか」が書かれるまで公開しない。リンク集だけ並べても境界は示せない
+    draft: z.boolean().default(true),
+  }),
+});
+
+export const collections = { blog, concept, author, elements, books, webrefs };

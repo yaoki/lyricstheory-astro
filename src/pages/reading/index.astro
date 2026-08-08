@@ -1,0 +1,85 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const KIND_LABELS: Record<string, string> = {
+  youtube: 'YouTube',
+  note: 'note',
+  blog: 'ブログ',
+  site: 'サイト',
+  podcast: 'ポッドキャスト',
+  x: 'X',
+};
+
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+const all = await getCollection('webrefs', ({ data }) => !data.draft);
+const entries = await Promise.all(
+  all.map(async (entry) => ({ entry, Content: (await render(entry)).Content })),
+);
+const sorted = entries.sort((a, b) =>
+  a.entry.data.author.localeCompare(b.entry.data.author, 'ja'),
+);
+---
+
+<BaseLayout
+  title="推薦Web文献 | lyricstheory.com"
+  description="歌詞の音韻分析を進めるうえで参照している、Web上の書き手とチャンネル。隣接する領域を扱っている人を挙げることで、このサイトが何をやっていて何をやっていないかを示します。"
+>
+  <p class="mb-2 text-sm text-gray-500">
+    <a href="/" class="hover:underline">lyricstheory.com</a> / 推薦Web文献
+  </p>
+  <h1 class="mb-4 text-2xl font-bold">推薦Web文献</h1>
+  <p class="mb-10 text-gray-700">
+    Web上で読んでいる書き手とチャンネルです。隣接する領域を扱っている人を挙げることで、このサイトが何をやっていて、何をやっていないかを示しています。
+    <a href="/books/" class="text-blue-700 underline">推薦図書</a>もあります。
+  </p>
+
+  {
+    sorted.length === 0 && (
+      <p class="text-gray-500">準備しています。書けたものから順に公開します。</p>
+    )
+  }
+
+  <ul class="space-y-10">
+    {
+      sorted.map(({ entry, Content }) => (
+        <li class="border-b border-gray-100 pb-8 last:border-b-0">
+          <h2 class="text-lg font-medium">
+            <a href={entry.data.url} rel="noopener" class="text-blue-700 underline">
+              {entry.data.title}
+            </a>
+          </h2>
+          <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+            <span>{entry.data.author}</span>
+            <span class="rounded-full border border-gray-400 px-2 py-0.5 text-xs text-gray-600">
+              {KIND_LABELS[entry.data.kind] ?? entry.data.kind}
+            </span>
+          </p>
+
+          <div class="mt-3 space-y-4 leading-relaxed text-gray-800">
+            <Content />
+          </div>
+
+          {entry.data.also.length > 0 && (
+            <p class="mt-3 text-xs text-gray-500">
+              同じ書き手の別の場所:
+              {entry.data.also.map((ref, i) => (
+                <>
+                  {i > 0 && <span class="text-gray-400">、</span>}
+                  <a href={ref.url} rel="noopener" class="ml-1 text-blue-700 underline">
+                    {KIND_LABELS[ref.kind] ?? ref.kind}
+                  </a>
+                </>
+              ))}
+            </p>
+          )}
+
+          <p class="mt-2 text-[10px] text-gray-400">
+            リンク確認: {iso(entry.data.lastChecked)}
+          </p>
+        </li>
+      ))
+    }
+  </ul>
+</BaseLayout>

@@ -1,0 +1,125 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+// このページから出るリンクに付けるトラッキング ID。
+// X から Amazon へ直接飛ばすときは ltx-22、ストアフロント経由は ltstore-22 を使う。
+// 経路ごとに分けてあるのは、どの経路が購入に繋がるかを分離して測るため。
+const TAG = 'ltgarden-22';
+
+// 読者層の仮説（frontmatter の layer）は計測のための内部的な区分なので、
+// 見出しには出さない。読者に見せるのは「どういう人に向くか」だけにする。
+const SECTIONS = [
+  {
+    layer: 'A',
+    heading: '音楽理論を知らなくても読める本',
+    note: '専門の訓練がなくても最後まで読めて、音楽の見え方が変わるもの。',
+  },
+  {
+    layer: 'B',
+    heading: '分析と批評の方法をつくるための本',
+    note: 'このサイトの記述がどこから来ているか。方法そのものを問う本。',
+  },
+  {
+    layer: 'C',
+    heading: '作る人のための本',
+    note: '歌詞を書く人、曲を書く人が実際に手を動かすために使える本。',
+  },
+] as const;
+
+const all = await getCollection('books', ({ data }) => !data.draft);
+const entries = await Promise.all(
+  all.map(async (entry) => ({ entry, Content: (await render(entry)).Content })),
+);
+
+const sections = SECTIONS.map((section) => ({
+  ...section,
+  items: entries
+    .filter(({ entry }) => entry.data.layer === section.layer)
+    .sort((a, b) => a.entry.data.author.localeCompare(b.entry.data.author, 'ja')),
+}));
+
+const total = entries.length;
+const amazon = (asin: string) => `https://www.amazon.co.jp/dp/${asin}?tag=${TAG}`;
+---
+
+<BaseLayout
+  title="推薦図書 | lyricstheory.com"
+  description="歌詞の音韻分析を進めるうえで実際に使った本。音楽理論を知らなくても読めるもの、分析の方法をつくるもの、作る人が手を動かすためのものに分けて並べています。"
+>
+  <p class="mb-2 text-sm text-gray-500">
+    <a href="/" class="hover:underline">lyricstheory.com</a> / 推薦図書
+  </p>
+  <h1 class="mb-4 text-2xl font-bold">推薦図書</h1>
+  <p class="mb-6 text-gray-700">
+    このサイトの記述の元になっている本を並べています。すべて手元にある本で、読んでいないものは置いていません。
+    Web上の書き手は<a href="/reading/" class="text-blue-700 underline">推薦Web文献</a>にまとめています。
+  </p>
+
+  <p class="mb-10 rounded border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
+    Amazonのアソシエイトとして、lyricstheory.com は適格販売により収入を得ています。
+  </p>
+
+  {
+    total === 0 && (
+      <p class="text-gray-500">
+        レビューを準備しています。書けたものから順に公開します。
+      </p>
+    )
+  }
+
+  {
+    sections.map((section) =>
+      section.items.length === 0 ? null : (
+        <section class="mb-14">
+          <h2 class="mb-1 text-xl font-bold">{section.heading}</h2>
+          <p class="mb-6 text-sm text-gray-600">{section.note}</p>
+
+          <ul class="space-y-10">
+            {section.items.map(({ entry, Content }) => (
+              <li class="border-b border-gray-100 pb-8 last:border-b-0">
+                <h3 class="text-lg font-medium">{entry.data.title}</h3>
+                <p class="mt-1 text-sm text-gray-600">
+                  {entry.data.author}
+                  {entry.data.publisher && <span class="text-gray-400">　{entry.data.publisher}</span>}
+                  {entry.data.year && <span class="text-gray-400">　{entry.data.year}</span>}
+                </p>
+
+                <div class="mt-3 space-y-4 leading-relaxed text-gray-800">
+                  <Content />
+                </div>
+
+                {entry.data.usedIn.length > 0 && (
+                  <p class="mt-3 text-xs text-gray-600">
+                    この本を使った記事:
+                    {entry.data.usedIn.map((ref, i) => (
+                      <>
+                        {i > 0 && <span class="text-gray-400">、</span>}
+                        <a href={ref.href} class="ml-1 text-blue-700 underline">
+                          {ref.label}
+                        </a>
+                      </>
+                    ))}
+                  </p>
+                )}
+
+                <p class="mt-3 text-sm">
+                  <a
+                    href={amazon(entry.data.asin)}
+                    rel="sponsored nofollow noopener"
+                    class="text-blue-700 underline"
+                  >
+                    Amazon で見る
+                  </a>
+                  <span class="ml-2 text-xs text-gray-400">
+                    {entry.data.priceJPY ? `定価 ¥${entry.data.priceJPY.toLocaleString()}` : '洋書'}
+                  </span>
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ),
+    )
+  }
+</BaseLayout>
