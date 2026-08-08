@@ -56,6 +56,41 @@ export async function GET(_context: APIContext) {
     });
   }
 
+  // 推薦図書。レビューが書かれた（draft: false）ものだけを案内する。
+  // 個別ページを持たないので、リンクは一覧に集約して書名と著者を列挙する
+  const books = await getCollection('books', ({ data }) => !data.draft);
+  const booksByLayer = ['A', 'B', 'C'].map((layer) => ({
+    layer,
+    items: books.filter((b) => b.data.layer === layer),
+  }));
+  // 見出しは公開ページ（/books/）と同じ言葉を使う。layer の記号は内部の区分なので出さない
+  const BOOK_HEADINGS: Record<string, string> = {
+    A: '音楽理論を知らなくても読める本',
+    B: '分析と批評の方法をつくるための本',
+    C: '作る人のための本',
+  };
+  const booksSection =
+    books.length === 0
+      ? ''
+      : `## 推薦図書
+
+このサイトの記述の元になっている本。すべて著者の手元にある本で、読んでいないものは置いていない。レビューが書けたものから順に公開しているため、ここに挙がるのは全蔵書ではない。一覧は ${site}/books/ にある。
+
+${booksByLayer
+  .filter((g) => g.items.length > 0)
+  .map((g) => {
+    const lines = g.items
+      .map(
+        (b) =>
+          `- ${b.data.title}（${b.data.author}${b.data.publisher ? `、${b.data.publisher}` : ''}${b.data.year ? ` ${b.data.year}` : ''}）`,
+      )
+      .join('\n');
+    return `### ${BOOK_HEADINGS[g.layer]}\n\n${lines}`;
+  })
+  .join('\n\n')}
+
+`;
+
   const cards = await getCollection('elements');
   const byType = new Map<string, typeof cards>();
   for (const card of cards) {
@@ -123,7 +158,7 @@ ${elementSections}
 - 理論用語集: https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/theory-glossary.md
 - 記述規範: https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/style-rules.md
 
-## 引用について
+${booksSection}## 引用について
 
 - 記事本文からの引用は学術的・教育的用途を歓迎します
 - 引用時は URL と著者名（やおき / the 8 rise）を明記してください
