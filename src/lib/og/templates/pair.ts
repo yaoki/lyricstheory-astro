@@ -14,16 +14,25 @@ import { escapeXml, textBlock, wrapText } from '../text';
  * 外すと上下に隣接した 2 行に見え、短期反復と取り違えられる。
  */
 export function pair(figure: Omit<PairFigure, 'kind'>, ctx: FigureContext): string {
-  // 一致の判定を表記の突き合わせで行っているため、CV反復のフレームでしか正しくない。
-  // V反復で使うと、母音が一致する「を／も」を差異と描き、左上のバッジと食い違う
-  if (ctx.repetition !== 'cv') {
-    throw new Error(
-      `pair の図は CV反復 のフレームでしか使えません（tags.repetition: ${ctx.repetition ?? 'なし'}）。\n` +
-        '一致の判定を表記の突き合わせで行っているためです。',
-    );
-  }
   const { rows, labels } = figure;
   const mode = figure.mode ?? 'aligned';
+
+  // 一致の判定を表記の突き合わせで行うときだけ、CV反復のフレームに限る。
+  // V反復で突き合わせると、母音が一致する「を／も」を差異と描き、左上のバッジと食い違う。
+  //
+  // 突き合わせを使うのは 2 箇所しかない。alignedSame（mode が aligned のときだけ）と
+  // commonBlocks（correspondences を書かなかったときだけ）である。mode: expansion で
+  // correspondences を明示すればどちらも通らず、色は correspondences から直接引かれ、
+  // 差異の帯も出ない。このときだけ C反復・V反復のフレームでも図が嘘にならない
+  // （2026-08-09 に緩和。それまでは理由を失ったままガードだけが効いていた）
+  const matchesByNotation = mode === 'aligned' || figure.correspondences === undefined;
+  if (matchesByNotation && ctx.repetition !== 'cv') {
+    throw new Error(
+      `pair の図は CV反復 のフレームでしか使えません（tags.repetition: ${ctx.repetition ?? 'なし'}）。\n` +
+        '一致の判定を表記の突き合わせで行っているためです。\n' +
+        'mode: expansion で correspondences を手で書けば、他のフレームでも使えます。',
+    );
+  }
 
   // 折り返し位置で各行を段に割る。長い展開をメロディの切れ目（2 小節ごと）で割ると、
   // 音数を減らさずに字を大きくできる（2026-08-04、やおき提案）。
