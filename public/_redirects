@@ -31,11 +31,15 @@ http://www.lyricstheory.com/* https://lyricstheory.com/:splat 301
 # 旧 URL は X に投稿済みのため 301 で保全する。
 /elements/hajimete-no-koi-ga-owaru-toki-consonant-inversion/  /elements/hajimete-no-koi-ga-owaru-toki-consonant-retrograde/  301
 
-# elements のスラッグ改名（2026-08-02）
-# anagram-abca の abca は改訂前の形式ラベルで、現行の title（ABA' → A'AB）と対応していなかった。
-# 本文が並べ替えと倒置の二案を保留したままなので、読みを断定する語を名前から外し、
-# 対象の音を綴る形にした（規約「音韻要素は綴りで表す」）。
-/elements/tadashii-machi-anagram-abca/  /elements/tadashii-machi-dashita-tadashi/  301
+# elements のスラッグ改名（2026-08-02 → 2026-08-09 に再改名）
+# anagram-abca の abca は改訂前の形式ラベルで、当時の title（ABA' → A'AB）と対応していなかった。
+# 本文が並べ替えと倒置の二案を保留したままだったので、いったん読みを断定する語を名前から外し、
+# 対象の音を綴る形（dashita-tadashi）にした。
+# 2026-08-09、清濁を類音としてまとめる判断で読みが倒置に確定したため、
+# 規約どおり観察名を足して retrograde-dashita へ改名した。
+# リダイレクトのチェーンを作らないよう、旧2世代とも新 slug へ直接向ける。
+/elements/tadashii-machi-anagram-abca/  /elements/tadashii-machi-retrograde-dashita/  301
+/elements/tadashii-machi-dashita-tadashi/  /elements/tadashii-machi-retrograde-dashita/  301
 
 # aba は形式ラベルで、子音ピボットは分布の観察であってパターンではない
 # （2026-08-02、やおき裁定。docs/theory-glossary.md「子音ピボット」）。
