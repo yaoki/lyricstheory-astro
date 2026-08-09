@@ -83,6 +83,13 @@ const singleFigure = z
         z.array(z.array(z.number().int().nonnegative()).min(1)),
       ])
       .default([]),
+    // 語のまとまり。[from, to]（両端を含む）を 2 つ以上。
+    // 指定すると弧は highlight の組ではなく phrases のあいだに張られ、括りも phrases に付く。
+    // 音ごとの色分けと、語どうしの呼応を別々に描くために要る（2026-08-09 追加）
+    phrases: z
+      .array(z.tuple([z.number().int().nonnegative(), z.number().int().nonnegative()]))
+      .min(2)
+      .optional(),
   })
   .superRefine((figure, ctx) => {
     const groups: number[][] =
@@ -97,6 +104,22 @@ const singleFigure = z
           code: z.ZodIssueCode.custom,
           path: ['highlight'],
           message: `highlight の ${index} は units（${figure.units.length} 要素）の範囲外です`,
+        });
+      }
+    }
+    for (const [from, to] of figure.phrases ?? []) {
+      if (to >= figure.units.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['phrases'],
+          message: `phrases の ${to} は units（${figure.units.length} 要素）の範囲外です`,
+        });
+      }
+      if (from > to) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['phrases'],
+          message: `phrases の [${from}, ${to}] は from が to より後ろです`,
         });
       }
     }

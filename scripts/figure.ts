@@ -16,6 +16,7 @@ import {
   parseConsonantPhrase,
   parsePhrase,
   parsePivotPhrase,
+  resolvePhrases,
   toConsonantYaml,
   toPivotYaml,
   toYaml,
@@ -45,6 +46,13 @@ const USAGE = `
 図の左上にそのフレームが掲げられ、呼応の色が変わります。
 
   例) npm run figure -- --repetition v '「き」も「ち」'
+
+--phrases <語>,<語> を付けると、弧を語と語のあいだに1本だけ張ります。
+色は音ごとに残るので、「何が増えたか」と「どの語とどの語が対応するか」を
+一つの図で同時に見せられます。語を1枠に畳むと中身が見えなくなるための逃げ道です。
+渡すのは語そのものなので、位置を数える必要はありません。
+
+  例) npm run figure -- --phrases 'つみ,つつみ' '「つ」〈み〉を「つ」「つ」〈み〉こんで'
 
 --pivot <軸ラベル> を付けると子音ピボットの図になります。
 書き方は同じですが、囲みの外は**伏せた印**になり文字が出ません。
@@ -142,6 +150,8 @@ function main(): void {
   const subLines: string[] = [];
   // 書き込み先のカード。指定すると frontmatter に直接入る
   let card: string | undefined;
+  // 語のまとまり。弧を語どうしで結び、色は音ごとに残したいときに渡す
+  let phraseWords: string[] = [];
   const positional: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
@@ -155,6 +165,11 @@ function main(): void {
     else if (arg === '--fold') fold = true;
     else if (arg === '--subs') subLines.push(args[++i] ?? '');
     else if (arg === '--card') card = args[++i];
+    else if (arg === '--phrases')
+      phraseWords = (args[++i] ?? '')
+        .split(',')
+        .map((word) => word.trim())
+        .filter((word) => word !== '');
     else if (arg === '-h' || arg === '--help') return console.log(USAGE);
     else positional.push(arg);
   }
@@ -232,6 +247,23 @@ function main(): void {
       trimmed.tail > 0 ? `後ろを${trimmed.tail}音` : '',
     ].filter(Boolean);
     console.log(`\n※ 8音に収めるため、文脈の${parts.join('・')}落としました`);
+  }
+
+  // 弧は語と語のあいだに張るので、語が 1 つでは相手がいない
+  if (phraseWords.length === 1) {
+    console.error('\n  --phrases は語を2つ以上渡してください（弧は語と語のあいだに張るため）\n');
+    process.exit(1);
+  }
+  if (phraseWords.length >= 2) {
+    try {
+      figure.phrases = resolvePhrases(figure.units, phraseWords);
+    } catch (error) {
+      if (error instanceof PhraseError) {
+        console.error(`\n  ${error.message}\n`);
+        process.exit(1);
+      }
+      throw error;
+    }
   }
 
   emit(toYaml(figure), single(figure, { title, repetition }), { out, card, shouldOpen });

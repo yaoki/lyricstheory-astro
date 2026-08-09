@@ -112,6 +112,43 @@ export function parsePhrase(phrase: string): ParsedPhrase {
   };
 }
 
+/**
+ * 語のまとまり（--phrases）を units の範囲に変換する。
+ *
+ * 語そのものを受け取るのは、index を手で数えさせないため。
+ * 上限 8 音に収めるとき前の文脈が落ちると index はずれるので、
+ * 数えさせると必ず事故る。
+ *
+ * 前の語より後ろから順に探すので、同じ語が二度出ても左から順に対応する。
+ */
+export function resolvePhrases(units: string[], words: string[]): [number, number][] {
+  const ranges: [number, number][] = [];
+  let cursor = 0;
+  for (const word of words) {
+    let found: [number, number] | undefined;
+    for (let from = cursor; from < units.length && found === undefined; from++) {
+      let joined = '';
+      for (let to = from; to < units.length; to++) {
+        joined += units[to];
+        if (joined === word) {
+          found = [from, to];
+          break;
+        }
+        if (joined.length >= word.length) break;
+      }
+    }
+    if (found === undefined) {
+      throw new PhraseError(
+        `語のまとまり「${word}」が図の中に見つかりません` +
+          `（8音に収めるときに落ちたか、綴りが図と違います）`,
+      );
+    }
+    ranges.push(found);
+    cursor = found[1] + 1;
+  }
+  return ranges;
+}
+
 function tokenize(phrase: string): Token[] {
   const tokens: Token[] = [];
   let open: number | null = null;
@@ -423,10 +460,14 @@ export function toYaml(figure: SingleFigure): string {
       ? `[${(groups[0] ?? []).join(', ')}]`
       : `[${groups.map((g) => `[${g.join(', ')}]`).join(', ')}]`;
 
-  return [
+  const lines = [
     'figure:',
     `  kind: ${figure.kind}`,
     `  units: [${units}]`,
     `  highlight: ${highlight}`,
-  ].join('\n');
+  ];
+  if (figure.phrases !== undefined) {
+    lines.push(`  phrases: [${figure.phrases.map(([a, b]) => `[${a}, ${b}]`).join(', ')}]`);
+  }
+  return lines.join('\n');
 }

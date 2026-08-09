@@ -19,6 +19,18 @@ export interface SingleFigure {
   kind: 'single';
   units: string[];
   highlight: Highlight;
+  /**
+   * 語のまとまり。[from, to]（両端を含む）を 2 つ以上。
+   *
+   * 指定すると、弧は highlight の組ではなく phrases のあいだに張られ、括りも phrases に付く。
+   * 音ごとの色分け（highlight）と、語どうしの呼応（弧）を分けて描くために要る
+   * （2026-08-09、やおき判断「弧は A、色は B」）。
+   *
+   * 語を 1 枠に畳んでも弧は引けるが、そのとき枠の中身が見えなくなる。
+   * 「つみ」→「つつみ」のように**何が増えたか**が観察の本体である場合、
+   * 畳んだ図は本文の裏取りにならない。畳まずに弧を引くための逃げ道である。
+   */
+  phrases?: [number, number][];
 }
 
 /**

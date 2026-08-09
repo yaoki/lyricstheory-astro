@@ -22,7 +22,7 @@ interface Span {
  * repetition はカードの tags.repetition（c | v | cv）。分析のフレームとして左上に掲げる。
  */
 export function single(figure: Omit<SingleFigure, 'kind'>, ctx: FigureContext): string {
-  const { units } = figure;
+  const { units, phrases } = figure;
   const groups = normalizeHighlight(figure.highlight);
 
   // 「した」のように 1 枠が複数文字のこともあるため、幅は文字数から積む
@@ -62,16 +62,20 @@ export function single(figure: Omit<SingleFigure, 'kind'>, ctx: FigureContext): 
 
   // 複数のモーラを 1 枠に畳んだ枠には、下に括りを付ける。
   // 「かな」のような 2 モーラのフィギュアが、隣り合う 2 枠と見分けがつかなくなるため。
-  // 拗音（2 文字だが 1 モーラ）には付けない
-  const ties = units
-    .map((unit, i) => {
-      if (moraCount(unit) < 2) return '';
-      const accent = accentOf(i);
-      const half = widths[i] / 2 - size * 0.05;
+  // 拗音（2 文字だが 1 モーラ）には付けない。
+  // phrases があるときは、畳まずに並べた語のまとまりのほうを括る
+  const tieRanges: { from: number; to: number; accent: Accent | null }[] = phrases
+    ? phrases.map(([from, to]) => ({ from, to, accent: ACCENTS[0] }))
+    : units.flatMap((unit, i) =>
+        moraCount(unit) < 2 ? [] : [{ from: i, to: i, accent: accentOf(i) }],
+      );
+
+  const ties = tieRanges
+    .map(({ from, to, accent }) => {
       const y = SYMMETRY.baseline + SYMMETRY.groupTickGap * scale;
       const h = SYMMETRY.groupTickHeight * scale;
-      const x1 = centers[i] - half;
-      const x2 = centers[i] + half;
+      const x1 = centers[from] - widths[from] / 2 + size * 0.05;
+      const x2 = centers[to] + widths[to] / 2 - size * 0.05;
       return (
         `<path d="M ${r(x1)} ${r(y)} L ${r(x1)} ${r(y + h)} L ${r(x2)} ${r(y + h)} L ${r(x2)} ${r(y)}" ` +
         `fill="none" stroke="${accent ? accent.stroke : SYMMETRY.dimText}" ` +
@@ -80,13 +84,25 @@ export function single(figure: Omit<SingleFigure, 'kind'>, ctx: FigureContext): 
     })
     .join('');
 
-  // 結ぶ相手がいない組（要素が 1 つ以下）には弧を描かない
-  const spans: Span[] = groups.flatMap((group, i) =>
-    group.length >= 2
-      ? [{ from: Math.min(...group), to: Math.max(...group), accent: ACCENTS[i % ACCENTS.length] }]
-      : [],
-  );
-  const arcs = spans.map((span) => arcPath(span, spans, centers, size, scale)).join('');
+  // 弧を張る位置。phrases があれば語のまとまりの中心、なければ枠の中心
+  const arcAnchors = phrases
+    ? phrases.map(([from, to]) => {
+        const left = centers[from] - widths[from] / 2;
+        const right = centers[to] + widths[to] / 2;
+        return (left + right) / 2;
+      })
+    : centers;
+
+  // phrases があるときは語どうしを 1 本で結ぶ。色は音の側が担うので、弧は先頭の色で引く。
+  // なければ従来どおり組ごとに結び、結ぶ相手がいない組（要素が 1 つ以下）には弧を描かない
+  const spans: Span[] = phrases
+    ? [{ from: 0, to: phrases.length - 1, accent: ACCENTS[0] }]
+    : groups.flatMap((group, i) =>
+        group.length >= 2
+          ? [{ from: Math.min(...group), to: Math.max(...group), accent: ACCENTS[i % ACCENTS.length] }]
+          : [],
+      );
+  const arcs = spans.map((span) => arcPath(span, spans, arcAnchors, size, scale)).join('');
 
   const maxTitleEm = available / SYMMETRY.titleFontSize;
   const lines = wrapText(ctx.title, maxTitleEm, SYMMETRY.titleMaxLines);
@@ -123,7 +139,7 @@ export function single(figure: Omit<SingleFigure, 'kind'>, ctx: FigureContext): 
 function arcPath(
   span: Span,
   all: Span[],
-  centers: number[],
+  anchors: number[],
   size: number,
   scale: number,
 ): string {
@@ -140,8 +156,8 @@ function arcPath(
   const y = top - SYMMETRY.arcGap * scale;
   const apex = y - (SYMMETRY.arcLift + nesting * SYMMETRY.arcNestStep) * scale;
   const cy = 2 * apex - y;
-  const x1 = centers[span.from];
-  const x2 = centers[span.to];
+  const x1 = anchors[span.from];
+  const x2 = anchors[span.to];
   return (
     `<path d="M ${r(x1)} ${r(y)} Q ${r((x1 + x2) / 2)} ${r(cy)} ${r(x2)} ${r(y)}" fill="none" ` +
     `stroke="${span.accent.stroke}" stroke-width="${r(SYMMETRY.arcWidth * scale)}" stroke-linecap="round" />`
