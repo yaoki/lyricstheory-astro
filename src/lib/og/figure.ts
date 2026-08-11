@@ -68,9 +68,14 @@ export interface PairFigure {
    * 省略すると順序保存的な共通ブロックを自動で取る。
    *
    * 自動では拾えない対応（類音どうし、順序が交差する対応）を描くための逃げ道。
-   * 組ごとに色が変わる
+   * 組ごとに色が変わる。
+   *
+   * **行内の複数の音を 1 組にまとめるときは [[上の位置...], [下の位置...]] と書く**
+   * （2026-08-10 追加）。1 点ずつ書くと点の数だけ色が増えるため、ABA のように
+   * 「両端が同じ音」であることが図から読めなくなる（`hello-again-vowel-aba-aia`）。
+   * commonBlocks の戻り値と同じ形なので、内部ではこちらが本来の形にあたる
    */
-  correspondences?: [number, number][];
+  correspondences?: ([number, number] | [number[], number[]])[];
 }
 
 /**

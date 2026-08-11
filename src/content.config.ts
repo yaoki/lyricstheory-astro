@@ -139,8 +139,23 @@ const pairFigure = z
     // aligned = 同位置の対比。expansion = 展開の対比（一方が伸びていること自体が観察）
     mode: z.enum(['aligned', 'expansion']).default('aligned'),
     // 上下の対応を手で指定する。省略すると順序保存的な共通ブロックを自動で取る。
-    // 類音どうしの対応や、順序が交差する対応は自動では拾えないため
-    correspondences: z.array(z.tuple([z.number().int().nonnegative(), z.number().int().nonnegative()])).optional(),
+    // 類音どうしの対応や、順序が交差する対応は自動では拾えないため。
+    //
+    // 1 組は [上の位置, 下の位置] だが、**行内の複数の音を 1 組にまとめたいときは
+    // [[上の位置...], [下の位置...]] と書く**（2026-08-10 追加）。組ごとに色が変わる仕様なので、
+    // 1 点ずつ書くと点の数だけ色が増え、ABA のように「両端が同じ音」であることが図から消える。
+    // まとめて書けば両端が同色になり、行内の配置と行をまたぐ対応を 1 枚で出せる
+    correspondences: z
+      .array(
+        z.union([
+          z.tuple([z.number().int().nonnegative(), z.number().int().nonnegative()]),
+          z.tuple([
+            z.array(z.number().int().nonnegative()).min(1),
+            z.array(z.number().int().nonnegative()).min(1),
+          ]),
+        ]),
+      )
+      .optional(),
     // 各行を折り返す位置。長い展開をメロディの切れ目で割り、音数を減らさずに字を大きくする。
     // aligned では列の突き合わせが成り立たなくなるので使えない
     wraps: z.tuple([z.array(z.number().int().positive()), z.array(z.number().int().positive())]).optional(),

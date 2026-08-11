@@ -102,7 +102,10 @@ export function pair(figure: Omit<PairFigure, 'kind'>, ctx: FigureContext): stri
   // 位置がずれた対応は列で結べないので、ブロックごとに色を変えて結ぶ。
   // correspondences があればそれを使う（類音どうしや、順序が交差する対応は自動では拾えない）
   const groups: [number[], number[]][] =
-    figure.correspondences?.map(([a, b]) => [[a], [b]]) ?? commonBlocks(rows[0], rows[1]);
+    figure.correspondences?.map(([a, b]) => [
+      typeof a === 'number' ? [a] : a,
+      typeof b === 'number' ? [b] : b,
+    ]) ?? commonBlocks(rows[0], rows[1]);
 
   const blockColor = new Map<string, string>();
   (mode === 'expansion' ? groups : []).forEach((block, k) => {
