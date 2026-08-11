@@ -1,10 +1,26 @@
 import { frameBadge, footer } from '../chrome';
 import type { ConsonantFigure, ConsonantRow, FigureContext } from '../figure';
-import { ACCENTS, CANVAS, COLORS, CONSONANT, FONT_FAMILY, MARGIN_X, SYMMETRY } from '../layout';
+import {
+  ACCENTS,
+  CANVAS,
+  COLORS,
+  CONSONANT,
+  FONT_FAMILY,
+  FRAME_BADGE,
+  MARGIN_X,
+  SYMMETRY,
+} from '../layout';
 import { escapeXml, moraCount, textBlock, widthEm, wrapText } from '../text';
 
 /** 子音を持たない位置。色は当てず、背景に落とす */
 const EMPTY = 'Φ';
+
+/** ベースラインより上へ字が伸びる比。仮名の近似 */
+const ASCENT_RATIO = 0.78;
+/** バッジの下端と、いちばん上の行の字の上端とのあいだに空ける隙間 */
+const BADGE_GAP = 16;
+/** バッジが出ないカードで、字の上端をここより上げない */
+const TOP_LIMIT = 56;
 
 /**
  * 子音の並びを、歌詞の上に振って見せる。
@@ -38,13 +54,40 @@ export function consonant(figure: Omit<ConsonantFigure, 'kind'>, ctx: FigureCont
   // 位置の対応が読めなくなる
   const longest = Math.max(...rows.map((row) => row.units.length));
   const cell = (available - (longest - 1) * CONSONANT.gap) / longest;
-  const maxEm = Math.max(...rows.flatMap((row) => row.units.map((u) => widthEm(u))), 1);
   const layout = CONSONANT.layouts[rows.length] ?? CONSONANT.layouts[4];
-  const size = Math.min(layout.maxSize, cell / maxEm);
+  const hasSub = rows.some((row) => row.marks.some((m) => m.sub !== undefined));
+
+  // 大きさは横と縦の両方から決める。
+  //
+  // 横: 行の全字を「いちばん幅の広い枠」で割らない。1 枠でも「ぱー」や「しゃ」が
+  // 混じると行の全字が半分に縮み、1/3 に縮んだとき記号が判読不能な点になる
+  // （2026-08-11 実測。「ぱー」1 枠のせいで 62px → 32.5px、記号は 20px）。
+  // pivot.ts:34 が同じ事故を先に解いている。全体は割らず、枠に収まらない字だけ
+  // その枠で個別に落とす（下の unitSize）。
+  //
+  // 縦: 横だけ直すと、字が大きくなったぶん行の積み上げが伸びて 1 行目がバッジへ
+  // 食い込む（2026-08-11、ame-nochi-hare-tr-sequenz で実測）。行送り・下の余白・
+  // 字の上端はすべて size に比例するので、比例項を集めて割れば収まる上限が出る
+  const stepRatio = hasSub ? CONSONANT.rowStepRatioWithSub : CONSONANT.rowStepRatio;
+  const tickRatio = (SYMMETRY.groupTickGap + SYMMETRY.groupTickHeight) / SYMMETRY.unitFontSize;
+  const markStackRatio = CONSONANT.markRatio * (hasSub ? 1 + CONSONANT.subLineRatio : 1);
+  // バッジは 2 行までのカードにしか出ない（下の frameBadge の条件と揃えること）
+  const top =
+    rows.length <= 2 && frameBadge(ctx.repetition) !== ''
+      ? FRAME_BADGE.y + FRAME_BADGE.height + BADGE_GAP
+      : TOP_LIMIT;
+  const perSize = (rows.length - 1) * stepRatio + tickRatio + markStackRatio + ASCENT_RATIO;
+  const size = Math.min(
+    layout.maxSize,
+    cell,
+    // いちばん下の行が bottomLimit で止まるときの上限
+    (CONSONANT.bottomLimit - top - CONSONANT.markGap) / perSize,
+    // 1 行目が layout.baseline に座るときの上限
+    (layout.baseline - top) / ASCENT_RATIO,
+  );
 
   // 行送りは音の大きさから決める。1 行は音・括り・記号を縦に積むので、
   // 固定値だと音が大きいときに次の行の音が前の行の記号へ食い込む
-  const hasSub = rows.some((row) => row.marks.some((m) => m.sub !== undefined));
   const step = size * (hasSub ? CONSONANT.rowStepRatioWithSub : CONSONANT.rowStepRatio);
   const span = (rows.length - 1) * step;
   // いちばん下の行は、括りと記号のぶんを見込んで手前で止める
@@ -121,8 +164,12 @@ function renderRow(
           ? COLORS.text
           : (palette.get(symbol) ?? COLORS.text);
 
+    // 枠に収まらない字だけ、その枠で落とす。記号の段は行で揃えたままにする
+    // （記号は行全体への注釈なので、枠ごとに大きさが変わると読みにくい）
+    const unitSize = Math.min(size, cell / widthEm(row.units[i]));
+
     parts.push(
-      `<text x="${r(x)}" y="${r(baseline)}" font-family="${FONT_FAMILY}" font-size="${r(size)}" ` +
+      `<text x="${r(x)}" y="${r(baseline)}" font-family="${FONT_FAMILY}" font-size="${r(unitSize)}" ` +
         `font-weight="700" fill="${fill}" text-anchor="middle">${escapeXml(row.units[i])}</text>`,
     );
 
