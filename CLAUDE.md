@@ -119,9 +119,10 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/theory-glos
 
 `type` は enum ではなく `z.string()`。カードが10〜20枚溜まってから enum 化を検討する。当面の推奨7語彙:
 
-`pivot | sequenz | rhyme | syllable | prosody | pattern | principle | other`
+`pivot | sequenz | rhyme | syllable | prosody | pattern | principle | term | other`
 
 - **principle**: 楽曲を対象としない、記述方針そのもののカード（2026-08-02 追加）。分析の枠組みを決める判断を、個別の楽曲カードに従属させず独立に持たせる。第1号は `phoneme-base-voicing-neutral`（音素ベース・清濁統合）。楽曲カードからは related で参照する
+- **term**: 理論用語の定義カード（2026-08-13 追加）。`principle` が「数え方を決める判断」であるのに対し、`term` は「用語が何を指すか」を扱う。下記「用語カード」を参照
 - **pattern**: 反復パターンの上位型。距離のバリエーション（連続反復・1音おき反復・2音おき反復・倒置反復 等）を含む。サブカテゴリの細分化は該当カードが5枚以上溜まってから判断する。
 
 ### 理論用語
@@ -129,6 +130,21 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/theory-glos
 想起・短期反復・回帰反復、四操作、同音／類音、隠蔽、ぷよぷよ（仮称）の定義は `docs/theory-glossary.md` にある。**定義の参照先はそこ一箇所**とし、カードやスキルに写しを置かない。
 
 Chat からは `https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/theory-glossary.md` で読める。
+
+### 用語カード（`type: term`）
+
+理論用語を読者に説明するカード。**楽曲カード同士をつなぐハブであり、書籍・記事へのリンクを張る先**でもある（Pattison の本を個別の楽曲カードから張るのは不自然だが、「押韻」の用語カードからなら自然に張れる）。2026-08-13 に方針決定。
+
+**置き場所は `elements`**（`/elements/<用語slug>/`）。`concept` コレクションは使わない。related の解決先は elements と blog だけなので（`src/pages/elements/[slug]/index.astro`）、concept に置くと既存の related 241本のどこからも到達できない。実測でも、唯一の非楽曲カード `phoneme-base-voicing-neutral` が次数15の最大ハブとして機能しており、曲をまたぐ43組のうち15組を単独で担っている。
+
+**定義の正本は `docs/theory-glossary.md` であって、用語カードではない。**
+
+- カードに書くのは**読者向けの要約と、実例カードへのリンク**である
+- **要約は写しではない。** glossary の定義文をそのままカードへ貼らないこと。貼った時点で正本が二重化し、片方を直したときにもう片方が古いまま残る（規則の写しで 2026-07-26 に事故を起こしている。冒頭を参照）
+- 定義を変えるときは必ず glossary → カードの順
+- glossary 側にある「ガードレール」「未決事項」「やおき裁定の日付」は運用情報であり、公開カードへ持ち込まない
+
+**未確定を載せてよい。**「カード本文は目に見えて明白な事実だけ」（2026-08-09）は楽曲カードを想定した規約で、定義を述べるカードには文字どおり当たらない。`phoneme-base-voicing-neutral` は既に「これは仮説であって、数えて確かめた結果ではない」と自ら書いている。**ただし仮説は仮説と明示する。**隠すより明示するほうが長期の信頼に沿う。
 
 ### 反復の類型（`tags.repetition`）
 
