@@ -316,6 +316,14 @@ const elements = defineCollection({
       .default({ phoneme: [], artist: [], lang: 'ja' }),
     related: z.array(z.string()).default([]),
     sources: z.array(z.string()).default([]),
+    // 裏どりの取れていない外部事実（発売年・作詞者・過去記事の題など）をここに書き出す。
+    // 1 項目でも残っているとビルドが落ちる（`scripts/check-cards.mjs` 検査1）。
+    //
+    // 2026-08-11 の `0f49dec` は「未確認。push 前に確認する」を **commit 本文にだけ**書き、
+    // ファイルは断定形のまま 14 枚を公開まで進めた。印がファイルに無ければ誰も止められない。
+    // sources は任意項目なので「確認が取れないなら書かない」は常に合格する。断定して出すか、
+    // 黙って省くか、この 2 つのうち後者を最小コストにするための欄である。
+    unverified: z.array(z.string()).default([]),
     figure: figureSchema.optional(),
     created: z.coerce.date(),
     updated: z.coerce.date(),

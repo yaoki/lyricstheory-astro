@@ -149,6 +149,31 @@ function serializeSitemapItem(item) {
   }
 }
 
+// --- elements カードの検査をビルドの手前に置く -----------------------------
+// package.json の script ではなく integration にしてあるのは、Cloudflare Pages 側が
+// `astro build` を直に呼んでも必ず走らせるため。検査の中身は scripts/check-cards.mjs。
+
+/** @type {import('astro').AstroIntegration} */
+const checkCards = {
+  name: 'check-cards',
+  hooks: {
+    'astro:build:start': async ({ logger }) => {
+      const { runCardChecks } = await import('./scripts/check-cards.mjs');
+      const { errors, cardCount } = runCardChecks(__dirname);
+      if (errors.length > 0) {
+        for (const error of errors) logger.error(`\n  ${error}`);
+        throw new Error(
+          `elements カードに ${errors.length} 件の指摘があります。公開前に直してください。`,
+        );
+      }
+      logger.info(
+        `カード ${cardCount} 枚、写し崩れと未検証の指摘なし` +
+          `（貼付そのものが正しいかは、この検査では分かりません）`,
+      );
+    },
+  },
+};
+
 // https://astro.build/config
 export default defineConfig({
   site: 'https://lyricstheory.com',
@@ -161,6 +186,7 @@ export default defineConfig({
     rehypePlugins: [rehypeSlug],
   },
   integrations: [
+    checkCards,
     mdx({
       remarkPlugins: [remarkRuby, remarkFirstImage, remarkTocExtract],
       rehypePlugins: [rehypeSlug],

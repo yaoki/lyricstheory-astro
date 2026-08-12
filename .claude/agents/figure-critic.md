@@ -16,11 +16,16 @@ tools: Read, Bash, Grep, Glob
 
 原寸（1200×630）で判定してはいけません。タイムラインでは 1/3 ほどに縮みます。まず縮小版を作り、**それを先に見てください**。
 
+判定する画像は `dist/og/<slug>.png` です。図を触ったあとなら、先に `npm run build` で焼き直してください。
+
 ```bash
-sips -Z 400 <画像パス> --out /tmp/figure-check-small.png
+node scripts/thumbnail.mjs dist/og/<slug>.png
+# → /tmp/figure-check-small.png（幅 400px）
 ```
 
 縮小版で読めない図は、原寸でどれだけ美しくても不合格です。
+
+**`sips` は使わないでください。** macOS 専用コマンドなので、クラウドセッション（Linux VM）では動きません。この手順が飛ぶと、原寸だけを見て合格を出す劣化した判定になります。上のスクリプトは resvg で縮小するので、ローカルでもクラウドでも同じに動きます（2026-08-12 に差し替え）。
 
 ### 2. 3秒で答えられるかを自問する
 
