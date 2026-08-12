@@ -13,6 +13,15 @@
  *   検査1  未検証の外部事実（`unverified` が残ったまま公開へ進むこと）
  *   検査2  同じ曲の同じ行が、カードによって違う字で書かれていること
  *   検査3  図の文字列が、同じカードの引用に無い字を含んでいること
+ *   検査4  図に歌詞があるのに、引用の裏づけも figureSource も無いこと
+ *   検査5  related / terms の参照先が実在しないこと（表示側が黙って捨てるため）
+ *   検査6  books / webrefs の参照先が無い、または draft のままであること
+ *   検査7  card id が、将来のファセット URL のための予約語と衝突すること
+ *   検査8  title の曲名と song が食い違っていること
+ *
+ * 検査5〜8 は 2026-08-13 追加（段階1）。1〜4 が「貼付されたテキストの変異」を見るのに対し、
+ * 5〜8 は**参照とメタデータの整合**を見る。前者は歌詞の写し崩れ、後者はリンク切れと
+ * 分類の割れを止める。
  *
  * 検査2 は 2026-08-11 の事故（`ad1a478`、夏の魔物 1-A の「の」脱落。2枚のカードが同じ行を
  * 図にしていて片方だけ字が落ちていた）を、事故当時のツリーで誤検出ゼロのまま検出できる。
@@ -35,6 +44,12 @@ const SIMILARITY_THRESHOLD = 0.85;
 
 /** 別の箇所の引用を「似ている」と誤認しないための長さ差の上限。 */
 const MAX_LENGTH_GAP = 3;
+
+/**
+ * カードの id に使えない語。将来 `/elements/song/<slug>/` のようなファセットを切るときに、
+ * 1 セグメント目として使う候補である。2026-08-13 時点で衝突は 0 件。
+ */
+const RESERVED_SLUGS = ['artist', 'song', 'type', 'phoneme', 'era', 'tag'];
 
 /**
  * 比較用に正規化する。呼応の鉤括弧・強調・空白は表記の都合なので落とし、
@@ -151,23 +166,12 @@ function readCard(filePath) {
     }
   }
 
-  // `unverified` に項目が残っているか（空配列・キー無しは合格）
-  // `\s*` は改行を食って次の行まで inline 値として拾ってしまうため、水平の空白だけを許す
-  const unverifiedBlock = frontmatter.match(/^unverified:[ \t]*(.*)$((?:\r?\n[ \t]+-[ \t].*)*)/m);
-  /** @type {string[]} */
-  const unverified = [];
-  if (unverifiedBlock) {
-    const inline = unverifiedBlock[1].trim();
-    if (inline && inline !== '[]') {
-      for (const item of inline.replace(/^\[|\]$/g, '').split(',')) {
-        const cleaned = item.trim().replace(/^["']|["']$/g, '');
-        if (cleaned) unverified.push(cleaned);
-      }
-    }
-    for (const item of (unverifiedBlock[2] ?? '').matchAll(/^[ \t]+-[ \t]*(.+)$/gm)) {
-      unverified.push(item[1].trim().replace(/^["']|["']$/g, ''));
-    }
-  }
+  // 参照と未検証項目（`unverified` / `related` / `terms` / `books` / `webrefs`）
+  const unverified = readListField(frontmatter, 'unverified');
+  const related = readListField(frontmatter, 'related');
+  const terms = readListField(frontmatter, 'terms');
+  const books = readListField(frontmatter, 'books');
+  const webrefs = readListField(frontmatter, 'webrefs');
 
   // figure が歌詞以外（曲名など）から作られていることの明示
   const figureSourceMatch = frontmatter.match(/^figureSource:[ \t]*(.+)$/m);
@@ -175,14 +179,87 @@ function readCard(filePath) {
     ? figureSourceMatch[1].trim().replace(/^["']|["']$/g, '')
     : '';
 
+  const title = (frontmatter.match(/^title:[ \t]*"(.*)"[ \t]*$/m) ?? [, ''])[1];
+  const type = (frontmatter.match(/^type:[ \t]*"?([a-z]+)"?[ \t]*$/m) ?? [, ''])[1];
+
+  // frontmatter の song。キーの順序に依らないよう、ブロックを取ってから個別に拾う
+  const songBlock = frontmatter.match(/^song:\r?\n((?:[ \t]+.*\r?\n?)*)/m);
+  const song = songBlock
+    ? {
+        title: (songBlock[1].match(/title:[ \t]*"([^"]*)"/) ?? [, ''])[1],
+        artist: (songBlock[1].match(/artist:[ \t]*"([^"]*)"/) ?? [, ''])[1],
+      }
+    : null;
+
+  // title「アーティスト『曲名』：観察名」から読める曲。song の照合相手になる
+  const titleSongMatch = title.match(/^(.+?)『(.+?)』/);
+  const titleSong = titleSongMatch
+    ? { artist: titleSongMatch[1], title: titleSongMatch[2] }
+    : null;
+
   return {
     slug: path.basename(filePath).replace(/\.mdx?$/, ''),
+    title,
+    type,
+    song,
+    titleSong,
+    related,
+    terms,
+    books,
+    webrefs,
     quotes,
     figures: figures.map(normalizeLyricLine).filter(isPureKana),
     unverified,
     figureSource,
     skipped,
   };
+}
+
+/**
+ * frontmatter の配列フィールドを読む。インライン記法（`terms: [a, b]`）と
+ * 複数行リスト記法の両方に効く。キーが無い・空配列なら空配列を返す。
+ *
+ * `\s*` を使わないのは、改行を食って次の行まで inline 値として拾ってしまうため。
+ * 水平の空白だけを許す。
+ * @param {string} frontmatter
+ * @param {string} key
+ * @returns {string[]}
+ */
+function readListField(frontmatter, key) {
+  const block = frontmatter.match(
+    new RegExp(`^${key}:[ \\t]*(.*)$((?:\\r?\\n[ \\t]+-[ \\t].*)*)`, 'm'),
+  );
+  if (!block) return [];
+  /** @type {string[]} */
+  const items = [];
+  const inline = block[1].trim();
+  if (inline && inline !== '[]') {
+    for (const item of inline.replace(/^\[|\]$/g, '').split(',')) {
+      const cleaned = item.trim().replace(/^["']|["']$/g, '');
+      if (cleaned) items.push(cleaned);
+    }
+  }
+  for (const item of (block[2] ?? '').matchAll(/^[ \t]+-[ \t]*(.+)$/gm)) {
+    items.push(item[1].trim().replace(/^["']|["']$/g, ''));
+  }
+  return items;
+}
+
+/**
+ * ディレクトリ配下の .md / .mdx を再帰的に集める。blog は年ごとの下位ディレクトリに入る。
+ * @param {string} dir
+ * @returns {string[]}
+ */
+function collectMarkdownFiles(dir) {
+  if (!fs.existsSync(dir)) return [];
+  /** @type {string[]} */
+  const found = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) found.push(...collectMarkdownFiles(full));
+    else if (/\.mdx?$/.test(entry.name)) found.push(full);
+  }
+  return found;
 }
 
 /**
@@ -284,7 +361,151 @@ export function runCardChecks(rootDir) {
     }
   }
 
+  // 検査5: related / terms の参照先が実在するか
+  //
+  // `src/pages/elements/[slug]/index.astro` は解決できない id を**黙って捨てる**。
+  // タイポしてもビルドは通り、リンクだけが静かに消える。逆引き（`src/lib/backlinks.ts`）を
+  // 入れて片側だけ書けば済むようにしたぶん、書き間違いに気づく機会がさらに減った
+  const elementIds = new Set(cards.map((card) => card.slug));
+  const blogSlugs = collectBlogSlugs(rootDir);
+  const termIds = new Set(cards.filter((card) => card.type === 'term').map((card) => card.slug));
+  for (const card of cards) {
+    for (const id of card.related) {
+      if (elementIds.has(id) || blogSlugs.has(id)) continue;
+      errors.push(
+        `[参照先が無い] ${card.slug} の related: ${id}\n` +
+          `    → elements の id か、blog の slug を書きます。解決できない参照は表示側で` +
+          `黙って捨てられるため、\n      ビルドが通ってもリンクは出ません。`,
+      );
+    }
+    for (const id of card.terms) {
+      if (!elementIds.has(id)) {
+        errors.push(
+          `[参照先が無い] ${card.slug} の terms: ${id}\n` +
+            `    → 用語カード（type: term）の id を書きます。`,
+        );
+        continue;
+      }
+      if (!termIds.has(id)) {
+        errors.push(
+          `[用語カードでない] ${card.slug} の terms: ${id}\n` +
+            `    → terms が指せるのは type: term のカードだけです。対等な関連は related に書きます。`,
+        );
+      }
+    }
+  }
+
+  // 検査6: books / webrefs が実在し、公開されているか
+  //
+  // draft のカードへ張ると、リンク先のページがビルドされずリンク切れになる。
+  // books は 12 冊中 10 冊が draft（レビュー本文が書かれるまで公開しない方針）なので、
+  // 段階4 で張り始めたときに最も踏みやすい
+  const externals = {
+    books: readExternalDrafts(rootDir, 'books'),
+    webrefs: readExternalDrafts(rootDir, 'webrefs'),
+  };
+  for (const card of cards) {
+    for (const field of /** @type {const} */ (['books', 'webrefs'])) {
+      for (const id of card[field]) {
+        const drafts = externals[field];
+        if (!drafts.has(id)) {
+          errors.push(`[参照先が無い] ${card.slug} の ${field}: ${id}\n    → src/content/${field}/ に該当のファイルがありません。`);
+          continue;
+        }
+        if (drafts.get(id)) {
+          errors.push(
+            `[未公開への参照] ${card.slug} の ${field}: ${id}\n` +
+              `    → 参照先が draft: true です。本文が書かれて公開されるまで、このリンクは切れます。`,
+          );
+        }
+      }
+    }
+  }
+
+  // 検査7: card id が予約語と衝突していないか
+  //
+  // 将来 `/elements/song/<slug>/` のようなファセットを切るなら、その 1 セグメントは
+  // カードに使えない。**2026-08-13 時点で衝突は 0 件**なので、いま予約しておけば無償で済む。
+  // URL 自体はまだ切らない（切った瞬間に artist slug が SEO 資産になり、改名に 301 が要る）
+  for (const card of cards) {
+    if (!RESERVED_SLUGS.includes(card.slug)) continue;
+    errors.push(
+      `[予約語との衝突] ${card.slug}\n` +
+        `    → ${RESERVED_SLUGS.join(' / ')} は将来のファセット URL のために空けてあります。` +
+        `別の id を付けてください。`,
+    );
+  }
+
+  // 検査8: title の曲名と song が食い違っていないか
+  //
+  // song は曲でカードを束ねられる唯一の機械可読な場所で、title は人間可読の題である。
+  // 同じ曲を指しているはずの 2 つがずれると、一覧で曲が 2 つに割れる（`sheena` / `shiina`
+  // 分裂と同型の事故）。楽曲を対象としないカード（type: principle / term）は両方とも持たない
+  for (const card of cards) {
+    if (!card.titleSong && !card.song) continue;
+    if (card.titleSong && !card.song) {
+      errors.push(
+        `[song が無い] ${card.slug}\n` +
+          `    title: ${card.title}\n` +
+          `    → title が曲を掲げているのに song がありません。` +
+          `song: { title, artist } を書いてください。`,
+      );
+      continue;
+    }
+    if (!card.titleSong && card.song) {
+      errors.push(
+        `[title に曲が無い] ${card.slug}\n` +
+          `    song: ${card.song.artist}『${card.song.title}』\n` +
+          `    → song を持つカードの title は「アーティスト『曲名』：観察名」の形にします` +
+          `（CLAUDE.md「タイトル規約」）。`,
+      );
+      continue;
+    }
+    if (!card.titleSong || !card.song) continue;
+    if (card.titleSong.title !== card.song.title || card.titleSong.artist !== card.song.artist) {
+      errors.push(
+        `[title と song の不一致] ${card.slug}\n` +
+          `    title: ${card.titleSong.artist}『${card.titleSong.title}』\n` +
+          `    song : ${card.song.artist}『${card.song.title}』\n` +
+          `    → 同じ曲を指す 2 つがずれると、一覧で曲が 2 つに割れます。`,
+      );
+    }
+  }
+
   return { errors, skipped, cardCount: cards.length };
+}
+
+/**
+ * blog の slug を集める。related は elements の id だけでなく essay も指せる。
+ * @param {string} rootDir
+ * @returns {Set<string>}
+ */
+function collectBlogSlugs(rootDir) {
+  const slugs = new Set();
+  for (const file of collectMarkdownFiles(path.join(rootDir, 'src/content/blog'))) {
+    const frontmatter = frontmatterOf(fs.readFileSync(file, 'utf-8'));
+    const slug = (frontmatter.match(/^slug:[ \t]*["']?([a-z0-9-]+)["']?[ \t]*$/m) ?? [, ''])[1];
+    if (slug) slugs.add(slug);
+  }
+  return slugs;
+}
+
+/**
+ * books / webrefs の id と draft 状態を集める。
+ * **キーが無ければ draft: true**（schema の既定。本文が書かれるまで公開しない）。
+ * @param {string} rootDir
+ * @param {'books' | 'webrefs'} collection
+ * @returns {Map<string, boolean>}
+ */
+function readExternalDrafts(rootDir, collection) {
+  /** @type {Map<string, boolean>} */
+  const drafts = new Map();
+  for (const file of collectMarkdownFiles(path.join(rootDir, `src/content/${collection}`))) {
+    const frontmatter = frontmatterOf(fs.readFileSync(file, 'utf-8'));
+    const value = (frontmatter.match(/^draft:[ \t]*(true|false)/m) ?? [, 'true'])[1];
+    drafts.set(path.basename(file).replace(/\.mdx?$/, ''), value === 'true');
+  }
+  return drafts;
 }
 
 const __filename = fileURLToPath(import.meta.url);

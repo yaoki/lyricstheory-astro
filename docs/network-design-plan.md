@@ -16,31 +16,40 @@
 
 - **D1: 用語カードは `elements` に置く**（`/elements/<用語slug>/`）。`concept` コレクションは使わない → CLAUDE.md「用語カード」節に記載済み
 - **D3: 定義の正本は `docs/theory-glossary.md`。**カードに書くのは要約と実例で、定義文の写しではない → 同上
+- **D2: 予約語検査だけ入れ、URL は切らない。**`artist` / `song` / `type` / `phoneme` / `era` / `tag` を card id の禁止語にする（検査7）
+- **D4: フィールド名は `song` / `terms` / `books` / `webrefs`。**`song` は `{ title, artist }` の 2 項目だけ持ち、書誌の完全形は `sources` に残す（二重化を避ける）。`terms` は `related` と分ける（逆引きの意味が違う）。外部文献は `relatedWorks` 1 本ではなくコレクションごとに分ける（Astro の `getEntry` がコレクション名を型で要求するため）
+- **D5: `type` は使用中6語 + `term` の 7 語で enum 化。**未使用の `rhyme` / `prosody` は入れない。使われていない語彙が残ると分類が語彙の側に引きずられる
 
 ## 段階0（完了、commit `9dc499d` / `6f0419a` / `7e900b8`）
 
 検査の穴を塞ぎ11枚を是正、posfie 4ファイルと反応指標をコミット、用語カードの方針を記録。
 
-## 段階1（次はここ。93枚を触るのはこの1回だけ）
+## 段階1（完了、2026-08-13）
 
-3つの調査が**それぞれ独立に elements schema へのフィールド追加を提案している**（`terms` / `song` / `relatedWorks`）。順番に実行すると93枚を3回触ることになるため、**schema と URL の確定を全部前倒しして1回の移行にまとめる**。
+3つの調査が**それぞれ独立に elements schema へのフィールド追加を提案していた**（`terms` / `song` / `relatedWorks`）。順番に実行すると93枚を3回触ることになるため、schema と URL の確定を全部前倒しして1回の移行にまとめた。
 
-| やること | ファイル |
+| やったこと | ファイル |
 |:---|:---|
-| `song` / `terms` / `relatedWorks` を同時追加 | `src/content.config.ts` |
-| `type` を enum 化（`term` を含む確定語彙） | 同上 |
-| books / webrefs に領域ラベルを追加 | 同上 |
-| **逆引き機構を1つ作る**（related のバックリンク、terms の被参照、relatedWorks の被参照を同じ仕組みで） | `src/pages/elements/[slug]/index.astro` |
-| 検査5以降を1回で設計（slug 実在／draft 参照／予約語／posfie 張り漏れ） | `scripts/check-cards.mjs` |
-| 93枚に `song` を機械付与（title と LyricQuote の `song=` の不一致を潰しながら） | `src/content/elements/*.mdx` |
+| `song` / `terms` / `books` / `webrefs` を同時追加 | `src/content.config.ts` |
+| `type` を enum 化（7語） | 同上 |
+| **逆引き機構を1つ作る**（related・terms・books・webrefs を同じ関数で逆引き） | `src/lib/backlinks.ts`（新設）／`src/pages/elements/[slug]/index.astro` |
+| 検査5〜8（参照先の実在／draft 参照／予約語／title と song の一致） | `scripts/check-cards.mjs` |
+| 92枚に `song` を機械付与 | `src/content/elements/*.mdx` |
 
-**逆引きを1つにまとめる理由**: 「related は宣言側にしか出ないので双方向を手で書く」（CLAUDE.md deploy workflow 手順5）が、すべての手作業の源になっている。自動化すれば `terms`（16枚×2＝32箇所）も `relatedWorks` も片側に書くだけで両側に出る。3つの提案が同じ1つの機構に畳める。
+**逆引きを1つにまとめた理由**: 「related は宣言側にしか出ないので双方向を手で書く」（CLAUDE.md deploy workflow 手順5）が、すべての手作業の源になっていた。片側に書けば両側に出るようになり、`terms` も `books` / `webrefs` も同じ機構に乗る。手順5 は「片側だけ書く」に書き換えた。
 
-### 段階1の前に決めること
+### 移行の実測（2026-08-13）
 
-- **D2: `/elements/` の1セグメント空間を予約語で割るか。**将来 `/elements/song/<slug>/` のようなファセットを切るなら、`artist` `song` `type` `phoneme` `era` `tag` をカード slug の禁止語にする必要がある。**推奨: 予約語検査だけ今入れて、URL は切らない**（現在これらと一致するカード id は0件なので、いま予約しても衝突ゼロ）
-- **D4: フィールド名の確定**（`song` / `terms` / `relatedWorks` / 領域ラベル）
-- **D5: `type` 語彙をどこまで確定させるか。**`pattern` が63/93（68%）で、enum 化トリガーも細分化トリガーも大幅超過。CLAUDE.md の「推奨7語彙」は8語を並べている（`principle` 追加時に数が未更新）。**推奨: 最小案（語数の訂正＋enum 化）を段階1に入れ、pattern 63枚の分割は段階3で判断**
+- **title からの `song` 抽出は 92/93 で成功。**抽出できない1枚は `phoneme-base-voicing-neutral`（`type: principle`。楽曲を対象としないカードは `<曲slug>-` を持たないという規約どおり）
+- **title と `<LyricQuote song=>` の不一致は 0 件。**移行前に潰す作業は発生しなかった
+- 曲は17種。最多は「Hello, Again ～昔からある場所～」と「口笛」の各15枚
+- `song.artist` は title からの抽出値をそのまま使う。1枚だけ長い表記（`ryo（supercell）feat. 初音ミク`）になるが、title と食い違わせると検査8 が組めない
+- 検査5〜8 は、壊したカードを一時ディレクトリに置いて**7ケースすべてが落ちること**と、正常カード2枚が素通りすることを確認済み
+
+### 段階1 から送ったもの
+
+- **books / webrefs の領域ラベル → 段階4。**値の設計（和声／批評・文化論／音韻）が段階4「領域の違いを書く」と一体で、器だけ先に作っても何を入れるかが決まらない
+- **posfie 張り漏れの検査 → P-A と一緒に。**`docs/posfie-inventory.md` との突き合わせが要り、どの曲を移植したかに依存する
 
 ## 段階2（用語カード。段階1の後）
 
@@ -95,8 +104,8 @@
 ## 調査で分かった、まだ手を付けていないこと
 
 - **related グラフは13の連結成分に割れている。**最大成分68枚に対し、涙がキラリ☆の12枚は2枚組6島に分散し、正しい街の4枚は完全に孤立（いずれも `maturity: seed`）
-- **related の片方向が1本ある**（`hello-again-aba-na → hello-again-vowel-aba-aia`）。240/241 は相互
+- ~~**related の片方向が1本ある**（`hello-again-aba-na → hello-again-vowel-aba-aia`）~~ → 段階1 の逆引きで解消。片方向のまま両側に出る（この1本で動作確認した）
 - **books 12冊すべて `usedIn: []`**。本文へのリンクが1本も張られていない
 - **学術文献を持つカードは1枚だけ**（`ame-nochi-hare-syllabification`）
 - **`/elements/` のフィルタは maturity だけ。**type・phoneme・artist・repetition では絞れない
-- **未解決の related slug は例外を出さず黙って捨てられる**（`[slug]/index.astro`）。タイポしてもビルドが通り、リンクが静かに消える
+- ~~**未解決の related slug は例外を出さず黙って捨てられる**（`[slug]/index.astro`）~~ → 段階1 の検査5 で塞いだ。捨てる挙動は残してあり（一覧を出すため）、止めるのは検査の側

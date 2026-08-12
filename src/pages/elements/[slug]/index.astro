@@ -4,6 +4,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import LyricQuote from '../../../components/LyricQuote.astro';
 import Score from '../../../components/Score.astro';
 import { splitLinks } from '../../../lib/linkify';
+import { invertReferences, resolveCardLinks } from '../../../lib/backlinks';
 
 export async function getStaticPaths() {
   const entries = await getCollection('elements');
@@ -30,26 +31,13 @@ const REPETITION_LABELS: Record<string, string> = {
 
 const [elements, posts] = await Promise.all([getCollection('elements'), getCollection('blog')]);
 
-interface RelatedLink {
-  key: string;
-  title: string;
-  href: string;
-  kind: 'element' | 'essay';
-}
-
-const relatedLinks: RelatedLink[] = (entry.data.related ?? [])
-  .map((key: string): RelatedLink | null => {
-    const el = elements.find((e) => e.id === key);
-    if (el) {
-      return { key, title: el.data.title, href: `/elements/${el.id}/`, kind: 'element' };
-    }
-    const post = posts.find((p) => p.data.slug === key);
-    if (post) {
-      return { key, title: post.data.title, href: `/${post.data.slug}/`, kind: 'essay' };
-    }
-    return null;
-  })
-  .filter((link): link is RelatedLink => link !== null);
+// 参照は片側に書けば両側に出る（`src/lib/backlinks.ts`）。相手側のカードを開いて
+// 同じ関係を書き足す手順は、2026-08-13 に不要になった
+const backlinks = {
+  related: invertReferences(elements, 'related'),
+  terms: invertReferences(elements, 'terms'),
+};
+const links = resolveCardLinks(entry, elements, posts, backlinks);
 
 const phoneme = entry.data.tags?.phoneme ?? [];
 const repetition = entry.data.tags?.repetition;
@@ -114,23 +102,31 @@ const hasFigure = entry.data.figure !== undefined;
       罫線を挟んだ機械可読な情報の列に埋もれて気づかれなかった（2026-08-04、やおき指摘）。
       読み終えた直後がいちばん次のカードへ行きたい瞬間なので、そこに置く
     */}
-    {relatedLinks.length > 0 && (
-      <nav class="mt-10">
-        <h2 class="mb-2 text-sm font-semibold text-gray-700">関連</h2>
-        <ul class="list-disc space-y-1 pl-5">
-          {relatedLinks.map((link) => (
-            <li>
-              <a href={link.href} class="text-blue-700 underline">
-                {link.title}
-              </a>
-              <span class="ml-1 text-xs text-gray-400">
-                {link.kind === 'essay' ? '(essay)' : '(element)'}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </nav>
-    )}
+    {[
+      // 用語カードでは実例のリストが主役なので、関連より先に出す。
+      // 楽曲カードでは usedBy が空、用語カードでは terms が空になるので、両者は衝突しない
+      { heading: 'この用語を使っているカード', items: links.usedBy },
+      { heading: 'この観察が使う用語', items: links.terms },
+      { heading: '関連', items: links.related },
+    ]
+      .filter((section) => section.items.length > 0)
+      .map((section) => (
+        <nav class="mt-10">
+          <h2 class="mb-2 text-sm font-semibold text-gray-700">{section.heading}</h2>
+          <ul class="list-disc space-y-1 pl-5">
+            {section.items.map((link) => (
+              <li>
+                <a href={link.href} class="text-blue-700 underline">
+                  {link.title}
+                </a>
+                <span class="ml-1 text-xs text-gray-400">
+                  {link.kind === 'essay' ? '(essay)' : '(element)'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ))}
 
     <aside class="mt-12 border-t pt-6 text-sm">
       <dl class="space-y-4">

@@ -300,8 +300,26 @@ const elements = defineCollection({
   loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/elements' }),
   schema: z.object({
     title: z.string(),
-    // enum ではなく string。10〜20枚溜まってから enum 化を検討する（推奨語彙は CLAUDE.md 参照）
-    type: z.string(),
+    // 2026-08-13 に enum 化（93枚時点）。使用中の6語に term を足した7語で固めた。
+    // 未使用だった rhyme / prosody は入れていない。**使われていない語彙が残ると、分類が
+    // 語彙の側に引きずられる**（あるから使う）。押韻・韻律のカードを書く番になったら
+    // ここへ1行足せばよく、先に確保しておく利得は無い
+    type: z.enum(['pivot', 'sequenz', 'syllable', 'pattern', 'principle', 'term', 'other']),
+    // どの曲についてのカードか。**曲でカードを束ねられる唯一の機械可読な場所**である。
+    // 曲名は title（「アーティスト『曲名』：観察名」）と <LyricQuote song=> にも出るが、
+    // 前者は人間可読の題、後者は引用ブロックの属性で、どちらもカードの主題を表す欄ではない。
+    //
+    // 書誌の完全形（発売年・作詞者・作曲者）は従来どおり sources が持つ。ここへ寄せないのは
+    // 二重化を避けるため。どちらが正本か決まらないまま両方が残ると、片方が古いまま残る。
+    // 楽曲を対象としないカード（type: principle / term）は持たない
+    song: z
+      .object({
+        title: z.string(),
+        // 流通表記（「Mr.Children」「椎名林檎」）。slug 表記の tags.artist とは別物で、
+        // 正規化ルール（CLAUDE.md「artist 表記の正規化」）が掛かるのは tags.artist の側
+        artist: z.string(),
+      })
+      .optional(),
     maturity: z.enum(['seed', 'budding', 'evergreen']).default('seed'),
     tags: z
       .object({
@@ -315,6 +333,21 @@ const elements = defineCollection({
       })
       .default({ phoneme: [], artist: [], lang: 'ja' }),
     related: z.array(z.string()).default([]),
+    // このカードが使っている理論用語のカード（type: term）の id。
+    //
+    // related と分けてあるのは、**逆引きの意味が違う**ため。用語カードから見た被参照は
+    // 「この用語を使っている楽曲カード」＝実例リストであって、対等な関連ではない。
+    // related に混ぜると子音ピボット22枚・母音連続16枚がそのまま流れ込み、用語カードの
+    // 関連が20本を超えて「関連する別の用語」が埋もれる（2026-08-13、やおき裁定）
+    terms: z.array(z.string()).default([]),
+    // 外部文献への参照。books / webrefs をコレクションごとに分けてあるのは、Astro の
+    // getEntry がコレクション名を型で要求するため（1 つの配列にまとめると解決側が分岐を持つ）。
+    //
+    // 値を書き始めるのは段階4から。いま張れる先は公開済みの2冊しかない
+    // （books 12冊中10冊が draft: true）。フィールドだけ先に置くのは、後から足しても
+    // 既存カードを触らずに済む一方、名前を段階4で決め直すと移行が二度になるため
+    books: z.array(z.string()).default([]),
+    webrefs: z.array(z.string()).default([]),
     sources: z.array(z.string()).default([]),
     // 裏どりの取れていない外部事実（発売年・作詞者・過去記事の題など）をここに書き出す。
     // 1 項目でも残っているとビルドが落ちる（`scripts/check-cards.mjs` 検査1）。
