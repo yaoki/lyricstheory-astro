@@ -324,6 +324,14 @@ const elements = defineCollection({
     // sources は任意項目なので「確認が取れないなら書かない」は常に合格する。断定して出すか、
     // 黙って省くか、この 2 つのうち後者を最小コストにするための欄である。
     unverified: z.array(z.string()).default([]),
+    // `figure` が歌詞以外（曲名など）から作られているときに、その出所を書く。
+    // この欄が空のカードは figure を歌詞から取ったとみなし、`<LyricQuote>` による
+    // 引用の裏づけを必須にする（`scripts/check-cards.mjs` 検査4）。
+    //
+    // 2026-08-12 まで、引用を持たないカードは検査2・3の両方から外れていた。図に歌詞を
+    // 描きながら、その歌詞を機械が一度も検算していないカードが11枚あった。理由を書かせる
+    // 欄にしてあるのは、除外が安易に増えるのを防ぐため。
+    figureSource: z.string().optional(),
     figure: figureSchema.optional(),
     created: z.coerce.date(),
     updated: z.coerce.date(),

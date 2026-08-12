@@ -129,18 +129,26 @@ function readCard(filePath) {
     }
   }
 
-  // 図に出る文字列。single / consonant は units、pair は rows の配列、pivot は text。
+  // 図に出る文字列。
+  //
+  // キー名では拾わない。`figure:` ブロックの中の**最も内側の配列リテラル**を全部取る。
+  // units（single / consonant）も rows（pair）も同じ形で拾え、インライン記法
+  // （`rows: [["そ",…], ["そ",…]]`）と複数行リスト記法の両方に効く。行ごとに別々の
+  // 配列として取れるので、2行を連結した偽の文字列も作らない。
+  // labels（["1-A"]）や highlight（[2, 7]）のような歌詞でない配列は、下の isPureKana で落ちる。
+  //
+  // キー名で拾っていた 2026-08-12 以前は、インライン記法の pair 2枚が検査3から漏れていた。
   /** @type {string[]} */
   const figures = [];
-  for (const m of frontmatter.matchAll(/^\s*units:\s*\[([^\]]*)\]/gm)) {
-    figures.push([...m[1].matchAll(/"([^"]*)"/g)].map((x) => x[1]).join(''));
-  }
-  for (const m of frontmatter.matchAll(/^\s*-\s*\[([^\]]*)\]/gm)) {
-    const joined = [...m[1].matchAll(/"([^"]*)"/g)].map((x) => x[1]).join('');
-    if (joined) figures.push(joined); // 数値だけの配列（correspondences 等）はここで落ちる
-  }
-  for (const m of frontmatter.matchAll(/^\s*(?:-\s*)?text:\s*"([^"]*)"/gm)) {
-    figures.push(m[1]);
+  const figureBlock = frontmatter.match(/^figure:\r?\n((?:[ \t]+.*\r?\n?)*)/m);
+  if (figureBlock) {
+    for (const m of figureBlock[1].matchAll(/\[([^[\]]*)\]/g)) {
+      const joined = [...m[1].matchAll(/"([^"]*)"/g)].map((x) => x[1]).join('');
+      if (joined) figures.push(joined);
+    }
+    for (const m of figureBlock[1].matchAll(/text:[ \t]*"([^"]*)"/g)) {
+      figures.push(m[1]);
+    }
   }
 
   // `unverified` に項目が残っているか（空配列・キー無しは合格）
@@ -161,11 +169,18 @@ function readCard(filePath) {
     }
   }
 
+  // figure が歌詞以外（曲名など）から作られていることの明示
+  const figureSourceMatch = frontmatter.match(/^figureSource:[ \t]*(.+)$/m);
+  const figureSource = figureSourceMatch
+    ? figureSourceMatch[1].trim().replace(/^["']|["']$/g, '')
+    : '';
+
   return {
     slug: path.basename(filePath).replace(/\.mdx?$/, ''),
     quotes,
     figures: figures.map(normalizeLyricLine).filter(isPureKana),
     unverified,
+    figureSource,
     skipped,
   };
 }
@@ -216,6 +231,10 @@ export function runCardChecks(rootDir) {
       for (let j = i + 1; j < items.length; j++) {
         const a = items[i];
         const b = items[j];
+        // 同じカードの中の2行は比べない。回帰反復や対句のカードは「一音だけ違う2行」を
+        // 意図して並べる（`tadashii-machi-return-repetition` の「を」→「も」など）。
+        // 検査2が見たいのは、別々のカードが同じ行を違う字で書いていることである。
+        if (a.slug === b.slug) continue;
         if (a.line === b.line) continue;
         if (Math.abs(a.line.length - b.line.length) > MAX_LENGTH_GAP) continue;
         if (similarity(a.line, b.line) < SIMILARITY_THRESHOLD) continue;
@@ -227,6 +246,25 @@ export function runCardChecks(rootDir) {
         );
       }
     }
+  }
+
+  // 検査4: 図に歌詞があるのに、引用の裏づけが無い
+  //
+  // 検査2は `<LyricQuote song="...">` の song 属性で曲を同定し、検査3は同じカードの引用と
+  // 突き合わせる。どちらも引用が起点なので、引用を持たないカードは 2 つとも素通りする。
+  // 2026-08-12 の実測でそれが11枚あった（pretender 3 / tadashii-machi 7 / shido 1）。
+  for (const card of cards) {
+    if (card.figures.length === 0) continue;
+    if (card.quotes.length > 0) continue;
+    if (card.figureSource) continue; // 歌詞以外が出所だと明示されている
+    errors.push(
+      `[引用の裏づけが無い図] ${card.slug}\n` +
+        `    図: ${card.figures.join(' ／ ')}\n` +
+        `    → このカードは <LyricQuote> を持たないため、検査2（写し崩れ）と検査3（図と引用の\n` +
+        `      不一致）の両方から外れています。図の歌詞を誰も検算していません。\n` +
+        `      歌詞から取った図なら <LyricQuote> で引用を示してください（作詞者と年が読者に出ます）。\n` +
+        `      曲名など歌詞以外から作った図なら、frontmatter の figureSource にその出所を書いてください。`,
+    );
   }
 
   // 検査3: 図の文字列が、同じカードの引用に含まれているか
