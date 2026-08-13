@@ -1,0 +1,394 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import {
+  axesOf,
+  buildQuery,
+  CONSONANT_LABELS,
+  CONSONANT_ORDER,
+  VOWEL_LABELS,
+  VOWEL_ORDER,
+} from '../../../lib/phoneme/axis';
+
+// 音で引く入口。**新しい URL はこの 1 枚だけで、軸ごとの URL は切らない**（D6）。
+// 絞り込みは /elements/ と同じくクライアント側でやる。切った瞬間に軸の綴りが
+// SEO 資産になり、正規化ルールを直したときに 301 なしで動かせなくなる。
+
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+const entries = await getCollection('elements');
+
+type Row = {
+  id: string;
+  title: string;
+  tags: string[];
+  consonants: string[];
+  vowels: string[];
+  song: string | null;
+  repetition: string | undefined;
+  type: string;
+  updated: string;
+};
+
+const rows: Row[] = entries
+  .map((entry) => {
+    const tags = entry.data.tags?.phoneme ?? [];
+    const { consonants, vowels } = axesOf(tags);
+    return {
+      id: entry.id,
+      title: entry.data.title,
+      tags,
+      consonants,
+      vowels,
+      song: entry.data.song ? `${entry.data.song.artist}『${entry.data.song.title}』` : null,
+      repetition: entry.data.tags?.repetition,
+      type: entry.data.type,
+      updated: iso(entry.data.updated),
+    };
+  })
+  // 音のタグを持たないカード（type: principle など）は音で引けない。
+  // 一覧に出しても常に 0 件マッチなので、この入口には載せない
+  .filter((row) => row.tags.length > 0)
+  .sort((a, b) => b.updated.localeCompare(a.updated));
+
+const countBy = (pick: (row: Row) => string[]) => {
+  const out = new Map<string, number>();
+  for (const row of rows) for (const key of pick(row)) out.set(key, (out.get(key) ?? 0) + 1);
+  return out;
+};
+
+const consonantCounts = countBy((r) => r.consonants);
+const vowelCounts = countBy((r) => r.vowels);
+
+const consonantAxes = CONSONANT_ORDER.filter((k) => consonantCounts.has(k)).map((key) => ({
+  key,
+  label: CONSONANT_LABELS[key] ?? key,
+  count: consonantCounts.get(key) ?? 0,
+}));
+const vowelAxes = VOWEL_ORDER.filter((k) => vowelCounts.has(k)).map((key) => ({
+  key,
+  label: VOWEL_LABELS[key] ?? key,
+  count: vowelCounts.get(key) ?? 0,
+}));
+
+// 例に出す語は、実際に引いて何か返るものを選ぶ。空振りする例を置くと壊れて見える
+const EXAMPLES = ['りんご', 'くちびる', 'あかい'];
+// 件数は既定の閾値（2 軸以上）で数える。クライアント側と揃えないと、
+// 例に書いてある数と実際に出る枚数が食い違う
+const examples = EXAMPLES.map((word) => {
+  const { mora, axes } = buildQuery(word);
+  const hits = rows.filter(
+    (row) =>
+      axes.consonants.filter((c) => row.consonants.includes(c)).length +
+        axes.vowels.filter((v) => row.vowels.includes(v)).length >=
+      2,
+  ).length;
+  return { word, mora, hits };
+});
+---
+
+<BaseLayout
+  title="音で引く | elements | lyricstheory.com"
+  description="語や音を入れると、その音について書かれた観察カードが返る。子音軸・母音軸で elements を引くための入口。"
+>
+  <p class="mb-2 text-sm text-gray-500">
+    <a href="/" class="hover:underline">lyricstheory.com</a> /
+    <a href="/elements/" class="hover:underline">elements</a> / 音で引く
+  </p>
+  <h1 class="mb-4 text-2xl font-bold">音で引く</h1>
+  <p class="mb-6 text-gray-700">
+    語を入れると、その音について書かれた観察が返ります。返るのは<strong>先人が何をしたかの実例</strong>であって、
+    韻を踏めるかどうかの判定ではありません。
+  </p>
+
+  <section class="mb-8 rounded border border-gray-200 p-4">
+    <label for="q" class="mb-1 block text-sm font-semibold text-gray-700">語で引く</label>
+    <input
+      id="q"
+      type="text"
+      autocomplete="off"
+      placeholder="りんご"
+      class="w-full rounded border border-gray-300 px-3 py-2 text-lg"
+    />
+    <p class="mt-2 text-xs text-gray-500">
+      かなで入れてください。漢字は読みが割れる字があるので変換しません（「頬」など）。
+    </p>
+    <p class="mt-1 text-xs text-gray-400">
+      例:
+      {
+        examples.map((ex, i) => (
+          <>
+            {i > 0 && ' / '}
+            <button type="button" data-example={ex.word} class="text-blue-700 underline">
+              {ex.word}
+            </button>
+            <span class="text-gray-300"> ({ex.hits})</span>
+          </>
+        ))
+      }
+    </p>
+    {/*
+      **Tailwind の `hidden` クラスを使わない。**JS 側は `.hidden` プロパティ（属性）で
+      出し入れするので、クラスで `display: none` を当てると属性を外しても消えたままになる
+    */}
+    <p class="mt-3 text-sm text-gray-600" hidden data-parse></p>
+  </section>
+
+  <section class="mb-8">
+    <h2 class="mb-2 text-sm font-semibold text-gray-700">軸で引く</h2>
+    <p class="mb-3 text-xs text-gray-500">
+      押すと足し引きできます。<strong>子音軸で引くと、その子音を含むモーラのカードにも届きます</strong>——
+      「タ行」で引けば <code>t</code> のカードだけでなく <code>ta</code>・<code>te</code> のカードも返ります。
+      逆は返りません（<code>t</code> のカードは「ta を観察した」とは言っていないため）。
+    </p>
+    <div class="mb-3 flex flex-wrap gap-1.5 text-xs">
+      {
+        consonantAxes.map((axis) => (
+          <button
+            type="button"
+            data-axis="c"
+            data-key={axis.key}
+            aria-pressed="false"
+            class="rounded-full border border-gray-400 px-2.5 py-1 text-gray-700 aria-pressed:border-gray-800 aria-pressed:bg-gray-800 aria-pressed:text-white"
+          >
+            {axis.label} <span class="text-gray-400 aria-pressed:text-gray-300">{axis.count}</span>
+          </button>
+        ))
+      }
+    </div>
+    <div class="flex flex-wrap gap-1.5 text-xs">
+      {
+        vowelAxes.map((axis) => (
+          <button
+            type="button"
+            data-axis="v"
+            data-key={axis.key}
+            aria-pressed="false"
+            class="rounded-full border border-emerald-500 px-2.5 py-1 text-emerald-800 aria-pressed:bg-emerald-700 aria-pressed:text-white"
+          >
+            {axis.label} <span class="text-emerald-500 aria-pressed:text-emerald-100">{axis.count}</span>
+          </button>
+        ))
+      }
+    </div>
+  </section>
+
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-2 border-b pb-2 text-xs">
+    <p class="text-gray-500" data-count>{rows.length} 枚</p>
+    <div class="flex gap-2">
+      <button
+        type="button"
+        data-loosen
+        aria-pressed="false"
+        hidden
+        class="rounded border border-gray-300 px-2 py-1 text-gray-600 aria-pressed:border-gray-700 aria-pressed:text-gray-900"
+      >
+        1 軸だけの一致も見る
+      </button>
+      <button type="button" data-clear class="rounded border border-gray-300 px-2 py-1 text-gray-600">
+        選択を消す
+      </button>
+    </div>
+  </div>
+
+  <ul class="space-y-5" id="sound-list">
+    {
+      rows.map((row) => (
+        <li
+          data-c={row.consonants.join(' ')}
+          data-v={row.vowels.join(' ')}
+          data-tags={row.tags.join(' ')}
+          data-updated={row.updated}
+        >
+          <a href={`/elements/${row.id}/`} class="text-base font-medium text-blue-700 underline">
+            {row.title}
+          </a>
+          <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+            <span>音素: {row.tags.join(', ')}</span>
+            {row.repetition && <span class="text-gray-400">{row.repetition.toUpperCase()}反復</span>}
+            <span class="text-gray-400">{row.type}</span>
+          </div>
+          <p class="mt-0.5 text-xs text-amber-700" hidden data-why />
+        </li>
+      ))
+    }
+  </ul>
+
+  <section class="mt-16 border-t pt-6 text-sm text-gray-600">
+    <p>
+      ここに出るのは<strong>観察したと申告のあるカード</strong>だけです。ある音が歌詞に含まれていても、
+      それについて書かれたカードが無ければ返りません。<strong>空振りは「その音が使われていない」ではなく
+      「まだ書いていない」という意味</strong>で、次に何を分析するかの手がかりになります。
+    </p>
+    <p class="mt-2">
+      <a href="/elements/" class="text-blue-700 underline">カード一覧へ戻る</a>
+    </p>
+  </section>
+</BaseLayout>
+
+<script>
+  import { buildQuery, CONSONANT_LABELS, VOWEL_LABELS } from '../../../lib/phoneme/axis';
+
+  const list = document.getElementById('sound-list');
+  const input = document.getElementById('q') as HTMLInputElement | null;
+
+  if (list && input) {
+    const items = Array.from(list.children) as HTMLLIElement[];
+    const countLabel = document.querySelector('[data-count]');
+    const parseLabel = document.querySelector('[data-parse]') as HTMLElement | null;
+    const axisButtons = Array.from(
+      document.querySelectorAll('[data-axis]'),
+    ) as HTMLButtonElement[];
+
+    // クエリは「軸の集合」で持つ。語を打つと集合が置き換わり、軸を押すと足し引きされる。
+    // 語と軸を別々のモードにしないのは、りんご と打ってから母音だけ外す、のような
+    // 絞り方が自然に出るため
+    const selected = { c: new Set<string>(), v: new Set<string>() };
+    // 直接一致（カードのタグが、打った語のモーラそのもの）を強調するために持つ
+    let queryMora: string[] = [];
+    // 1 軸だけの一致まで出すか。既定は出さない——語は複数の軸に分かれるので、
+    // どれか 1 つで当てると母音 a（34枚）のような太い軸が全部を拾い、絞り込みにならない。
+    // 実測（92枚）で「りんご」は 1 軸込みで 50 枚、2 軸以上で 12 枚
+    let loosen = false;
+    const loosenButton = document.querySelector('[data-loosen]') as HTMLButtonElement | null;
+
+    const render = () => {
+      const hasQuery = selected.c.size > 0 || selected.v.size > 0;
+      const axisCount = selected.c.size + selected.v.size;
+      let visible = 0;
+
+      const scored = items.map((li) => {
+        const c = (li.dataset.c ?? '').split(' ').filter(Boolean);
+        const v = (li.dataset.v ?? '').split(' ').filter(Boolean);
+        const tags = (li.dataset.tags ?? '').split(' ').filter(Boolean);
+        const hitC = c.filter((x) => selected.c.has(x));
+        const hitV = v.filter((x) => selected.v.has(x));
+        const direct = tags.filter((t) => queryMora.includes(t));
+        return { li, score: hitC.length + hitV.length, hitC, hitV, direct };
+      });
+
+      // 軸が 2 つ以上あるクエリでは、2 軸以上当たったものだけを出す。
+      // 1 軸しか無いクエリ（軸ボタンを 1 つ押しただけ）では当然 1 軸で出す
+      const threshold = loosen || axisCount < 2 ? 1 : 2;
+      const tiers = new Map<number, number>();
+      for (const { score } of scored) {
+        if (score > 0) tiers.set(score, (tiers.get(score) ?? 0) + 1);
+      }
+
+      // 一致した軸の数で並べ、同点なら更新順。**点は付けない**——順位は
+      // 「いくつの軸で引っかかったか」という事実で、良し悪しの判定ではない
+      scored
+        .sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          if (b.direct.length !== a.direct.length) return b.direct.length - a.direct.length;
+          return (b.li.dataset.updated ?? '').localeCompare(a.li.dataset.updated ?? '');
+        })
+        .forEach(({ li, score, hitC, hitV, direct }) => {
+          list.appendChild(li);
+          const show = !hasQuery || score >= threshold;
+          li.hidden = !show;
+          if (show) visible += 1;
+
+          const why = li.querySelector('[data-why]') as HTMLElement | null;
+          if (!why) return;
+          if (!hasQuery || score === 0) {
+            why.hidden = true;
+            return;
+          }
+          const parts = [
+            ...hitC.map((x) => CONSONANT_LABELS[x] ?? x),
+            ...hitV.map((x) => VOWEL_LABELS[x] ?? x),
+          ];
+          why.hidden = false;
+          why.textContent =
+            direct.length > 0
+              ? `${parts.join('・')} で一致（${direct.join(', ')} は直接の申告）`
+              : `${parts.join('・')} で一致`;
+        });
+
+      if (countLabel) {
+        // 段ごとの内訳を出す。「50枚が該当」だけだと絞り込めていないことが見えない
+        const breakdown = [...tiers.entries()]
+          .sort((a, b) => b[0] - a[0])
+          .map(([score, n]) => `${score}軸 ${n}枚`)
+          .join(' / ');
+        countLabel.textContent = !hasQuery
+          ? `${items.length} 枚`
+          : `${visible} 枚を表示中${breakdown ? `　（${breakdown}）` : ''}`;
+      }
+      if (loosenButton) {
+        loosenButton.hidden = !hasQuery || axisCount < 2;
+        loosenButton.setAttribute('aria-pressed', String(loosen));
+      }
+      axisButtons.forEach((btn) => {
+        const kind = btn.dataset.axis as 'c' | 'v';
+        btn.setAttribute('aria-pressed', String(selected[kind].has(btn.dataset.key ?? '')));
+      });
+    };
+
+    const applyWord = (word: string) => {
+      const { mora, axes } = buildQuery(word);
+      queryMora = mora;
+      selected.c = new Set(axes.consonants);
+      selected.v = new Set(axes.vowels);
+      if (parseLabel) {
+        parseLabel.hidden = mora.length === 0;
+        parseLabel.textContent =
+          mora.length === 0
+            ? ''
+            : `${mora.join(' · ')} → 子音 ${axes.consonants.join('・') || 'なし'} / 母音 ${axes.vowels.join('・') || 'なし'}`;
+      }
+      render();
+    };
+
+    input.addEventListener('input', () => applyWord(input.value));
+
+    document.querySelectorAll('[data-example]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        input.value = (btn as HTMLElement).dataset.example ?? '';
+        applyWord(input.value);
+      });
+    });
+
+    axisButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const kind = btn.dataset.axis as 'c' | 'v';
+        const key = btn.dataset.key ?? '';
+        if (selected[kind].has(key)) selected[kind].delete(key);
+        else selected[kind].add(key);
+        // 軸を手で触った時点で、語との対応は崩れている。直接一致の強調を外す
+        queryMora = [];
+        render();
+      });
+    });
+
+    loosenButton?.addEventListener('click', () => {
+      loosen = !loosen;
+      render();
+    });
+
+    document.querySelector('[data-clear]')?.addEventListener('click', () => {
+      selected.c.clear();
+      selected.v.clear();
+      queryMora = [];
+      loosen = false;
+      input.value = '';
+      if (parseLabel) parseLabel.hidden = true;
+      render();
+    });
+
+    // `/elements/sounds/#りんご` で語を、`#c=t` `#v=a` で軸を指定できる。
+    // 軸ごとの URL を切っているのではなく、この 1 枚の中の状態を指しているだけ
+    const hash = decodeURIComponent(location.hash.replace('#', ''));
+    if (hash.startsWith('c=') || hash.startsWith('v=')) {
+      const [kind, key] = hash.split('=') as ['c' | 'v', string];
+      selected[kind].add(key);
+      render();
+    } else if (hash) {
+      input.value = hash;
+      applyWord(hash);
+    } else {
+      render();
+    }
+  }
+</script>
