@@ -38,6 +38,55 @@ const iso = (d: Date) => d.toISOString().slice(0, 10);
 const entries = await getCollection('elements');
 const sorted = [...entries].sort((a, b) => b.data.updated.valueOf() - a.data.updated.valueOf());
 
+// ---- 曲別グルーピング --------------------------------------------------------
+// 93 枚が更新日だけで一列に並んでいると、同じ曲のカードが日付をまたいで散らばり、
+// 「この曲について何が分かっているか」を辿れない。曲で束ねて回遊できるようにする。
+//
+// **新しい URL は切らない**（`/elements/artist/<slug>/` のようなファセットを作らない）。
+// 切った瞬間に artist slug が SEO 資産になり、2026-07-25 の `shiina-ringo → sheena-ringo`
+// のような一括改名が 301 なしにできなくなる（当時は URL に出ていなかったので無償だった）。
+// グルーピングはこのページの中の見出しに留める。
+type Group = { key: string; heading: string; items: typeof sorted };
+
+// song を持たないカード（type: term / principle）を先頭に固定する。
+// 用語カードは楽曲カード同士をつなぐハブなので、曲の下に埋めると入口にならない
+const theoryCards = sorted.filter((entry) => !entry.data.song);
+
+const songGroups = new Map<string, Group>();
+for (const entry of sorted) {
+  const song = entry.data.song;
+  if (!song) continue;
+  // 同名異曲を分けるため、キーはアーティストを含める
+  const key = `${song.artist}／${song.title}`;
+  const group = songGroups.get(key) ?? {
+    key,
+    heading: `${song.artist}『${song.title}』`,
+    items: [],
+  };
+  group.items.push(entry);
+  songGroups.set(key, group);
+}
+
+// `sorted` が更新順の降順なので、Map の挿入順がそのまま「グループの最新更新が新しい順」になる
+const groups: Group[] = [
+  ...(theoryCards.length > 0
+    ? [{ key: '用語と方針', heading: '用語と方針（曲を対象としないカード）', items: theoryCards }]
+    : []),
+  ...songGroups.values(),
+];
+
+// 見出しとカードを 1 本の <ul> に並べる。見出しも <li> にしてあるのは、平坦表示
+// （更新順・投稿順）へ切り替えるときに見出しだけ隠せば済むからで、リストを組み替えずに
+// 済ませるため。復元用の順番は data-order が持つ
+type Row =
+  | { kind: 'header'; group: Group }
+  | { kind: 'card'; group: Group; entry: (typeof sorted)[number] };
+
+const rows: Row[] = groups.flatMap((group) => [
+  { kind: 'header' as const, group },
+  ...group.items.map((entry) => ({ kind: 'card' as const, group, entry })),
+]);
+
 const counts = MATURITY_ORDER.map((maturity) => ({
   maturity,
   label: MATURITY_LABELS[maturity],
@@ -176,7 +225,8 @@ const rangeLabel = `${iso(new Date(startSunday))} 〜 ${iso(new Date(todayUTC))}
     <div class="flex flex-wrap gap-2 text-xs">
       <button
         type="button"
-        data-filter="all"
+        data-filter-key="all"
+        data-filter-value="all"
         aria-pressed="true"
         class="rounded-full border border-gray-400 px-3 py-1 text-gray-700 aria-pressed:border-gray-800 aria-pressed:bg-gray-800 aria-pressed:text-white"
       >
@@ -186,7 +236,8 @@ const rangeLabel = `${iso(new Date(startSunday))} 〜 ${iso(new Date(todayUTC))}
         counts.map(({ maturity, label, count }) => (
           <button
             type="button"
-            data-filter={maturity}
+            data-filter-key="maturity"
+            data-filter-value={maturity}
             aria-pressed="false"
             disabled={count === 0}
             class="rounded-full border border-gray-400 px-3 py-1 text-gray-700 disabled:opacity-40 aria-pressed:border-gray-800 aria-pressed:bg-gray-800 aria-pressed:text-white"
@@ -196,6 +247,9 @@ const rangeLabel = `${iso(new Date(startSunday))} 〜 ${iso(new Date(todayUTC))}
         ))
       }
     </div>
+    <p class="mt-2 text-[11px] text-gray-400">
+      カードに付いているバッジ（type・反復の類型・成熟度）を押しても、同じように絞り込めます。
+    </p>
   </section>
 
   <div class="mb-4 flex flex-wrap items-center justify-between gap-2 border-b pb-2 text-xs">
@@ -203,8 +257,16 @@ const rangeLabel = `${iso(new Date(startSunday))} 〜 ${iso(new Date(todayUTC))}
     <div class="flex gap-2">
       <button
         type="button"
-        data-sort="updated"
+        data-sort="group"
         aria-pressed="true"
+        class="rounded border border-gray-300 px-2 py-1 text-gray-600 aria-pressed:border-gray-700 aria-pressed:text-gray-900"
+      >
+        曲別
+      </button>
+      <button
+        type="button"
+        data-sort="updated"
+        aria-pressed="false"
         class="rounded border border-gray-300 px-2 py-1 text-gray-600 aria-pressed:border-gray-700 aria-pressed:text-gray-900"
       >
         更新順
@@ -222,7 +284,20 @@ const rangeLabel = `${iso(new Date(startSunday))} 〜 ${iso(new Date(todayUTC))}
 
   <ul class="space-y-6" id="card-list">
     {
-      sorted.map((entry) => {
+      rows.map((row, order) => {
+        if (row.kind === 'header') {
+          return (
+            <li data-group-header data-group={row.group.key} data-order={order} class="!mt-10 first:!mt-0">
+              <h2 class="border-b border-gray-300 pb-1 text-sm font-semibold text-gray-700">
+                {row.group.heading}
+                <span class="ml-2 font-normal text-gray-400" data-group-count>
+                  {row.group.items.length}枚
+                </span>
+              </h2>
+            </li>
+          );
+        }
+        const { entry } = row;
         const phoneme = entry.data.tags?.phoneme ?? [];
         const artist = entry.data.tags?.artist ?? [];
         const tagLine = [
@@ -234,24 +309,47 @@ const rangeLabel = `${iso(new Date(startSunday))} 〜 ${iso(new Date(todayUTC))}
         return (
           <li
             data-maturity={entry.data.maturity}
+            data-type={entry.data.type}
+            data-repetition={entry.data.tags?.repetition}
+            data-group={row.group.key}
+            data-order={order}
             data-updated={iso(entry.data.updated)}
             data-created={iso(entry.data.created)}
           >
             <a href={`/elements/${entry.id}/`} class="text-lg font-medium text-blue-700 underline">
               {entry.data.title}
             </a>
+            {/*
+              バッジは絞り込みのボタンでもある。**新しい URL は作らない**（D6）——
+              押すとこのページの中で絞り込まれるだけで、遷移はしない
+            */}
             <div class="mt-1 flex flex-wrap items-center gap-2 text-xs">
-              <span class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600">
+              <button
+                type="button"
+                data-filter-key="type"
+                data-filter-value={entry.data.type}
+                class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600 hover:border-gray-700 hover:text-gray-900"
+              >
                 {entry.data.type}
-              </span>
+              </button>
               {entry.data.tags?.repetition && (
-                <span class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600">
+                <button
+                  type="button"
+                  data-filter-key="repetition"
+                  data-filter-value={entry.data.tags.repetition}
+                  class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600 hover:border-gray-700 hover:text-gray-900"
+                >
                   {entry.data.tags.repetition.toUpperCase()}反復
-                </span>
+                </button>
               )}
-              <span class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600">
+              <button
+                type="button"
+                data-filter-key="maturity"
+                data-filter-value={entry.data.maturity}
+                class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600 hover:border-gray-700 hover:text-gray-900"
+              >
                 {MATURITY_LABELS[entry.data.maturity]}
-              </span>
+              </button>
               <span class="text-gray-500">更新: {iso(entry.data.updated)}</span>
               <span class="text-gray-400">投稿: {iso(entry.data.created)}</span>
             </div>
@@ -282,48 +380,113 @@ const rangeLabel = `${iso(new Date(startSunday))} 〜 ${iso(new Date(todayUTC))}
 <script>
   const list = document.getElementById('card-list');
   if (list) {
-    const items = () => Array.from(list.children) as HTMLLIElement[];
+    const rows = () => Array.from(list.children) as HTMLLIElement[];
+    const isHeader = (li: HTMLLIElement) => li.dataset.groupHeader !== undefined;
     const countLabel = document.querySelector('[data-visible-count]');
 
-    const setPressed = (nodes: NodeListOf<Element>, active: Element) => {
-      nodes.forEach((n) => n.setAttribute('aria-pressed', String(n === active)));
-    };
+    // 絞り込みは「キーと値の 1 組」で持つ。maturity 専用だった頃の実装を一般化したもので、
+    // type・反復の類型・成熟度がすべて同じ道を通る。**軸を増やしても URL は増えない**
+    let filterKey = 'all';
+    let filterValue = 'all';
+    let sortKey = 'group';
 
-    const filterButtons = document.querySelectorAll('[data-filter]');
     const sortButtons = document.querySelectorAll('[data-sort]');
+    // カード内のバッジも同じ属性を持つが、押下状態を表示するのは上部のボタンだけ。
+    // 同じ値のバッジが何十個も並ぶため、全部を光らせても現在地は伝わらない
+    const filterButtons = Array.from(document.querySelectorAll('[data-filter-key]')).filter(
+      (btn) => !btn.closest('#card-list'),
+    );
 
-    const applyFilter = (value: string) => {
+    const render = () => {
       let visible = 0;
-      items().forEach((li) => {
-        const show = value === 'all' || li.dataset.maturity === value;
+      const cards = rows().filter((li) => !isHeader(li));
+      cards.forEach((li) => {
+        const show = filterKey === 'all' || li.dataset[filterKey] === filterValue;
         li.hidden = !show;
         if (show) visible += 1;
       });
-      if (countLabel) countLabel.textContent = `${visible} 枚を表示中`;
+
+      // 見出しは曲別のときだけ出す。絞り込みで中身が空になったグループは隠し、
+      // 残ったグループの枚数は**いま見えている枚数**に合わせる。総数のまま置くと、
+      // 「15枚」と書かれた見出しの下に3枚しか無い状態になり、数が嘘になる
+      rows()
+        .filter(isHeader)
+        .forEach((header) => {
+          if (sortKey !== 'group') {
+            header.hidden = true;
+            return;
+          }
+          const inGroup = cards.filter((li) => li.dataset.group === header.dataset.group && !li.hidden);
+          const counter = header.querySelector('[data-group-count]');
+          if (counter) counter.textContent = `${inGroup.length}枚`;
+          header.hidden = inGroup.length === 0;
+        });
+
+      if (countLabel) {
+        countLabel.textContent =
+          filterKey === 'all'
+            ? `${visible} 枚を表示中`
+            : `${visible} 枚を表示中（${filterKey}: ${filterValue}）`;
+      }
+
+      filterButtons.forEach((btn) => {
+        const el = btn as HTMLElement;
+        btn.setAttribute(
+          'aria-pressed',
+          String(el.dataset.filterKey === filterKey && el.dataset.filterValue === filterValue),
+        );
+      });
+      sortButtons.forEach((btn) => {
+        btn.setAttribute('aria-pressed', String((btn as HTMLElement).dataset.sort === sortKey));
+      });
     };
 
-    filterButtons.forEach((btn) => {
+    const byOrder = (a: HTMLLIElement, b: HTMLLIElement) =>
+      Number(a.dataset.order ?? 0) - Number(b.dataset.order ?? 0);
+
+    const reorder = () => {
+      rows()
+        .sort((a, b) => {
+          // 曲別は元の並びそのもの。data-order で完全に復元する（見出しも一緒に戻る）
+          if (sortKey === 'group') return byOrder(a, b);
+          // 平坦表示でだけ見出しを末尾へ退ける。hidden にするだけだと、カードの並べ替えの
+          // 比較対象に混ざって順序が不安定になる
+          const ah = isHeader(a);
+          const bh = isHeader(b);
+          if (ah !== bh) return ah ? 1 : -1;
+          if (ah && bh) return byOrder(a, b);
+          return (b.dataset[sortKey] ?? '').localeCompare(a.dataset[sortKey] ?? '');
+        })
+        .forEach((li) => list.appendChild(li));
+    };
+
+    document.querySelectorAll('[data-filter-key]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        applyFilter((btn as HTMLElement).dataset.filter ?? 'all');
-        setPressed(filterButtons, btn);
+        const el = btn as HTMLElement;
+        filterKey = el.dataset.filterKey ?? 'all';
+        filterValue = el.dataset.filterValue ?? 'all';
+        render();
       });
     });
 
     sortButtons.forEach((btn) => {
       btn.addEventListener('click', () => {
-        const key = (btn as HTMLElement).dataset.sort === 'created' ? 'created' : 'updated';
-        items()
-          .sort((a, b) => (b.dataset[key] ?? '').localeCompare(a.dataset[key] ?? ''))
-          .forEach((li) => list.appendChild(li));
-        setPressed(sortButtons, btn);
+        sortKey = (btn as HTMLElement).dataset.sort ?? 'group';
+        reorder();
+        render();
       });
     });
 
-    // /elements/#budding のような従来のアンカーを絞り込みとして解釈する
-    const hash = location.hash.replace('#', '');
+    // `/elements/#budding` のような従来のアンカーは maturity の絞り込みとして解釈する
+    // （既存のリンクを壊さない）。`#type=pivot` のようにキーを明示した形も受ける
+    const hash = decodeURIComponent(location.hash.replace('#', ''));
     if (hash) {
-      const target = document.querySelector(`[data-filter="${hash}"]`);
-      if (target instanceof HTMLElement) target.click();
+      const [key, value] = hash.includes('=') ? hash.split('=') : ['maturity', hash];
+      if (rows().some((li) => li.dataset[key] === value)) {
+        filterKey = key;
+        filterValue = value;
+      }
     }
+    render();
   }
 </script>
