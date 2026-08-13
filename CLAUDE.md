@@ -114,6 +114,12 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/theory-glos
 
 上位仕様: `../tasks/lyricstheory-digital-garden-spec.md`（v0.2）。詳細な設計意図はそちらを参照。
 
+「先人を参照しながら歌詞を書ける仕組み」をどう作るかの検討記録は [`docs/sound-lookup-plan.md`](docs/sound-lookup-plan.md)。**コーパスの壁・判定装置への転落・Rap Genius 型との関係**を扱う。音で引く入口（`/elements/sounds/`）の実装と既知の欠陥もそこにある。Chat からは以下で読める。
+
+```
+https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/sound-lookup-plan.md
+```
+
 ### 二層構造
 
 - **essays**（`src/content/blog/`）= 結晶層。既存の完成記事。permalink `/{slug}/` は変更しない。

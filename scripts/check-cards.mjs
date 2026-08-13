@@ -46,10 +46,19 @@ const SIMILARITY_THRESHOLD = 0.85;
 const MAX_LENGTH_GAP = 3;
 
 /**
- * カードの id に使えない語。将来 `/elements/song/<slug>/` のようなファセットを切るときに、
- * 1 セグメント目として使う候補である。2026-08-13 時点で衝突は 0 件。
+ * カードの id に使えない語。2 種類ある。
+ *
+ * - `artist` / `song` / `type` / `phoneme` / `era` / `tag`
+ *   将来 `/elements/song/<slug>/` のようなファセットを切るときの 1 セグメント目の候補。
+ *   URL はまだ切らない（切った瞬間に slug が SEO 資産になり、改名に 301 が要る）。
+ *   2026-08-13 時点で衝突は 0 件なので、いま予約しておけば無償で済む。
+ * - `sounds`
+ *   **既に実在するページ**（`src/pages/elements/sounds/index.astro`＝音で引く入口）。
+ *   Astro は静的ルートを動的ルートより優先するので、この id のカードを書くと
+ *   ビルドは通ったままカードのページだけが**黙って消える**。検査5 が related の
+ *   タイポで塞いだのと同じ「静かに消える」経路なので、id 側で止める。
  */
-const RESERVED_SLUGS = ['artist', 'song', 'type', 'phoneme', 'era', 'tag'];
+const RESERVED_SLUGS = ['artist', 'song', 'type', 'phoneme', 'era', 'tag', 'sounds'];
 
 /**
  * 比較用に正規化する。呼応の鉤括弧・強調・空白は表記の都合なので落とし、
