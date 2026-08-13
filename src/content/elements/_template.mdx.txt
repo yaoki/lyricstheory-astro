@@ -8,44 +8,85 @@
   新しいカードを作るときは、この内容をコピーして
   拡張子 .mdx の新規ファイル（slug ベースのファイル名）として保存すること。
 
+  正本は `src/content.config.ts` の schema であって、このテンプレートではない。
+  食い違いを見つけたら schema に合わせ、ここも直す。
+
   【引用ルール（重要）】
   1カードあたりの歌詞引用は、分析に必要な最小フレーズ（1〜2行以内）に限定する。
   歌詞全文は repo に置かない。既存 CLAUDE.md「Public repo ガードレール」を
   elements 配下にも同様に適用する。
+
+  引用に使えるのは貼付された歌詞だけで、記憶・検索から補完しない。
+  ただし**照合は義務**で、発売年・作詞者ともども歌詞サイト2つ以上で確かめてから書く
+  （CLAUDE.md「歌詞の扱い」「外部事実の扱い」）。確かめられない項目は
+  `sources` に書かず、`unverified` に残す。
 
   【seed と作業ノートの分離（重要）】
   カード本文には「観察」だけを書く。
   裏取り控え（流通歌詞との突き合わせ、メタデータ確認等）は「作業ノート」であり
   repo に書かない（Obsidian / iPhone メモに退避する）。
   書誌情報は sources frontmatter に置けば十分で、本文で重複させない。
+
+  推測（制作過程・コノテーション・聴き手の心理）は、やおき自身の仮説であっても
+  書かない。指させない観察は落とす（CLAUDE.md「カード本文に書くこと・書かないこと」）。
 -->
 ---
-title: ""            # カード名（例: "k→t 子音ピボット（〇〇型）"）
-type: ""              # 推奨語彙: pivot | sequenz | rhyme | syllable | prosody | other
-                       # （z.string() なので上記以外も書けるが、10〜20枚溜まってから enum 化を検討する）
-maturity: seed        # seed | budding | evergreen
+# 「アーティスト『曲名』：観察名」の順で書く。カード単体で誰の何の曲の何の観察かが伝わるように。
+# 楽曲を対象としないカード（principle / term）はこの限りではない
+title: ""
+# 確定7語彙。これ以外はビルドが落ちる
+# pivot | sequenz | syllable | pattern | principle | term | other
+type: ""
+# 曲でカードを束ねられる唯一の機械可読な場所。
+# artist は流通表記（「Mr.Children」「椎名林檎」）で、slug 表記の tags.artist とは別物。
+# 楽曲を対象としないカード（principle / term）は song ごと削る
+song:
+  title: ""
+  artist: ""
+maturity: seed        # seed | budding | evergreen（related が1本入ったら budding でよい）
 tags:
-  phoneme: []          # 関与する音素・音素列。romaji 小文字、正規化ルールは CLAUDE.md 参照（例: [k, a]）
-  repetition:          # 反復の類型。c=子音のみ一致 / v=母音のみ一致 / cv=両方一致
-  artist: []           # アーティスト（romaji slug）
+  phoneme: []          # romaji 小文字。正規化ルールは CLAUDE.md 参照（例: [k, a]）
+  repetition:          # c=子音のみ一致 / v=母音のみ一致 / cv=両方一致。子音ピボットは持たない
+  artist: []           # romaji slug。公式英語表記に準拠（例: [mrchildren]）
   era: ""              # 年代（例: "2010s"）
   lang: ja             # ja | en | fr | ...
-related: []            # 関連カード・essay の slug（双方向リンクの素）
-sources: []            # 出典（曲名・作詞者・年。全文引用はしない。未確認のまま記載しない）
-# figure（任意）— X に出るサムネイル画像に描く図。書かなければタイトルのみの絵になる。
-# 対称形のカードなら下の3行を有効にする。いまは kind: symmetry だけが使える。
-# units は最大8音まで（それ以上は歌詞の再現に近づくため、ビルドが止まる）。
-# highlight は強調する units の位置（0始まり）で、指定が2つ以上あると弧で結ばれる。
+related: []            # 関連カード・essay の slug。**片側に書けば両側に出る**ので相手側は触らない
+terms: []              # このカードが使う用語カード（type: term）の id。related に混ぜない
+books: []              # 推薦図書の id（draft: false のものだけ張れる）
+webrefs: []            # 推薦 Web 文献の id（同上）
+sources: []            # 出典（曲名・作詞者・発売年）。照合が取れないなら書かない
+unverified: []         # 裏どりの取れていない外部事実。1項目でも残るとビルドが落ちる
+# figure（任意）— X のサムネイルと本文に出る図。書かなければタイトルのみの絵になる。
+#
+# **手で書かず `npm run figure` で起こす。** 呼応する音を「」で囲んだフレーズを渡すと、
+# 貼るだけの YAML とプレビュー PNG が出る。二組目は 〈〉、三組目は 〔〕。
+#
+#   npm run figure -- 'おと「し」て「し」まう'
+#   npm run figure -- --pivot 'カ行子音' --repetition c '<LyricQuote の中身をそのまま>'
+#
+# 形は4つ。**行数＝図に載せる箇所の数**で決まる（1箇所なら single、離れた2箇所なら pair）。
+#   single    1箇所。units は上限8（著作権上のガードレール）
+#   pair      離れた2箇所の対比。labels は省略できない。展開・並べ替えは mode: expansion
+#   pivot     single の表示のバリエーション。呼応しない音は伏せる
+#   consonant 子音の並びを歌詞の上に振る
 # figure:
-#   kind: symmetry
-#   units: ["し", "て", "し"]
-#   highlight: [0, 2]
+#   kind: single
+#   units: ["お", "と", "し", "て", "し", "ま", "う"]
+#   highlight: [2, 4]
+#
+# 図の文字列が歌詞以外（曲名など）から来ているときだけ、その出所をここに書く。
+# 空のカードは図を歌詞から取ったとみなされ、<LyricQuote> による裏づけが必須になる
+# figureSource: ""
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 ---
 
+{/* elements では <LyricQuote> を import せずに使える（ページ側が components で渡している） */}
+
 ## 観察（YYYY年M月D日）
 
-（歌詞引用は最小フレーズ1〜2行以内）
+<LyricQuote song="" artist="" lyricist="" year={0}>
+（貼付された歌詞から、分析に必要な最小フレーズ1〜2行以内）
+</LyricQuote>
 
-（観察メモ）
+（観察）
