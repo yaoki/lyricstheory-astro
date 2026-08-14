@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="音声ファイルを読み込み、全体を一枚の声紋として表示するツール。解析はすべてブラウザ内で完結し、ファイルはどこにも送信されません。">
+<title>録音を見る — ファイル解析</title>
+<style>
+  :root{
+    --bg:#0E1117; --panel:#161B24; --line:#232A36;
+    --accent:#7FE3C4; --harm:#E8657A; --text:#E6E8EC; --dim:#8A93A5;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    padding:24px 16px 64px;
+  }
+  .wrap{max-width:1000px;margin:0 auto;}
+  h1{font-size:22px;margin:0 0 2px;letter-spacing:-.01em;display:inline-block;}
+  .sub{color:var(--dim);font-size:12px;margin-left:10px;}
+  .lead{color:var(--dim);font-size:13px;margin:6px 0 18px;}
+  .drop{
+    border:1px dashed var(--line);border-radius:6px;padding:34px 20px;text-align:center;
+    color:var(--dim);font-size:13px;cursor:pointer;transition:border-color .15s,color .15s;
+  }
+  .drop:hover,.drop.over{border-color:var(--accent);color:var(--text);}
+  .drop b{display:block;font-size:15px;color:var(--text);margin-bottom:6px;font-weight:600;}
+  .bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:16px 0 12px;}
+  button{
+    font:inherit;font-size:14px;font-weight:600;padding:9px 18px;border-radius:4px;
+    background:var(--accent);color:var(--bg);border:1px solid var(--accent);cursor:pointer;
+  }
+  button.ghost{background:transparent;color:var(--accent);}
+  button.small{font-size:12px;font-weight:500;padding:6px 12px;background:transparent;color:var(--dim);border-color:var(--line);}
+  button:disabled{opacity:.35;cursor:default;}
+  .fileinfo{color:var(--dim);font-size:12px;font-family:ui-monospace,Menlo,monospace;}
+  .readout{margin-left:auto;text-align:right;font:12px ui-monospace,Menlo,monospace;color:var(--dim);}
+  .readout b{color:var(--accent);font-weight:600;}
+  canvas{display:block;width:100%;background:var(--panel);border-radius:4px;cursor:crosshair;}
+  .cap{color:var(--dim);font-size:12px;margin:14px 0 5px;}
+  .prog{height:3px;background:var(--line);border-radius:2px;overflow:hidden;margin:14px 0;display:none;}
+  .prog i{display:block;height:100%;width:0;background:var(--accent);}
+  .err{border:1px solid var(--harm);color:var(--harm);padding:10px 12px;border-radius:4px;font-size:13px;margin:14px 0;display:none;}
+  .foot{color:var(--dim);font-size:12px;line-height:1.8;margin-top:20px;padding-top:16px;border-top:1px solid var(--line);}
+  .foot b{color:var(--text);font-weight:600;}
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>録音を見る</h1><span class="sub">音声ファイルを一枚の声紋にする</span>
+  <p class="lead">読み込んだ音の全体を、時間 × 周波数の面として描きます。ファイルはどこにも送信されません。</p>
+
+  <div class="drop" id="drop">
+    <b>音声ファイルを選ぶ</b>
+    ここにドラッグしても読み込めます（m4a / mp3 / wav / aac など）
+  </div>
+  <input type="file" id="file" accept="audio/*" class="hidden">
+
+  <div class="prog" id="prog"><i id="progBar"></i></div>
+  <div class="err" id="err"></div>
+
+  <div id="panel" class="hidden">
+    <div class="bar">
+      <button id="play" class="ghost">再生</button>
+      <span class="fileinfo" id="info"></span>
+      <div class="readout" id="cursor">カーソル：—</div>
+    </div>
+
+    <p class="cap">声紋 — 縦軸 0〜5,000Hz（線形）／クリックでその位置から再生</p>
+    <canvas id="sg" height="320" style="height:320px"></canvas>
+
+    <p class="cap">声の高さ（基本周波数）の推移 — 抑揚がそのまま線の形になります</p>
+    <canvas id="pitch" height="120" style="height:120px"></canvas>
+
+    <div class="bar" style="margin-top:14px">
+      <button class="small" id="dl">この画面をPNGで保存</button>
+    </div>
+  </div>
+
+  <p class="foot">
+    <b>何を見るか。</b>フォルマント（明るい帯）の絶対的な位置は、その人の喉と口の大きさで決まります。
+    体格が違えば同じ母音でも位置が違うので、そこを目標にしても届きません。
+    見るべきは動き方です。母音を移すときに帯がどれだけ動くか、高さの線がどれだけ振れているか、
+    息の成分（もやの量）がどれくらい混じっているか、語尾で線がどう落ちるか。これらは体格に依存しません。<br><br>
+    <b>もうひとつ。</b>作品として世に出ている音声は、マイク・EQ・コンプレッサ・リバーブを通っています。
+    画面に出ているのは生の声ではなく、仕上がった製品です。<br><br>
+    著作物を扱う場合は、私的な学習の範囲にとどめてください。
+  </p>
+</div>
+
+<script>
+const F_TOP=5000, FFT=2048, HOP=512, MAXW=6000, MAXSEC=180;
+const el=id=>document.getElementById(id);
+const drop=el("drop"), fileIn=el("file"), sg=el("sg"), pitchC=el("pitch");
+const errBox=el("err"), prog=el("prog"), progBar=el("progBar"), panel=el("panel");
+const playBtn=el("play"), infoEl=el("info"), cursorEl=el("cursor");
+
+let ac=null, buf=null, src=null, playing=false, startedAt=0, offset=0, raf=null;
+let spec=null, specW=0, specH=0, f0s=null, dur=0;
+const off=document.createElement("canvas");
+
+/* ---- FFT（反復基数2） ---- */
+function fft(re,im){
+  const n=re.length;
+  for(let i=1,j=0;i<n;i++){
+    let bit=n>>1;
+    for(;j&bit;bit>>=1) j^=bit;
+    j^=bit;
+    if(i<j){ [re[i],re[j]]=[re[j],re[i]]; [im[i],im[j]]=[im[j],im[i]]; }
+  }
+  for(let len=2;len<=n;len<<=1){
+    const ang=-2*Math.PI/len, wr=Math.cos(ang), wi=Math.sin(ang);
+    for(let i=0;i<n;i+=len){
+      let cr=1, ci=0;
+      for(let k=0;k<len/2;k++){
+        const ur=re[i+k], ui=im[i+k];
+        const vr=re[i+k+len/2]*cr-im[i+k+len/2]*ci;
+        const vi=re[i+k+len/2]*ci+im[i+k+len/2]*cr;
+        re[i+k]=ur+vr; im[i+k]=ui+vi;
+        re[i+k+len/2]=ur-vr; im[i+k+len/2]=ui-vi;
+        const ncr=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=ncr;
+      }
+    }
+  }
+}
+
+const STOPS=[[14,17,23],[26,42,86],[110,44,110],[214,102,60],[248,214,150],[255,255,255]];
+function color(t){
+  t=Math.max(0,Math.min(1,t))*(STOPS.length-1);
+  const i=Math.min(STOPS.length-2,Math.floor(t)), f=t-i;
+  const a=STOPS[i], b=STOPS[i+1];
+  return [a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f];
+}
+
+function mono(b){
+  const n=b.length, out=new Float32Array(n);
+  for(let c=0;c<b.numberOfChannels;c++){
+    const d=b.getChannelData(c);
+    for(let i=0;i<n;i++) out[i]+=d[i];
+  }
+  const k=1/b.numberOfChannels;
+  for(let i=0;i<n;i++) out[i]*=k;
+  return out;
+}
+function decimate(x,f){
+  const n=Math.floor(x.length/f), out=new Float32Array(n);
+  for(let i=0;i<n;i++){
+    let s=0;
+    for(let j=0;j<f;j++) s+=x[i*f+j];
+    out[i]=s/f;
+  }
+  return out;
+}
+function f0Of(x,i0,sr){
+  const W=512, lagMin=Math.max(2,Math.floor(sr/600)), lagMax=Math.floor(sr/70);
+  if(i0+lagMax+W>=x.length) return 0;
+  let rms=0; for(let i=0;i<W;i++) rms+=x[i0+i]*x[i0+i];
+  if(Math.sqrt(rms/W)<0.008) return 0;
+  let e0=0; for(let i=0;i<W;i++) e0+=x[i0+i]*x[i0+i];
+  let best=0,bv=0;
+  for(let lag=lagMin;lag<=lagMax;lag++){
+    let num=0,el2=0;
+    for(let i=0;i<W;i++){ const a=x[i0+i], b=x[i0+i+lag]; num+=a*b; el2+=b*b; }
+    const v=num/(Math.sqrt(e0*el2)+1e-9);
+    if(v>bv){bv=v;best=lag;}
+  }
+  return bv<0.55?0:sr/best;
+}
+
+async function handle(file){
+  errBox.style.display="none";
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    const raw=await file.arrayBuffer();
+    buf=await ac.decodeAudioData(raw);
+    if(buf.duration>MAXSEC) throw new Error("long");
+    dur=buf.duration;
+    infoEl.textContent=file.name+"　"+dur.toFixed(1)+"秒　"+buf.sampleRate+"Hz";
+    await analyze();
+    panel.classList.remove("hidden");
+  }catch(e){
+    errBox.textContent = e.message==="long"
+      ? "長すぎます。"+MAXSEC+"秒以内の音声にしてください。聞きたい箇所だけ切り出すと見やすくなります。"
+      : "読み込めませんでした。音声ファイルかどうか、形式がブラウザに対応しているかを確認してください。";
+    errBox.style.display="block";
+  }
+}
+
+function analyze(){
+  return new Promise(resolve=>{
+    const x=mono(buf), sr=buf.sampleRate;
+    const frames=Math.max(1,Math.floor((x.length-FFT)/HOP));
+    const bins=Math.min(FFT/2, Math.ceil(F_TOP/(sr/FFT)));
+    const win=new Float32Array(FFT);
+    for(let i=0;i<FFT;i++) win[i]=0.5-0.5*Math.cos(2*Math.PI*i/(FFT-1));
+    const db=new Float32Array(frames*bins);
+    let maxDb=-Infinity;
+    const re=new Float32Array(FFT), im=new Float32Array(FFT);
+
+    const dx=decimate(x,4), dsr=sr/4;
+    f0s=new Float32Array(frames);
+
+    prog.style.display="block";
+    let f=0;
+    function chunk(){
+      const end=Math.min(frames,f+150);
+      for(;f<end;f++){
+        const o=f*HOP;
+        for(let i=0;i<FFT;i++){ re[i]=x[o+i]*win[i]; im[i]=0; }
+        fft(re,im);
+        for(let b=0;b<bins;b++){
+          const m=Math.sqrt(re[b]*re[b]+im[b]*im[b]);
+          const v=20*Math.log10(m+1e-9);
+          db[f*bins+b]=v;
+          if(v>maxDb) maxDb=v;
+        }
+        f0s[f]=f0Of(dx,Math.floor(o/4),dsr);
+      }
+      progBar.style.width=Math.round(f/frames*100)+"%";
+      if(f<frames){ requestAnimationFrame(chunk); }
+      else{
+        prog.style.display="none"; progBar.style.width="0";
+        build(db,frames,bins,maxDb);
+        resolve();
+      }
+    }
+    chunk();
+  });
+}
+
+function build(db,frames,bins,maxDb){
+  specW=Math.min(frames,MAXW); specH=320;
+  off.width=specW; off.height=specH;
+  const octx=off.getContext("2d");
+  const img= octx.createImageData(specW,specH);
+  const floor=maxDb-72;
+  for(let x=0;x<specW;x++){
+    const f=Math.floor(x/specW*frames);
+    for(let y=0;y<specH;y++){
+      const b=Math.min(bins-1,Math.round((1-y/specH)*(bins-1)));
+      const t=(db[f*bins+b]-floor)/(maxDb-floor);
+      const [r,g,bl]=color(t);
+      const p=(y*specW+x)*4;
+      img.data[p]=r; img.data[p+1]=g; img.data[p+2]=bl; img.data[p+3]=255;
+    }
+  }
+   octx.putImageData(img,0,0);
+  spec=true;
+  draw();
+  drawPitch();
+}
+
+function draw(){
+  const dpr=window.devicePixelRatio||1, w=sg.clientWidth, h=sg.clientHeight;
+  sg.width=Math.round(w*dpr); sg.height=Math.round(h*dpr);
+  const ctx=sg.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.drawImage(off,0,0,w,h);
+  ctx.strokeStyle="rgba(255,255,255,0.16)";
+  ctx.fillStyle="rgba(230,232,236,0.65)";
+  ctx.font="10px ui-monospace,Menlo,monospace"; ctx.lineWidth=1;
+  for(let f=1000;f<F_TOP;f+=1000){
+    const y=(1-f/F_TOP)*h;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
+    ctx.fillText((f/1000)+"k",4,y-3);
+  }
+  if(playing||offset>0){
+    const t=playing?(ac.currentTime-startedAt+offset):offset;
+    const x=Math.min(w,t/dur*w);
+    ctx.strokeStyle="#E8657A"; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke();
+  }
+}
+function drawPitch(){
+  const dpr=window.devicePixelRatio||1, w=pitchC.clientWidth, h=pitchC.clientHeight;
+  pitchC.width=Math.round(w*dpr); pitchC.height=Math.round(h*dpr);
+  const ctx=pitchC.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle="#161B24"; ctx.fillRect(0,0,w,h);
+  const vals=[...f0s].filter(v=>v>0);
+  if(!vals.length){
+    ctx.fillStyle="#5C6577"; ctx.font="12px sans-serif";
+    ctx.fillText("声の高さを検出できませんでした",14,h/2);
+    return;
+  }
+  const lo=Math.max(50,Math.min(...vals)-20), hi=Math.max(...vals)+20;
+  ctx.strokeStyle="#232A36"; ctx.lineWidth=1;
+  ctx.fillStyle="#8A93A5"; ctx.font="10px ui-monospace,Menlo,monospace";
+  [lo,hi].forEach(v=>{
+    const y=h-((v-lo)/(hi-lo))*(h-16)-8;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
+    ctx.fillText(Math.round(v)+"Hz",4,y-3);
+  });
+  ctx.fillStyle="#7FE3C4";
+  for(let i=0;i<f0s.length;i++){
+    if(!f0s[i]) continue;
+    const x=i/f0s.length*w;
+    const y=h-((f0s[i]-lo)/(hi-lo))*(h-16)-8;
+    ctx.fillRect(x,y-1,1.6,2);
+  }
+}
+
+function stopSrc(){
+  if(src){ try{src.stop();}catch(e){} src.disconnect(); src=null; }
+  playing=false; playBtn.textContent="再生";
+  if(raf) cancelAnimationFrame(raf); raf=null;
+}
+function play(from){
+  stopSrc();
+  offset=Math.max(0,Math.min(dur-0.05,from));
+  src=ac.createBufferSource();
+  src.buffer=buf; src.connect(ac.destination);
+  src.start(0,offset);
+  startedAt=ac.currentTime; playing=true; playBtn.textContent="停止";
+  src.onended=()=>{ if(playing){ stopSrc(); offset=0; draw(); } };
+  tick();
+}
+function tick(){
+  draw();
+  raf=requestAnimationFrame(tick);
+}
+
+drop.addEventListener("click",()=>fileIn.click());
+fileIn.addEventListener("change",e=>{ if(e.target.files[0]) handle(e.target.files[0]); });
+["dragenter","dragover"].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add("over");}));
+["dragleave","drop"].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove("over");}));
+drop.addEventListener("drop",e=>{ const f=e.dataTransfer.files[0]; if(f) handle(f); });
+
+playBtn.addEventListener("click",()=>{ playing?(stopSrc(),draw()):play(offset); });
+sg.addEventListener("click",e=>{
+  const r=sg.getBoundingClientRect();
+  play((e.clientX-r.left)/r.width*dur);
+});
+sg.addEventListener("mousemove",e=>{
+  const r=sg.getBoundingClientRect();
+  const hz=Math.round((1-(e.clientY-r.top)/r.height)*F_TOP);
+  const t=((e.clientX-r.left)/r.width*dur).toFixed(2);
+  cursorEl.innerHTML="カーソル：<b>"+hz+" Hz</b>　"+t+" 秒";
+});
+sg.addEventListener("mouseleave",()=>{ cursorEl.textContent="カーソル：—"; });
+el("dl").addEventListener("click",()=>{
+  const a=document.createElement("a");
+  a.href=off.toDataURL("image/png");
+  a.download="koe-file-"+Date.now()+".png";
+  a.click();
+});
+window.addEventListener("resize",()=>{ if(spec){draw();drawPitch();} });
+</script>
+</body>
+</html>
