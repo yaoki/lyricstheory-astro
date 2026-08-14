@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="腹筋から唇まで、声が生まれるまでの流れを図式アニメーションで示す教材。">
+<title>声ができるまで — 図式アニメーション</title>
+<style>
+  :root{
+    --bg:#0E1117; --panel:#161B24; --line:#232A36;
+    --accent:#7FE3C4; --warm:#F0A54A; --harm:#E8657A;
+    --text:#E6E8EC; --dim:#8A93A5;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    padding:24px 16px 56px;
+  }
+  .wrap{max-width:1020px;margin:0 auto;}
+  h1{font-size:22px;margin:0 0 2px;display:inline-block;letter-spacing:-.01em;}
+  .sub{color:var(--dim);font-size:12px;margin-left:10px;}
+  .lead{color:var(--dim);font-size:13px;margin:6px 0 18px;}
+  .cols{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap;}
+  .stage{flex:1 1 420px;min-width:320px;background:var(--panel);border-radius:6px;padding:8px;}
+  .side{flex:1 1 320px;min-width:280px;}
+  svg{display:block;width:100%;height:auto;}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0;}
+  button{
+    font:inherit;font-size:13px;font-weight:600;padding:8px 16px;border-radius:4px;
+    background:var(--accent);color:var(--bg);border:1px solid var(--accent);cursor:pointer;
+  }
+  button.ghost{background:transparent;color:var(--accent);}
+  button.vowel{background:transparent;color:var(--dim);border-color:var(--line);font-size:14px;padding:8px 18px;}
+  button.vowel.on{border-color:var(--warm);color:var(--warm);}
+  .steps{list-style:none;padding:0;margin:0;}
+  .steps li{
+    padding:11px 14px;border-left:3px solid var(--line);margin-bottom:2px;
+    color:var(--dim);font-size:13px;line-height:1.7;cursor:pointer;transition:.15s;
+  }
+  .steps li.on{border-left-color:var(--accent);background:var(--panel);color:var(--text);}
+  .steps li b{display:block;font-size:14px;color:inherit;margin-bottom:2px;}
+  .steps li.on b{color:var(--accent);}
+  .foot{color:var(--dim);font-size:12px;line-height:1.9;margin-top:24px;padding-top:16px;border-top:1px solid var(--line);}
+  .foot b{color:var(--text);font-weight:600;}
+  .tag{font:10px ui-monospace,Menlo,monospace;fill:var(--dim);}
+  .lbl{font:11px -apple-system,"Hiragino Sans",sans-serif;fill:#B8BFCC;}
+  .lbl.hot{fill:var(--warm);font-weight:700;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>声ができるまで</h1><span class="sub">腹筋から唇までの図式</span>
+  <p class="lead">解剖図ではなく、仕組みの図です。実際の形より、何がどこで起きているかを優先しています。</p>
+
+  <div class="cols">
+    <div class="stage">
+      <svg id="svg" viewBox="0 0 460 620" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <path id="flow" d="M 250 470 L 250 250 L 250 168 L 430 168" fill="none"/>
+        </defs>
+
+        <!-- 体の外郭（図式） -->
+        <rect x="150" y="60" width="210" height="500" rx="26" fill="none" stroke="#232A36" stroke-width="1.5"/>
+
+        <!-- 声道（可変断面） -->
+        <polygon id="tract" fill="#1F2937" stroke="#3A4657" stroke-width="1.2"/>
+
+        <!-- 気管 -->
+        <rect x="238" y="250" width="24" height="200" fill="#1F2937" stroke="#3A4657" stroke-width="1.2"/>
+
+        <!-- 肺 -->
+        <ellipse id="lungL" cx="205" cy="360" rx="34" ry="62" fill="#1A2430" stroke="#3A4657" stroke-width="1.2"/>
+        <ellipse id="lungR" cx="295" cy="360" rx="34" ry="62" fill="#1A2430" stroke="#3A4657" stroke-width="1.2"/>
+
+        <!-- 横隔膜 -->
+        <path id="dia" fill="none" stroke="#7FE3C4" stroke-width="4" stroke-linecap="round"/>
+        <text id="diaLbl" class="lbl" x="60" y="470">横隔膜</text>
+
+        <!-- 腹筋 -->
+        <g id="abs" opacity="0">
+          <path d="M 178 520 L 200 500 M 178 534 L 200 514" stroke="#F0A54A" stroke-width="3" stroke-linecap="round"/>
+          <path d="M 332 520 L 310 500 M 332 534 L 310 514" stroke="#F0A54A" stroke-width="3" stroke-linecap="round"/>
+          <text class="lbl hot" x="196" y="556">腹筋が押す</text>
+        </g>
+
+        <!-- 声門 -->
+        <g id="glottis">
+          <polygon id="gl" fill="#E8657A"/>
+          <polygon id="gr" fill="#E8657A"/>
+        </g>
+        <text id="glLbl" class="lbl" x="60" y="255">声帯</text>
+
+        <!-- 唇 -->
+        <path id="lips" stroke="#F0A54A" stroke-width="4" stroke-linecap="round" fill="none"/>
+        <text class="lbl" x="404" y="120">唇</text>
+        <text class="lbl" x="322" y="120">舌</text>
+        <text class="lbl" x="256" y="120">咽頭</text>
+
+        <!-- 粒子 -->
+        <g id="dots"></g>
+
+        <!-- 圧力計 -->
+        <text class="tag" x="60" y="330">肺の内圧</text>
+        <rect x="60" y="338" width="70" height="7" rx="3" fill="#232A36"/>
+        <rect id="press" x="95" y="338" width="0" height="7" rx="3" fill="#7FE3C4"/>
+        <text id="pressVal" class="tag" x="60" y="360">±0</text>
+      </svg>
+    </div>
+
+    <div class="side">
+      <ul class="steps" id="steps">
+        <li data-i="0"><b>0　自然状態</b>息は止まり、声帯はゆるく開いている。空気は動かない。</li>
+        <li data-i="1"><b>1　吸う</b>横隔膜が収縮して下がる。胸の空間が広がり、内圧が下がる。低いほうへ空気が流れ込む。</li>
+        <li data-i="2"><b>2　吐きはじめる</b>横隔膜が戻り、腹筋がブレーキをかけながら押す。声門の下に圧力がたまる。</li>
+        <li data-i="3"><b>3　刻む</b>声帯が高速で開閉し、連続した気流をパルスの列に刻む。刻む間隔が声の高さになる。</li>
+        <li data-i="4"><b>4　響かせる</b>パルスが声道を通る。断面の形によって、強められる高さと弱められる高さが決まる。これが母音。</li>
+        <li data-i="5"><b>5　妨げる</b>舌・歯・唇が流れを塞ぐ、あるいは狭める。ここで子音が作られる。</li>
+      </ul>
+
+      <div class="bar">
+        <button id="play">一時停止</button>
+        <button id="prev" class="ghost">前へ</button>
+        <button id="next" class="ghost">次へ</button>
+      </div>
+      <div class="bar">
+        <span style="color:var(--dim);font-size:12px">声道の形：</span>
+        <button class="vowel on" data-v="a">あ</button>
+        <button class="vowel" data-v="i">い</button>
+        <button class="vowel" data-v="u">う</button>
+      </div>
+      <p style="color:var(--dim);font-size:11.5px;line-height:1.8;margin-top:4px">
+        母音を切り替えると、声道の管の太さが場所ごとに変わります。声帯は何も変えていません。
+        管の形だけで母音が決まる、というのがこの図の要点です。
+      </p>
+    </div>
+  </div>
+
+  <p class="foot">
+    <b>この図で省いたもの。</b>肋間筋、鼻腔、喉頭の上下、軟口蓋の開閉は描いていません。
+    流れを一本の線として見せるために、枝分かれを省きました。<br>
+    <b>誇張したもの。</b>声帯の開閉は実際には毎秒100〜300回で、目には止まりません。ここでは十分に遅くしてあります。
+    横隔膜の動きも、実際の可動域より大きく描いています。
+  </p>
+</div>
+
+<script>
+const S=document.getElementById("svg");
+const $=id=>document.getElementById(id);
+const flow=$("flow"), dots=$("dots");
+const LEN=flow.getTotalLength();
+
+/* 声道：中心線に沿った断面半径（咽頭2区間＋口腔6区間） */
+const VOWELS={
+  a:[0.40,0.45, 0.85,1.00,1.00,0.90,0.85,0.80],
+  i:[0.95,1.00, 0.80,0.65,0.45,0.32,0.30,0.40],
+  u:[0.70,0.80, 0.80,0.75,0.65,0.55,0.45,0.26]
+};
+let target=VOWELS.a.slice(), cur=VOWELS.a.slice();
+
+/* 中心線の点（咽頭は縦、口腔は横） */
+const CENTER=[
+  [250,250],[250,209],[250,168],
+  [280,168],[310,168],[340,168],[370,168],[400,168],[430,168]
+];
+function tractPolygon(r){
+  const R=26, up=[], dn=[];
+  for(let i=0;i<CENTER.length;i++){
+    const rr=(r[Math.min(r.length-1,Math.max(0,i-1))]||r[0])*R;
+    const [x,y]=CENTER[i];
+    if(i<3){ up.push([x-rr,y]); dn.push([x+rr,y]); }
+    else   { up.push([x,y-rr]); dn.push([x,y+rr]); }
+  }
+  return up.concat(dn.reverse()).map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ");
+}
+
+/* 粒子 */
+const P=[];
+for(let i=0;i<46;i++) P.push({u:Math.random(),live:false});
+const gU=(function(){
+  // 声門（y=250 の点）までの長さ比
+  let best=0,bd=1e9;
+  for(let l=0;l<=LEN;l+=2){
+    const p=flow.getPointAtLength(l);
+    const d=Math.abs(p.x-250)+Math.abs(p.y-250);
+    if(d<bd){bd=d;best=l;}
+  }
+  return best/LEN;
+})();
+
+let step=0, t=0, playing=true, glottisPhase=0, pressure=0;
+const DUR=[2.2,3.2,2.6,3.6,3.6,3.4];
+
+function setStep(i){
+  step=(i+DUR.length)%DUR.length; t=0;
+  [...document.querySelectorAll(".steps li")].forEach(li=>{
+    li.classList.toggle("on", Number(li.dataset.i)===step);
+  });
+}
+document.querySelectorAll(".steps li").forEach(li=>{
+  li.addEventListener("click",()=>setStep(Number(li.dataset.i)));
+});
+$("next").addEventListener("click",()=>setStep(step+1));
+$("prev").addEventListener("click",()=>setStep(step-1));
+$("play").addEventListener("click",()=>{
+  playing=!playing; $("play").textContent=playing?"一時停止":"再生";
+});
+document.querySelectorAll(".vowel").forEach(b=>{
+  b.addEventListener("click",()=>{
+    document.querySelectorAll(".vowel").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    target=VOWELS[b.dataset.v].slice();
+  });
+});
+
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  if(playing){
+    t+=dt;
+    if(t>DUR[step]) setStep(step+1);
+  }
+
+  /* 声道の形を補間 */
+  for(let i=0;i<cur.length;i++) cur[i]+=(target[i]-cur[i])*Math.min(1,dt*5);
+  $("tract").setAttribute("points",tractPolygon(cur));
+
+  /* 唇の開き（最後の区間の半径） */
+  const lr=cur[cur.length-1]*26;
+  $("lips").setAttribute("d","M 432 "+(168-lr)+" L 440 "+(168-lr-4)+" M 432 "+(168+lr)+" L 440 "+(168+lr+4));
+
+  /* 横隔膜と肺 */
+  let dia=0;      // 0=上（ドーム） 1=下（平ら）
+  let flowDir=0;  // +1 呼気 / -1 吸気
+  let voicing=false, absOn=false, constrict=0;
+
+  if(step===0){ dia=0.15; }
+  if(step===1){ dia=0.15+0.85*Math.min(1,t/2.2); flowDir=-1; }
+  if(step===2){ dia=1-0.55*Math.min(1,t/1.8); flowDir=1; absOn=true; }
+  if(step===3){ dia=0.45-0.15*Math.min(1,t/3); flowDir=1; absOn=true; voicing=true; }
+  if(step===4){ dia=0.30-0.10*Math.min(1,t/3); flowDir=1; absOn=true; voicing=true; }
+  if(step===5){
+    dia=0.20; flowDir=1; absOn=true; voicing=true;
+    constrict=Math.max(0,Math.sin(t*2.2));
+  }
+
+  const dy=470+dia*44;
+  $("dia").setAttribute("d","M 168 "+dy+" Q 250 "+(dy-58*(1-dia))+" 342 "+dy);
+  const ry=52+dia*22;
+  $("lungL").setAttribute("ry",ry); $("lungR").setAttribute("ry",ry);
+  $("lungL").setAttribute("cy",352+dia*8); $("lungR").setAttribute("cy",352+dia*8);
+  $("abs").setAttribute("opacity",absOn?1:0);
+
+  /* 圧力計 */
+  const targetP = step===1 ? -1 : (step>=2 ? 1 : 0);
+  pressure+=(targetP-pressure)*Math.min(1,dt*3);
+  const w=Math.abs(pressure)*32;
+  $("press").setAttribute("x", pressure>=0 ? 95 : 95-w);
+  $("press").setAttribute("width", w);
+  $("press").setAttribute("fill", pressure>=0 ? "#F0A54A" : "#7FE3C4");
+  $("pressVal").textContent = pressure>0.2?"＋（吐く圧）" : pressure<-0.2?"−（吸う圧）" : "±0";
+
+  /* 声帯 */
+  glottisPhase += dt*(voicing?7:0);
+  const open = voicing ? (Math.sin(glottisPhase*Math.PI*2)*0.5+0.5) : 0.55;
+  const gap = 2+open*9;
+  $("gl").setAttribute("points","238,240 "+(250-gap)+",250 238,260");
+  $("gr").setAttribute("points","262,240 "+(250+gap)+",250 262,260");
+  $("glLbl").setAttribute("class", voicing?"lbl hot":"lbl");
+  $("diaLbl").setAttribute("class", (step===1||step===2)?"lbl hot":"lbl");
+
+  /* 粒子 */
+  let html="";
+  const speed=0.22*(step===0?0:1);
+  P.forEach(p=>{
+    if(flowDir===0){ }
+    else if(flowDir>0){
+      const gate = !voicing || open>0.35;
+      const next=p.u+speed*dt;
+      if(p.u<gU && next>=gU && !gate) p.u=gU-0.002;
+      else p.u=next;
+      if(constrict>0.6 && p.u>0.82 && p.u<0.9) p.u=0.82;
+      if(p.u>1) p.u=0;
+    }else{
+      p.u-=speed*dt;
+      if(p.u<0) p.u=1;
+    }
+    const pt=flow.getPointAtLength(p.u*LEN);
+    const above=p.u>gU;
+    const c = above ? (voicing?"#F0A54A":"#7FE3C4") : "#7FE3C4";
+    const r = above && voicing ? 3 : 2.2;
+    html+='<circle cx="'+pt.x.toFixed(1)+'" cy="'+pt.y.toFixed(1)+'" r="'+r+'" fill="'+c+'" opacity="0.85"/>';
+  });
+  /* 妨げの表示 */
+  if(constrict>0.6){
+    html+='<rect x="392" y="150" width="6" height="36" rx="3" fill="#E8657A" opacity="0.9"/>';
+    html+='<text class="lbl hot" x="356" y="212">せき止める</text>';
+  }
+  dots.innerHTML=html;
+
+  requestAnimationFrame(frame);
+}
+setStep(0);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
