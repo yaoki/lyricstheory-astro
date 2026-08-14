@@ -4,224 +4,54 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<meta name="description" content="マイクの声を波形・スペクトル・倍音として表示するツール。処理はすべてブラウザ内で完結し、音声はどこにも送信されません。">
-<title>声を見る — 波形 / スペクトル / 倍音</title>
+<meta name="description" content="声を目で見るための道具置き場。マイクの音を波形・スペクトル・声紋として表示します。処理はすべてブラウザ内で完結します。">
+<title>声を見る道具</title>
 <style>
   :root{
     --bg:#0E1117; --panel:#161B24; --line:#232A36;
-    --wave:#7FE3C4; --spec:#F0A54A; --peak:#6E7A8F; --harm:#E8657A;
-    --text:#E6E8EC; --dim:#8A93A5;
+    --accent:#7FE3C4; --text:#E6E8EC; --dim:#8A93A5;
   }
   *{box-sizing:border-box;}
   body{
     margin:0; background:var(--bg); color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
-    padding:24px 16px 48px;
+    padding:56px 16px 64px; line-height:1.8;
   }
-  .wrap{max-width:840px;margin:0 auto;}
-  h1{font-size:22px;margin:0 0 2px;letter-spacing:-.01em;display:inline-block;}
-  .sub{color:var(--dim);font-size:12px;margin-left:10px;}
-  .lead{color:var(--dim);font-size:13px;margin:6px 0 18px;}
-  .bar{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-bottom:16px;}
-  button{
-    font:inherit;font-size:14px;font-weight:600;padding:9px 18px;border-radius:4px;
-    background:var(--wave);color:var(--bg);border:1px solid var(--wave);cursor:pointer;
+  .wrap{max-width:680px;margin:0 auto;}
+  h1{font-size:26px;margin:0 0 8px;letter-spacing:-.01em;}
+  .lead{color:var(--dim);font-size:13px;margin:0 0 36px;}
+  a.card{
+    display:block;text-decoration:none;color:inherit;
+    background:var(--panel);border:1px solid var(--line);border-radius:6px;
+    padding:20px 22px;margin-bottom:14px;transition:border-color .15s;
   }
-  button.on{background:transparent;color:var(--wave);}
-  label{color:var(--dim);font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;}
-  .readout{margin-left:auto;text-align:right;}
-  .hz{font:600 19px ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;}
-  .note{color:var(--dim);font-size:11px;}
-  .err{border:1px solid var(--harm);color:var(--harm);padding:10px 12px;border-radius:4px;font-size:13px;margin-bottom:16px;display:none;}
-  .cap{color:var(--dim);font-size:12px;margin:0 0 5px;}
-  canvas{display:block;width:100%;background:var(--panel);border-radius:4px;margin-bottom:20px;}
-  .foot{color:var(--dim);font-size:12px;line-height:1.8;margin-top:4px;}
-  @media (prefers-reduced-motion: reduce){*{transition:none!important;}}
+  a.card:hover,a.card:focus-visible{border-color:var(--accent);}
+  a.card:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .name{font-size:17px;font-weight:700;margin-bottom:4px;}
+  .name span{color:var(--accent);font:500 11px ui-monospace,Menlo,monospace;margin-left:10px;}
+  .desc{color:var(--dim);font-size:13px;}
+  .foot{color:var(--dim);font-size:12px;margin-top:34px;padding-top:18px;border-top:1px solid var(--line);}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>声を見る</h1><span class="sub">波形 / スペクトル / 倍音</span>
-  <p class="lead">マイクの音を、時間の形（波形）と成分の分布（スペクトル）の2通りで表示します。</p>
+  <h1>声を見る道具</h1>
+  <p class="lead">マイクの音を、目で見える形に変えるための小さな道具です。</p>
 
-  <div class="bar">
-    <button id="btn">マイクを開始</button>
-    <label><input type="checkbox" id="harm" checked> 倍音の位置を重ねる</label>
-    <div class="readout">
-      <div class="hz" id="hz">— Hz</div>
-      <div class="note" id="note">声を出すと基本周波数が出ます</div>
-    </div>
-  </div>
+  <a class="card" href="/koe/spectrum/">
+    <div class="name">波形とスペクトル<span>/koe/spectrum/</span></div>
+    <div class="desc">声を「時間の形」と「成分の分布」の2通りで表示します。倍音の位置に線を重ねられます。</div>
+  </a>
 
-  <div class="err" id="err"></div>
-
-  <p class="cap">波形 — 空気の圧力の上下を、そのまま時間に沿って描いたもの</p>
-  <canvas id="wave" height="140" style="height:140px"></canvas>
-
-  <p class="cap">スペクトル — 同じ音を「どの高さの成分がどれだけ含まれるか」に分解したもの（横軸は対数、Hz）</p>
-  <canvas id="spec" height="220" style="height:220px"></canvas>
+  <a class="card" href="/koe/spectrogram/">
+    <div class="name">声紋（スペクトログラム）<span>/koe/spectrogram/</span></div>
+    <div class="desc">横を時間、縦を周波数にして、声の変化を面として描きます。日時つきのPNGで記録を残せます。</div>
+  </a>
 
   <p class="foot">
-    赤い縦線は、検出した基本周波数の整数倍（倍音）の位置です。線の間隔は声帯の振動で決まり、
-    どの倍音が強く出るかは口や舌の形で決まります。「あ」「い」「う」と言い替えると、
-    線の位置は変わらないまま、山の高低だけが移動します。
+    どちらもマイクの許可が要ります。音声の処理も保存もブラウザの中だけで完結し、どこにも送信されません。
+    Safari以外のブラウザをmacOSで使う場合は、「システム設定 › プライバシーとセキュリティ › マイク」での許可が別途必要です。
   </p>
 </div>
-
-<script>
-const NOTES=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-const F_MIN=60, F_MAX=8000;
-const el=id=>document.getElementById(id);
-const btn=el("btn"), errBox=el("err"), hzEl=el("hz"), noteEl=el("note"), harmEl=el("harm");
-const waveC=el("wave"), specC=el("spec");
-
-let ac=null, an=null, stream=null, raf=null, peak=null, f0=null, frame=0;
-
-function noteOf(f){
-  const m=Math.round(69+12*Math.log2(f/440));
-  const exact=440*Math.pow(2,(m-69)/12);
-  const cents=Math.round(1200*Math.log2(f/exact));
-  return NOTES[((m%12)+12)%12]+(Math.floor(m/12)-1)+(cents>=0?"+":"")+cents+"c";
-}
-
-function detectF0(buf,sr){
-  const W=1024, lagMin=Math.floor(sr/600), lagMax=Math.floor(sr/60);
-  if(lagMax+W>=buf.length) return null;
-  let rms=0; for(let i=0;i<W;i++) rms+=buf[i]*buf[i];
-  if(Math.sqrt(rms/W)<0.012) return null;
-  const pre=new Float64Array(lagMax+W+1);
-  for(let i=0;i<lagMax+W;i++) pre[i+1]=pre[i]+buf[i]*buf[i];
-  const e0=pre[W];
-  let best=-1,bv=0;
-  for(let lag=lagMin;lag<=lagMax;lag++){
-    let num=0;
-    for(let i=0;i<W;i++) num+=buf[i]*buf[i+lag];
-    const v=num/(Math.sqrt(e0*(pre[lag+W]-pre[lag]))+1e-9);
-    if(v>bv){bv=v;best=lag;}
-  }
-  return (best<0||bv<0.5)?null:sr/best;
-}
-
-function fit(c){
-  const dpr=window.devicePixelRatio||1, w=c.clientWidth, h=c.clientHeight;
-  if(c.width!==Math.round(w*dpr)||c.height!==Math.round(h*dpr)){
-    c.width=Math.round(w*dpr); c.height=Math.round(h*dpr);
-  }
-  const ctx=c.getContext("2d");
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  return {ctx,w,h};
-}
-
-function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
-
-function drawWave(data){
-  const {ctx,w,h}=fit(waveC);
-  ctx.fillStyle=css("--panel"); ctx.fillRect(0,0,w,h);
-  ctx.strokeStyle=css("--line"); ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(0,h/2); ctx.lineTo(w,h/2); ctx.stroke();
-  const n=Math.min(data.length,2048);
-  ctx.strokeStyle=css("--wave"); ctx.lineWidth=1.6; ctx.beginPath();
-  for(let x=0;x<w;x++){
-    const y=h/2-data[Math.floor(x/w*n)]*(h/2)*0.92;
-    x?ctx.lineTo(x,y):ctx.moveTo(x,y);
-  }
-  ctx.stroke();
-}
-
-function drawSpec(data,sr){
-  const {ctx,w,h}=fit(specC);
-  const plotH=h-22, binHz=(sr/2)/data.length, ratio=Math.log(F_MAX/F_MIN);
-  const xOf=f=>Math.log(f/F_MIN)/ratio*w;
-
-  ctx.fillStyle=css("--panel"); ctx.fillRect(0,0,w,h);
-  ctx.strokeStyle=css("--line"); ctx.fillStyle=css("--dim");
-  ctx.font="10px ui-monospace,Menlo,monospace"; ctx.lineWidth=1;
-  [100,200,500,1000,2000,5000].forEach(f=>{
-    const x=xOf(f);
-    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,plotH); ctx.stroke();
-    ctx.fillText(f>=1000?(f/1000)+"k":String(f),x+3,h-8);
-  });
-
-  if(!peak||peak.length!==Math.ceil(w)) peak=new Float32Array(Math.ceil(w));
-
-  ctx.beginPath(); ctx.moveTo(0,plotH);
-  for(let x=0;x<w;x++){
-    const lo=Math.floor(F_MIN*Math.exp(x/w*ratio)/binHz);
-    const hi=Math.max(lo+1,Math.ceil(F_MIN*Math.exp((x+1)/w*ratio)/binHz));
-    let v=0;
-    for(let i=lo;i<hi&&i<data.length;i++) if(data[i]>v) v=data[i];
-    ctx.lineTo(x,plotH-v/255*plotH);
-    peak[x]=Math.max(v,peak[x]-0.8);
-  }
-  ctx.lineTo(w,plotH); ctx.closePath();
-  ctx.fillStyle="rgba(240,165,74,0.28)"; ctx.fill();
-  ctx.strokeStyle=css("--spec"); ctx.lineWidth=1.4; ctx.stroke();
-
-  ctx.strokeStyle=css("--peak"); ctx.lineWidth=1; ctx.beginPath();
-  for(let x=0;x<w;x++){
-    const y=plotH-peak[x]/255*plotH;
-    x?ctx.lineTo(x,y):ctx.moveTo(x,y);
-  }
-  ctx.stroke();
-
-  if(harmEl.checked&&f0){
-    ctx.strokeStyle="rgba(232,101,122,0.55)"; ctx.lineWidth=1;
-    for(let k=1;k*f0<F_MAX;k++){
-      const x=xOf(k*f0);
-      if(x<0) continue;
-      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,plotH); ctx.stroke();
-    }
-  }
-}
-
-function loop(){
-  if(!an||!ac) return;
-  const time=new Float32Array(an.fftSize);
-  const freq=new Uint8Array(an.frequencyBinCount);
-  an.getFloatTimeDomainData(time);
-  an.getByteFrequencyData(freq);
-
-  if(++frame%3===0){
-    f0=detectF0(time,ac.sampleRate);
-    hzEl.textContent=f0?f0.toFixed(1)+" Hz":"— Hz";
-    noteEl.textContent=f0?noteOf(f0)+"（声の高さ）":"声を出すと基本周波数が出ます";
-  }
-  drawWave(time); drawSpec(freq,ac.sampleRate);
-  raf=requestAnimationFrame(loop);
-}
-
-function stop(){
-  if(raf) cancelAnimationFrame(raf); raf=null;
-  if(stream) stream.getTracks().forEach(t=>t.stop()); stream=null;
-  if(ac) ac.close(); ac=null; an=null; peak=null; f0=null;
-  hzEl.textContent="— Hz"; noteEl.textContent="声を出すと基本周波数が出ます";
-  btn.textContent="マイクを開始"; btn.classList.remove("on");
-}
-
-async function start(){
-  errBox.style.display="none";
-  try{
-    if(!navigator.mediaDevices) throw new Error("no mediaDevices");
-    stream=await navigator.mediaDevices.getUserMedia({
-      audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}
-    });
-    ac=new (window.AudioContext||window.webkitAudioContext)();
-    await ac.resume();
-    an=ac.createAnalyser();
-    an.fftSize=4096; an.smoothingTimeConstant=0.65;
-    an.minDecibels=-95; an.maxDecibels=-12;
-    ac.createMediaStreamSource(stream).connect(an);
-    btn.textContent="停止"; btn.classList.add("on");
-    loop();
-  }catch(e){
-    errBox.textContent="マイクを開けませんでした。ブラウザのマイク許可と、macOSの「システム設定 › プライバシーとセキュリティ › マイク」でこのブラウザが許可されているかを確認してください。";
-    errBox.style.display="block";
-    stop();
-  }
-}
-
-btn.addEventListener("click",()=>{ ac?stop():start(); });
-window.addEventListener("resize",()=>{ if(!raf){ } });
-</script>
 </body>
 </html>

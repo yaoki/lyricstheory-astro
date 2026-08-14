@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="声を時間×周波数の面として表示し、記録するたびにPNGとして手元に保存できるスペクトログラム。処理はすべてブラウザ内で完結します。">
+<title>声紋を見る — スペクトログラム</title>
+<style>
+  :root{
+    --bg:#0E1117; --panel:#161B24; --line:#232A36;
+    --accent:#7FE3C4; --harm:#E8657A; --text:#E6E8EC; --dim:#8A93A5;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    padding:24px 16px 64px;
+  }
+  .wrap{max-width:960px;margin:0 auto;}
+  h1{font-size:22px;margin:0 0 2px;letter-spacing:-.01em;display:inline-block;}
+  h2{font-size:15px;margin:34px 0 10px;padding-top:18px;border-top:1px solid var(--line);}
+  .sub{color:var(--dim);font-size:12px;margin-left:10px;}
+  .lead{color:var(--dim);font-size:13px;margin:6px 0 18px;}
+  .bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:14px;}
+  button{
+    font:inherit;font-size:14px;font-weight:600;padding:9px 18px;border-radius:4px;
+    background:var(--accent);color:var(--bg);border:1px solid var(--accent);cursor:pointer;
+  }
+  button.ghost{background:transparent;color:var(--accent);}
+  button.small{font-size:12px;font-weight:500;padding:6px 12px;}
+  button.quiet{background:transparent;color:var(--dim);border-color:var(--line);}
+  button:disabled{opacity:.35;cursor:default;}
+  .slider{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:12px;}
+  input[type=range]{width:130px;}
+  input[type=text]{
+    font:inherit;font-size:13px;background:var(--panel);color:var(--text);
+    border:1px solid var(--line);border-radius:4px;padding:8px 10px;min-width:220px;flex:1;
+  }
+  input[type=text]::placeholder{color:#5C6577;}
+  .readout{margin-left:auto;text-align:right;}
+  .hz{font:600 19px ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;}
+  .note{color:var(--dim);font-size:11px;}
+  .err{border:1px solid var(--harm);color:var(--harm);padding:10px 12px;border-radius:4px;font-size:13px;margin-bottom:16px;display:none;}
+  .ok{border:1px solid var(--accent);color:var(--accent);padding:9px 12px;border-radius:4px;font-size:12px;margin-bottom:14px;display:none;
+      font-family:ui-monospace,Menlo,monospace;word-break:break-all;}
+  canvas#sg{display:block;width:100%;background:var(--panel);border-radius:4px;}
+  canvas#trend{display:block;width:100%;height:120px;background:var(--panel);border-radius:4px;margin-bottom:14px;}
+  .cap{color:var(--dim);font-size:12px;margin:0 0 5px;}
+  .foot{color:var(--dim);font-size:12px;line-height:1.8;margin-top:14px;}
+  .foot b{color:var(--text);font-weight:600;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;font-weight:600;font-size:11px;color:var(--dim);padding:6px 8px;border-bottom:1px solid var(--line);}
+  td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top;}
+  td.when{font:12px ui-monospace,Menlo,monospace;color:var(--dim);white-space:nowrap;}
+  td.f0{font:12px ui-monospace,Menlo,monospace;color:var(--accent);white-space:nowrap;}
+  td.file{font:11px ui-monospace,Menlo,monospace;color:var(--dim);word-break:break-all;}
+  .empty{color:var(--dim);font-size:13px;padding:14px 0;}
+  .meta-line{color:var(--dim);font-size:11px;margin-top:12px;line-height:1.8;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>声紋を見る</h1><span class="sub">スペクトログラム（時間 × 周波数）</span>
+  <p class="lead">横が時間、縦が周波数、明るさが成分の強さです。左へ流れていきます。</p>
+
+  <div class="bar">
+    <button id="btn">マイクを開始</button>
+    <button id="freeze" class="ghost" disabled>一時停止</button>
+    <button id="clear" class="ghost" disabled>消去</button>
+    <div class="slider">感度 <input type="range" id="gain" min="-100" max="-55" value="-88"></div>
+    <div class="readout">
+      <div class="hz" id="hz">— Hz</div>
+      <div class="note" id="note">声を出すと基本周波数が出ます</div>
+    </div>
+  </div>
+
+  <div class="err" id="err"></div>
+  <div class="ok" id="ok"></div>
+
+  <p class="cap">スペクトログラム — 縦軸 0〜5,000Hz（線形）、右端が「いま」、表示は直近およそ15秒</p>
+  <canvas id="sg" height="300" style="height:300px"></canvas>
+
+  <p class="foot">
+    横に走る何本もの筋が<b>倍音</b>です。声を高くすると筋の間隔が広がります。
+    その筋の中で、ところどころ濃くなっている帯が<b>フォルマント</b>です。
+    「あ→い→う」とゆっくり言い替えると、筋の間隔は変わらないまま、濃い帯だけが上下に動きます。
+    息だけで「はー」と言うと筋が消え、一面のもやになります。声帯が周期的に震えていないからです。
+  </p>
+
+  <h2>記録</h2>
+  <div class="bar">
+    <input type="text" id="label" placeholder="ラベル（例：あ・訓練前 / 朝いちばん / 発声10分後）">
+    <button id="save">記録してPNGを保存</button>
+  </div>
+  <p class="meta-line" style="margin-top:0">
+    押すと、日時・ラベル・声の高さを焼き込んだPNGが1枚、自動でダウンロードされます。
+    記録の実体はその画像ファイルです。下の一覧はブラウザ内の控えなので、消えても画像は残ります。
+  </p>
+
+  <p class="cap" style="margin-top:22px">声の高さの推移（記録した順）</p>
+  <canvas id="trend"></canvas>
+
+  <div id="list"></div>
+  <div class="bar" style="margin-top:14px">
+    <button class="small quiet" id="wipe">一覧を空にする</button>
+  </div>
+  <p class="meta-line" id="storeInfo"></p>
+</div>
+
+<script>
+const NOTES=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const F_TOP=5000, W=900, H=300, FOOT=64, KEY="koe-log-v2";
+const el=id=>document.getElementById(id);
+const btn=el("btn"), freezeBtn=el("freeze"), clearBtn=el("clear"), gain=el("gain");
+const errBox=el("err"), okBox=el("ok"), hzEl=el("hz"), noteEl=el("note"), sg=el("sg");
+const saveBtn=el("save"), labelIn=el("label"), listEl=el("list"), storeInfo=el("storeInfo");
+
+let ac=null, an=null, stream=null, raf=null, frame=0, f0=null, paused=false;
+const off=document.createElement("canvas");
+off.width=W; off.height=H;
+const octx=off.getContext("2d");
+octx.fillStyle="#0E1117"; octx.fillRect(0,0,W,H);
+
+const STOPS=[[14,17,23],[26,42,86],[110,44,110],[214,102,60],[248,214,150],[255,255,255]];
+function color(v){
+  const t=Math.max(0,Math.min(1,v/255))*(STOPS.length-1);
+  const i=Math.min(STOPS.length-2,Math.floor(t)), f=t-i;
+  const a=STOPS[i], b=STOPS[i+1];
+  return [a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f];
+}
+function noteOf(f){
+  const m=Math.round(69+12*Math.log2(f/440));
+  const exact=440*Math.pow(2,(m-69)/12);
+  const c=Math.round(1200*Math.log2(f/exact));
+  return NOTES[((m%12)+12)%12]+(Math.floor(m/12)-1)+(c>=0?"+":"")+c+"c";
+}
+function detectF0(buf,sr){
+  const N=1024, lagMin=Math.floor(sr/600), lagMax=Math.floor(sr/60);
+  if(lagMax+N>=buf.length) return null;
+  let rms=0; for(let i=0;i<N;i++) rms+=buf[i]*buf[i];
+  if(Math.sqrt(rms/N)<0.012) return null;
+  const pre=new Float64Array(lagMax+N+1);
+  for(let i=0;i<lagMax+N;i++) pre[i+1]=pre[i]+buf[i]*buf[i];
+  const e0=pre[N];
+  let best=-1,bv=0;
+  for(let lag=lagMin;lag<=lagMax;lag++){
+    let num=0;
+    for(let i=0;i<N;i++) num+=buf[i]*buf[i+lag];
+    const v=num/(Math.sqrt(e0*(pre[lag+N]-pre[lag]))+1e-9);
+    if(v>bv){bv=v;best=lag;}
+  }
+  return (best<0||bv<0.5)?null:sr/best;
+}
+function pushColumn(data,sr){
+  octx.drawImage(off,-1,0);
+  const binHz=(sr/2)/data.length;
+  const img=octx.createImageData(1,H);
+  for(let y=0;y<H;y++){
+    const b=Math.min(data.length-1,Math.round((1-y/H)*F_TOP/binHz));
+    const [r,g,bl]=color(data[b]);
+    const p=y*4;
+    img.data[p]=r; img.data[p+1]=g; img.data[p+2]=bl; img.data[p+3]=255;
+  }
+  octx.putImageData(img,W-1,0);
+}
+function grid(ctx,w,h){
+  ctx.strokeStyle="rgba(255,255,255,0.16)";
+  ctx.fillStyle="rgba(230,232,236,0.65)";
+  ctx.font="10px ui-monospace,Menlo,monospace";
+  ctx.lineWidth=1;
+  for(let f=1000;f<F_TOP;f+=1000){
+    const y=(1-f/F_TOP)*h;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
+    ctx.fillText((f/1000)+"k",4,y-3);
+  }
+}
+function paint(){
+  const dpr=window.devicePixelRatio||1, w=sg.clientWidth, h=sg.clientHeight;
+  if(sg.width!==Math.round(w*dpr)||sg.height!==Math.round(h*dpr)){
+    sg.width=Math.round(w*dpr); sg.height=Math.round(h*dpr);
+  }
+  const ctx=sg.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.drawImage(off,0,0,w,h);
+  grid(ctx,w,h);
+}
+function loop(){
+  if(!an||!ac) return;
+  const time=new Float32Array(an.fftSize);
+  const freq=new Uint8Array(an.frequencyBinCount);
+  an.getFloatTimeDomainData(time);
+  an.getByteFrequencyData(freq);
+  if(!paused){
+    pushColumn(freq,ac.sampleRate);
+    if(++frame%3===0){
+      f0=detectF0(time,ac.sampleRate);
+      hzEl.textContent=f0?f0.toFixed(1)+" Hz":"— Hz";
+      noteEl.textContent=f0?noteOf(f0)+"（声の高さ）":"声を出すと基本周波数が出ます";
+    }
+  }
+  paint();
+  raf=requestAnimationFrame(loop);
+}
+function stop(){
+  if(raf) cancelAnimationFrame(raf); raf=null;
+  if(stream) stream.getTracks().forEach(t=>t.stop()); stream=null;
+  if(ac) ac.close(); ac=null; an=null; f0=null; paused=false;
+  hzEl.textContent="— Hz"; noteEl.textContent="声を出すと基本周波数が出ます";
+  btn.textContent="マイクを開始"; btn.classList.remove("ghost");
+  freezeBtn.disabled=true; clearBtn.disabled=true; freezeBtn.textContent="一時停止";
+}
+async function start(){
+  errBox.style.display="none";
+  try{
+    if(!navigator.mediaDevices) throw new Error("no mediaDevices");
+    stream=await navigator.mediaDevices.getUserMedia({
+      audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}
+    });
+    ac=new (window.AudioContext||window.webkitAudioContext)();
+    await ac.resume();
+    an=ac.createAnalyser();
+    an.fftSize=4096; an.smoothingTimeConstant=0;
+    an.minDecibels=Number(gain.value); an.maxDecibels=-10;
+    ac.createMediaStreamSource(stream).connect(an);
+    btn.textContent="停止"; btn.classList.add("ghost");
+    freezeBtn.disabled=false; clearBtn.disabled=false;
+    loop();
+  }catch(e){
+    errBox.textContent="マイクを開けませんでした。ブラウザのマイク許可と、macOSの「システム設定 › プライバシーとセキュリティ › マイク」を確認してください。";
+    errBox.style.display="block";
+    stop();
+  }
+}
+
+/* ---- 記録：PNGを1枚書き出す ---- */
+function pad(n){ return String(n).padStart(2,"0"); }
+function stamp(d){
+  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"_"+pad(d.getHours())+pad(d.getMinutes());
+}
+function fmt(iso){
+  return new Date(iso).toLocaleString("ja-JP",{year:"numeric",month:"2-digit",day:"2-digit",
+    weekday:"short",hour:"2-digit",minute:"2-digit"});
+}
+function safe(s){
+  return (s||"記録").replace(/[\/\\:*?"<>|]/g,"-").replace(/\s+/g,"-").slice(0,40);
+}
+function makePng(at,label,hz){
+  const c=document.createElement("canvas");
+  c.width=W; c.height=H+FOOT;
+  const ctx=c.getContext("2d");
+  ctx.drawImage(off,0,0);
+  grid(ctx,W,H);
+  ctx.fillStyle="#0E1117"; ctx.fillRect(0,H,W,FOOT);
+  ctx.fillStyle="#232A36"; ctx.fillRect(0,H,W,1);
+  ctx.fillStyle="#E6E8EC";
+  ctx.font="bold 17px -apple-system,'Hiragino Sans',sans-serif";
+  ctx.fillText(label||"（ラベルなし）",16,H+27);
+  ctx.fillStyle="#8A93A5";
+  ctx.font="13px ui-monospace,Menlo,monospace";
+  ctx.fillText(fmt(at),16,H+50);
+  ctx.fillStyle="#7FE3C4";
+  ctx.font="bold 15px ui-monospace,Menlo,monospace";
+  const t=hz?hz.toFixed(1)+" Hz　"+noteOf(hz):"高さ未検出";
+  ctx.fillText(t,W-16-ctx.measureText(t).width,H+27);
+  ctx.fillStyle="#8A93A5";
+  ctx.font="11px ui-monospace,Menlo,monospace";
+  const s="縦軸 0-5000Hz 線形 / 横 約15秒";
+  ctx.fillText(s,W-16-ctx.measureText(s).width,H+50);
+  return c.toDataURL("image/png");
+}
+function load(){ try{ return JSON.parse(localStorage.getItem(KEY)||"[]"); }catch(e){ return []; } }
+function persist(v){ try{ localStorage.setItem(KEY,JSON.stringify(v)); }catch(e){} }
+
+function drawTrend(){
+  const items=load().slice().reverse().filter(x=>x.f0);
+  const c=el("trend"), dpr=window.devicePixelRatio||1;
+  const w=c.clientWidth, h=c.clientHeight;
+  c.width=Math.round(w*dpr); c.height=Math.round(h*dpr);
+  const ctx=c.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle="#161B24"; ctx.fillRect(0,0,w,h);
+  if(items.length<2){
+    ctx.fillStyle="#5C6577"; ctx.font="12px -apple-system,sans-serif";
+    ctx.fillText("記録が2件たまると推移が出ます",14,h/2);
+    return;
+  }
+  const vals=items.map(x=>x.f0);
+  const lo=Math.min(...vals)-10, hi=Math.max(...vals)+10;
+  const X=i=>16+i*(w-32)/(items.length-1);
+  const Y=v=>h-18-(v-lo)/(hi-lo)*(h-34);
+  ctx.strokeStyle="#232A36"; ctx.lineWidth=1;
+  [lo,(lo+hi)/2,hi].forEach(v=>{
+    ctx.beginPath(); ctx.moveTo(0,Y(v)); ctx.lineTo(w,Y(v)); ctx.stroke();
+  });
+  ctx.fillStyle="#8A93A5"; ctx.font="10px ui-monospace,Menlo,monospace";
+  ctx.fillText(Math.round(hi)+"Hz",4,Y(hi)+11);
+  ctx.fillText(Math.round(lo)+"Hz",4,Y(lo)-4);
+  ctx.strokeStyle="#7FE3C4"; ctx.lineWidth=1.8; ctx.beginPath();
+  items.forEach((it,i)=>{ i?ctx.lineTo(X(i),Y(it.f0)):ctx.moveTo(X(i),Y(it.f0)); });
+  ctx.stroke();
+  ctx.fillStyle="#7FE3C4";
+  items.forEach((it,i)=>{ ctx.beginPath(); ctx.arc(X(i),Y(it.f0),2.6,0,7); ctx.fill(); });
+}
+function render(){
+  const items=load();
+  if(!items.length){
+    listEl.innerHTML='<div class="empty">まだ記録がありません。声を出して一時停止し、ラベルを付けて「記録してPNGを保存」を押してください。</div>';
+  }else{
+    let html='<table><tr><th>日時</th><th>ラベル</th><th>高さ</th><th>ファイル名</th></tr>';
+    items.forEach(it=>{
+      html+='<tr><td class="when">'+fmt(it.at)+'</td><td>'+
+        (it.label?it.label.replace(/[<>&]/g,""):"（なし）")+'</td><td class="f0">'+
+        (it.f0?it.f0.toFixed(1)+" Hz":"—")+'</td><td class="file">'+it.file+'</td></tr>';
+    });
+    listEl.innerHTML=html+'</table>';
+  }
+  storeInfo.textContent=items.length+"件（この一覧はブラウザ内の控えです。画像は保存先フォルダにあります）";
+  drawTrend();
+}
+saveBtn.addEventListener("click",()=>{
+  const now=new Date(), at=now.toISOString(), label=labelIn.value.trim(), hz=f0;
+  const file=stamp(now)+"_"+safe(label)+(hz?"_"+Math.round(hz)+"Hz":"")+".png";
+  const a=document.createElement("a");
+  a.href=makePng(at,label,hz);
+  a.download=file;
+  a.click();
+  const items=load();
+  items.unshift({id:String(Date.now()),at,label,f0:hz||null,file});
+  persist(items);
+  labelIn.value="";
+  render();
+  okBox.textContent="保存しました： "+file;
+  okBox.style.display="block";
+  setTimeout(()=>{okBox.style.display="none";},6000);
+});
+el("wipe").addEventListener("click",()=>{
+  if(confirm("一覧を空にします。保存済みの画像ファイルは消えません。")){
+    persist([]); render();
+  }
+});
+
+btn.addEventListener("click",()=>{ ac?stop():start(); });
+freezeBtn.addEventListener("click",()=>{
+  paused=!paused;
+  freezeBtn.textContent=paused?"再開":"一時停止";
+});
+clearBtn.addEventListener("click",()=>{
+  octx.fillStyle="#0E1117"; octx.fillRect(0,0,W,H);
+});
+gain.addEventListener("input",()=>{ if(an) an.minDecibels=Number(gain.value); });
+window.addEventListener("resize",drawTrend);
+paint();
+render();
+</script>
+</body>
+</html>
