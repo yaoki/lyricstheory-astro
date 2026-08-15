@@ -72,7 +72,11 @@ const vowelAxes = VOWEL_ORDER.filter((k) => vowelCounts.has(k)).map((key) => ({
 }));
 
 // 例に出す語は、実際に引いて何か返るものを選ぶ。空振りする例を置くと壊れて見える
-const EXAMPLES = ['りんご', 'くちびる', 'あかい'];
+// さらに、語そのものが引用に実在することも条件にする。旧 EXAMPLES の「りんご」「あかい」は
+// 93枚の引用に一度も現れないのにヒットが返っていた（この装置は語の音で引くのであって
+// 語そのものを探していないため）。それは「その語が歌詞にある」と誤読させる
+// （docs/sound-lookup-plan.md「既知の欠陥」）
+const EXAMPLES = ['なみだ', 'ふたり', 'さよなら'];
 // 件数は既定の閾値（2 軸以上）で数える。クライアント側と揃えないと、
 // 例に書いてある数と実際に出る枚数が食い違う
 const examples = EXAMPLES.map((word) => {
@@ -97,17 +101,17 @@ const examples = EXAMPLES.map((word) => {
   </p>
   <h1 class="mb-4 text-2xl font-bold">音で引く</h1>
   <p class="mb-6 text-gray-700">
-    語を入れると、その音について書かれた観察が返ります。返るのは<strong>先人が何をしたかの実例</strong>であって、
+    語を入れると、その語の音について書かれた観察が返ります。語そのものを探しているのではありません。返るのは<strong>先人が何をしたかの実例</strong>であって、
     韻を踏めるかどうかの判定ではありません。
   </p>
 
   <section class="mb-8 rounded border border-gray-200 p-4">
-    <label for="q" class="mb-1 block text-sm font-semibold text-gray-700">語で引く</label>
+    <label for="q" class="mb-1 block text-sm font-semibold text-gray-700">語の音で引く</label>
     <input
       id="q"
       type="text"
       autocomplete="off"
-      placeholder="りんご"
+      placeholder="なみだ"
       class="w-full rounded border border-gray-300 px-3 py-2 text-lg"
     />
     <p class="mt-2 text-xs text-gray-500">
@@ -241,14 +245,14 @@ const examples = EXAMPLES.map((word) => {
     ) as HTMLButtonElement[];
 
     // クエリは「軸の集合」で持つ。語を打つと集合が置き換わり、軸を押すと足し引きされる。
-    // 語と軸を別々のモードにしないのは、りんご と打ってから母音だけ外す、のような
+    // 語と軸を別々のモードにしないのは、ふたり と打ってから母音だけ外す、のような
     // 絞り方が自然に出るため
     const selected = { c: new Set<string>(), v: new Set<string>() };
     // 直接一致（カードのタグが、打った語のモーラそのもの）を強調するために持つ
     let queryMora: string[] = [];
     // 1 軸だけの一致まで出すか。既定は出さない——語は複数の軸に分かれるので、
     // どれか 1 つで当てると母音 a（34枚）のような太い軸が全部を拾い、絞り込みにならない。
-    // 実測（92枚）で「りんご」は 1 軸込みで 50 枚、2 軸以上で 12 枚
+    // 実測（92枚）で「りんご」は 1 軸込みで 50 枚、2 軸以上で 10 枚
     let loosen = false;
     const loosenButton = document.querySelector('[data-loosen]') as HTMLButtonElement | null;
 
@@ -377,7 +381,7 @@ const examples = EXAMPLES.map((word) => {
       render();
     });
 
-    // `/elements/sounds/#りんご` で語を、`#c=t` `#v=a` で軸を指定できる。
+    // `/elements/sounds/#なみだ` で語を、`#c=t` `#v=a` で軸を指定できる。
     // 軸ごとの URL を切っているのではなく、この 1 枚の中の状態を指しているだけ
     const hash = decodeURIComponent(location.hash.replace('#', ''));
     if (hash.startsWith('c=') || hash.startsWith('v=')) {
