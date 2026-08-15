@@ -44,7 +44,7 @@ const sorted = entries.sort((a, b) =>
   <ul class="space-y-10">
     {
       sorted.map(({ entry, Content }) => (
-        <li class="border-b border-gray-100 pb-8 last:border-b-0">
+        <li id={entry.id} class="scroll-mt-4 border-b border-gray-100 pb-8 last:border-b-0">
           <h2 class="text-lg font-medium">
             <a href={entry.data.url} rel="noopener" class="text-blue-700 underline">
               {entry.data.title}

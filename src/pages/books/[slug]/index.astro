@@ -1,0 +1,129 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { invertReferences } from '../../../lib/backlinks';
+import { amazonUrl, AMAZON_DISCLOSURE } from '../../../lib/amazon';
+
+/**
+ * 本 1 冊のページ。**カードから書籍へ張ったリンクの着地点**である。
+ *
+ * 一覧（`/books/`）だけだった頃は、カードに `books:` を書いても張る先の URL が無く、
+ * 逆引き（`src/lib/backlinks.ts`）も books については呼び出しが無いまま眠っていた。
+ * ここを作ることで、カード → 本 → 同じ本に触れている別のカード、という回遊が立つ。
+ *
+ * **draft の本はページを作らない。**レビュー本文が書かれるまで公開しない方針（content.config.ts）
+ * であり、`scripts/check-cards.mjs` の検査6 もカードから draft への参照を止める。
+ * 両者が食い違うとリンク切れになるので、ここの絞り込みが検査6 の前提そのものになる。
+ */
+export async function getStaticPaths() {
+  const books = await getCollection('books', ({ data }) => !data.draft);
+  return books.map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+
+// この本に触れているカード。片側（カードの `books:`）に書けば、ここに出る
+const elements = await getCollection('elements');
+const referencedBy = invertReferences(elements, 'books').get(entry.id) ?? [];
+const byId = new Map(elements.map((e) => [e.id, e]));
+const cards = referencedBy
+  .map((id) => byId.get(id))
+  .filter((card): card is NonNullable<typeof card> => card !== undefined);
+
+// 曲ごとにまとめる。同名異曲を分けるためアーティストを含める（`/elements/` の曲別と同じキー）。
+// 楽曲を対象としないカード（principle / term）は song を持たないので、先頭の枠に入る
+const NO_SONG = '';
+const songKey = (card: (typeof cards)[number]) =>
+  card.data.song ? `${card.data.song.artist} / ${card.data.song.title}` : NO_SONG;
+
+// 曲を持たないカードを先頭に置くのは `/elements/` の曲別表示と同じ並び
+const songKeys = [...new Set(cards.map(songKey))].sort((a, b) =>
+  a === NO_SONG ? -1 : b === NO_SONG ? 1 : a.localeCompare(b, 'ja'),
+);
+const grouped = songKeys.map((key) => ({
+  key,
+  label: key === NO_SONG ? '用語と方針' : key,
+  items: cards
+    .filter((card) => songKey(card) === key)
+    .sort((a, b) => a.data.title.localeCompare(b.data.title, 'ja')),
+}));
+
+const meta = [entry.data.author, entry.data.publisher, entry.data.year].filter(Boolean).join('　');
+const description = `${entry.data.title}（${entry.data.author}）のレビュー。歌詞の音韻分析を進めるうえで実際に使った本です。`;
+---
+
+<BaseLayout title={`${entry.data.title} | 推薦図書`} description={description}>
+  <p class="mb-2 text-sm text-gray-500">
+    <a href="/" class="hover:underline">lyricstheory.com</a> /
+    <a href="/books/" class="hover:underline">推薦図書</a>
+  </p>
+
+  <article class="prose">
+    <h1 class="mb-2 text-2xl font-bold">{entry.data.title}</h1>
+    <p class="mb-6 text-sm text-gray-600">{meta}</p>
+
+    <div class="post-body space-y-4 leading-relaxed text-gray-800">
+      <Content />
+    </div>
+
+    <p class="mt-6 text-sm">
+      <a
+        href={amazonUrl(entry.data.asin)}
+        rel="sponsored nofollow noopener"
+        class="text-blue-700 underline"
+      >
+        Amazon で見る
+      </a>
+      <span class="ml-2 text-xs text-gray-400">
+        {entry.data.priceJPY ? `定価 ¥${entry.data.priceJPY.toLocaleString()}` : '洋書'}
+      </span>
+    </p>
+
+    {
+      entry.data.usedIn.length > 0 && (
+        <p class="mt-3 text-xs text-gray-600">
+          この本を使った記事:
+          {entry.data.usedIn.map((ref, i) => (
+            <>
+              {i > 0 && <span class="text-gray-400">、</span>}
+              <a href={ref.href} class="ml-1 text-blue-700 underline">
+                {ref.label}
+              </a>
+            </>
+          ))}
+        </p>
+      )
+    }
+
+    {
+      cards.length > 0 && (
+        <nav class="mt-12 border-t pt-6">
+          <h2 class="mb-1 text-sm font-semibold text-gray-700">この本に触れているカード</h2>
+          <p class="mb-4 text-xs text-gray-500">{cards.length} 枚</p>
+          {grouped.map((group) => (
+            <div class="mb-5">
+              <h3 class="mb-1 text-xs font-semibold text-gray-500">{group.label}</h3>
+              <ul class="list-disc space-y-1 pl-5 text-sm">
+                {group.items.map((card) => (
+                  <li>
+                    <a href={`/elements/${card.id}/`} class="text-blue-700 underline">
+                      {card.data.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </nav>
+      )
+    }
+
+    <p class="mt-10 rounded border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
+      {AMAZON_DISCLOSURE}
+    </p>
+  </article>
+</BaseLayout>

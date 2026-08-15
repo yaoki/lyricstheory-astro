@@ -4,7 +4,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import LyricQuote from '../../../components/LyricQuote.astro';
 import Score from '../../../components/Score.astro';
 import { splitLinks } from '../../../lib/linkify';
-import { invertReferences, resolveCardLinks } from '../../../lib/backlinks';
+import { invertReferences, resolveCardLinks, resolveExternalRefs } from '../../../lib/backlinks';
 
 export async function getStaticPaths() {
   const entries = await getCollection('elements');
@@ -29,7 +29,14 @@ const REPETITION_LABELS: Record<string, string> = {
   cv: 'CV反復（子音と母音の両方が一致）',
 };
 
-const [elements, posts] = await Promise.all([getCollection('elements'), getCollection('blog')]);
+// books / webrefs は draft を外して渡す。公開されていない本のページはビルドされないので、
+// 渡すと 404 へのリンクになる（`scripts/check-cards.mjs` の検査6 が同じ条件で止める）
+const [elements, posts, books, webrefs] = await Promise.all([
+  getCollection('elements'),
+  getCollection('blog'),
+  getCollection('books', ({ data }) => !data.draft),
+  getCollection('webrefs', ({ data }) => !data.draft),
+]);
 
 // 参照は片側に書けば両側に出る（`src/lib/backlinks.ts`）。相手側のカードを開いて
 // 同じ関係を書き足す手順は、2026-08-13 に不要になった
@@ -38,6 +45,12 @@ const backlinks = {
   terms: invertReferences(elements, 'terms'),
 };
 const links = resolveCardLinks(entry, elements, posts, backlinks);
+const externalRefs = resolveExternalRefs(entry, books, webrefs);
+
+// 見出しは、そのカードが曲を持つかで変える。楽曲カードから書籍を張るのは対象が一致する本
+// （スピッツのカードに『スピッツ論』）に限る運用なので「この曲について」と言い切れる。
+// 用語・方針カードが張るのは方法論の本（「押韻」に Pattison）で、曲の話ではない
+const externalHeading = entry.data.song ? 'この曲について書かれた本・記事' : '参考文献';
 
 const phoneme = entry.data.tags?.phoneme ?? [];
 const repetition = entry.data.tags?.repetition;
@@ -127,6 +140,29 @@ const hasFigure = entry.data.figure !== undefined;
           </ul>
         </nav>
       ))}
+
+    {/*
+      外部文献も関連と同じ「読み終えた直後」の枠に置く。下の aside（タグ・出典）へ入れると、
+      2026-08-04 に関連で起きたのと同じで、機械可読な情報の列に埋もれて気づかれない。
+      本へ送るのは段階5 の目的そのものなので、埋めてはいけない
+    */}
+    {
+      externalRefs.length > 0 && (
+        <nav class="mt-10">
+          <h2 class="mb-2 text-sm font-semibold text-gray-700">{externalHeading}</h2>
+          <ul class="list-disc space-y-1 pl-5">
+            {externalRefs.map((ref) => (
+              <li>
+                <a href={ref.href} class="text-blue-700 underline">
+                  {ref.title}
+                </a>
+                <span class="ml-1 text-xs text-gray-500">{ref.author}</span>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )
+    }
 
     <aside class="mt-12 border-t pt-6 text-sm">
       <dl class="space-y-4">

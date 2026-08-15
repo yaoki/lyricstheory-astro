@@ -15,6 +15,8 @@ import type { CollectionEntry } from 'astro:content';
 
 type Element = CollectionEntry<'elements'>;
 type Post = CollectionEntry<'blog'>;
+type Book = CollectionEntry<'books'>;
+type Webref = CollectionEntry<'webrefs'>;
 
 /** カードから他のカードを指すフィールド。値はいずれも参照先の id / slug の配列。 */
 export type ReferenceField = 'related' | 'terms' | 'books' | 'webrefs';
@@ -24,6 +26,14 @@ export interface CardLink {
   title: string;
   href: string;
   kind: 'element' | 'essay';
+}
+
+export interface ExternalLink {
+  id: string;
+  title: string;
+  author: string;
+  href: string;
+  kind: 'book' | 'webref';
 }
 
 /**
@@ -92,4 +102,53 @@ export function resolveCardLinks(
     terms: resolve(entry.data.terms ?? []),
     usedBy: resolve(usedByIds),
   };
+}
+
+/**
+ * カードが挙げている外部文献（`books` / `webrefs`）をリンクに解決する。
+ *
+ * **未解決の id は黙って捨てる。**`resolveCardLinks` と同じ理由で、止めるのは
+ * `scripts/check-cards.mjs` の検査6 の仕事である（そちらは draft: true への参照も止める）。
+ * ここで落とすと、どのカードのどの参照が壊れているかの一覧が出せなくなる。
+ *
+ * **渡す配列から draft を外しておくこと。**このページに出た時点でリンク先が存在する前提で
+ * href を組み立てるため、draft の本を渡すと 404 へのリンクになる。
+ */
+export function resolveExternalRefs(
+  entry: Element,
+  books: Book[],
+  webrefs: Webref[],
+): ExternalLink[] {
+  const bookById = new Map(books.map((b) => [b.id, b]));
+  const webrefById = new Map(webrefs.map((w) => [w.id, w]));
+
+  const resolved: ExternalLink[] = [];
+
+  for (const id of entry.data.books ?? []) {
+    const book = bookById.get(id);
+    if (!book) continue;
+    resolved.push({
+      id,
+      title: book.data.title,
+      author: book.data.author,
+      href: `/books/${id}/`,
+      kind: 'book',
+    });
+  }
+
+  // webrefs には個別ページが無いので、一覧ページの見出しへアンカーで送る
+  // （`src/pages/reading/index.astro` の <li> が同じ id を持つ）
+  for (const id of entry.data.webrefs ?? []) {
+    const webref = webrefById.get(id);
+    if (!webref) continue;
+    resolved.push({
+      id,
+      title: webref.data.title,
+      author: webref.data.author,
+      href: `/reading/#${id}`,
+      kind: 'webref',
+    });
+  }
+
+  return resolved;
 }
