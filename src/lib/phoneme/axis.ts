@@ -18,7 +18,7 @@
  *
  * これを入れないと、同じ音がタグの粒度で割れたまま集計される。実測（2026-08-13、93枚）で
  * `t` は16枚・`ta` は7枚あるが、文字列一致では一度も交わらなかった。軸に畳むと
- * t軸は27枚に届き、1枚しか無い軸は生タグの23件から6件へ減る。
+ * t軸は27枚に届き、1枚しか無い軸は生タグの23件から7件へ減る。
  */
 
 /** ヘボン式の頭子音。長いものから順に見る（`sh` を `s` より先に取るため） */
@@ -68,11 +68,14 @@ export function parseTag(tag: string): ParsedTag {
     }
   }
 
-  // 末尾の n は撥音（`kin` = k + i + ん）。ただし裸の `n` は上で頭子音として取れており、
-  // rest が空なのでここへは来ない
+  // 末尾の n は撥音（`kin` = k + i + ん）、末尾の q は促音（`kiq` = k + i + っ）。
+  // 裸の `n` は上で頭子音として取れており、rest が空なのでここへは来ない
   let coda: ParsedTag['coda'] = null;
   if (rest.endsWith('n')) {
     coda = MORAIC_N;
+    rest = rest.slice(0, -1);
+  } else if (rest.endsWith('q')) {
+    coda = MORAIC_Q;
     rest = rest.slice(0, -1);
   }
 
