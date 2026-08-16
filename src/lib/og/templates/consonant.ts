@@ -15,6 +15,17 @@ import { escapeXml, moraCount, textBlock, widthEm, wrapText } from '../text';
 /** 子音を持たない位置。色は当てず、背景に落とす */
 const EMPTY = 'Φ';
 
+/**
+ * 分節線。音に当てる色（ACCENTS[0]）とは別の色を使い、**線が音ではない**ことを見せる。
+ * 2014 年の宇多田論の図が、分節された音を赤・分節線をマゼンタで分けていたのに倣う。
+ *
+ * 太さは pivot の教訓による——伏せた枠を線ではなく塗りにしたのは、細い線が 1/3 に
+ * 縮むと消えるためだった（`layout.ts` の PIVOT）。分節線も同じ条件で流通する
+ */
+const CUT_COLOR = ACCENTS[4].stroke;
+const CUT_WIDTH_RATIO = 0.09;
+const CUT_MIN_WIDTH = 4;
+
 /** ベースラインより上へ字が伸びる比。仮名の近似 */
 const ASCENT_RATIO = 0.78;
 /** バッジの下端と、いちばん上の行の字の上端とのあいだに空ける隙間 */
@@ -38,15 +49,24 @@ export function consonant(figure: Omit<ConsonantFigure, 'kind'>, ctx: FigureCont
   // 記号ごとの色。Φ を除いた出現順に割り当てる。交替が色の交互として見えるようにする。
   // 上の段と下の段は別々に色を配る。上が 1 色のまま下だけ変われば、
   // 「保たれるもの／動くもの」の差がそのまま色の差になる
+  //
+  // ただし**分節の図（cuts あり）では 1 色に揃える**（2026-08-17、やおき裁定）。
+  // at・ta・kis・se のようなローマ字を振ると記号が全部別物になり、出現順に配ると
+  // 色がばらけて分類の意味が消える。分類は記号の側が語るので、色には
+  // 「ここが分節に参与している」だけを担わせる
+  const hasCuts = rows.some((row) => (row.cuts?.length ?? 0) > 0);
+  const accent = (index: number) =>
+    hasCuts ? ACCENTS[0].stroke : ACCENTS[index % ACCENTS.length].stroke;
+
   const palette = new Map<string, string>();
   for (const { symbol } of rows.flatMap((row) => row.marks)) {
     if (symbol === EMPTY || palette.has(symbol)) continue;
-    palette.set(symbol, ACCENTS[palette.size % ACCENTS.length].stroke);
+    palette.set(symbol, accent(palette.size));
   }
   const subPalette = new Map<string, string>();
   for (const { sub } of rows.flatMap((row) => row.marks)) {
     if (sub === undefined || sub === EMPTY || subPalette.has(sub)) continue;
-    subPalette.set(sub, ACCENTS[subPalette.size % ACCENTS.length].stroke);
+    subPalette.set(sub, accent(subPalette.size));
   }
 
   const available = CANVAS.width - MARGIN_X * 2;
@@ -144,6 +164,20 @@ function renderRow(
   const byIndex = new Map(row.marks.map((m) => [m.at, m.symbol]));
   const subByIndex = new Map(row.marks.flatMap((m) => (m.sub ? [[m.at, m.sub] as const] : [])));
   const parts: string[] = [];
+
+  // 分節線。枠と枠の隙間の中央に、音の高さぶんだけ引く。
+  //
+  // 音そのものではなく音と音のあいだに置くのは、これが**音ではない**ことを一目で
+  // 分からせるため。中黒を units に混ぜる案もあったが、1/3 に縮んだときに
+  // 「音が 1 つ増えた」と読まれる（2026-08-17）
+  for (const at of row.cuts ?? []) {
+    const x = MARGIN_X + at * (cell + CONSONANT.gap) + cell + CONSONANT.gap / 2;
+    parts.push(
+      `<path d="M ${r(x)} ${r(baseline - size * ASCENT_RATIO)} L ${r(x)} ${r(baseline + size * 0.18)}" ` +
+        `stroke="${CUT_COLOR}" stroke-width="${r(Math.max(CUT_MIN_WIDTH, size * CUT_WIDTH_RATIO))}" ` +
+        `stroke-linecap="round" />`,
+    );
+  }
 
   // 記号の縦位置は行のなかで揃える。畳んだ枠が 1 つでもあれば括りのぶんを見込む
   const k = size / SYMMETRY.unitFontSize;

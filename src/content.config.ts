@@ -267,6 +267,13 @@ const consonantFigure = z
       .array(
         z.object({
           units: z.array(z.string().min(1).max(4)).min(2).max(24),
+          // 分節の位置。i を渡すと units[i] と units[i+1] のあいだに線が入る（2026-08-17 追加）。
+          //
+          // 半シラブル化のように「どこで切れるか」が観察の本体になる図で使う。形が増える
+          // わけではない——**箇所の数（single / pair）と表示のしかたは直交する軸**で、
+          // pivot が「文字を出す／伏せる」でこの軸を通したのと同じ拡張にあたる。
+          // 2014 年の宇多田論の図が分節位置に縦線を引いていたのが出どころ
+          cuts: z.array(z.number().int().nonnegative()).default([]),
           marks: z.array(
             z.object({
               at: z.number().int().nonnegative(),
@@ -288,6 +295,16 @@ const consonantFigure = z
             code: z.ZodIssueCode.custom,
             path: ['rows', rowIndex, 'marks'],
             message: `at の ${at} は units（${row.units.length} 要素）の範囲外です`,
+          });
+        }
+      }
+      // 最後の音の右には線を引けない（行の外を切ることになる）
+      for (const at of row.cuts) {
+        if (at >= row.units.length - 1) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['rows', rowIndex, 'cuts'],
+            message: `cuts の ${at} は行の外を指しています（units は ${row.units.length} 要素なので ${row.units.length - 2} まで）`,
           });
         }
       }
