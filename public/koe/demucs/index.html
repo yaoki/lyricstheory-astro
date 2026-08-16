@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="伴奏の入った曲から歌だけを取り出す手順。demucs をローカルで走らせ、抜いた声を /koe/file/ に読み込ませるまで。音声はどこにも送信されません。">
+<title>声を抜く — demucs</title>
+<style>
+  :root{
+    --bg:#0E1117; --panel:#161B24; --line:#232A36;
+    --accent:#7FE3C4; --warn:#E8657A; --text:#E6E8EC; --dim:#8A93A5;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    padding:24px 16px 64px; line-height:1.85;
+  }
+  .wrap{max-width:680px;margin:0 auto;}
+  .back{display:inline-block;color:var(--dim);text-decoration:none;font-size:12px;margin-bottom:20px;}
+  .back:hover,.back:focus-visible{color:var(--accent);}
+  h1{font-size:26px;margin:0 0 8px;letter-spacing:-.01em;}
+  .lead{color:var(--dim);font-size:13px;margin:0 0 32px;}
+  h2{font-size:17px;margin:38px 0 10px;padding-top:18px;border-top:1px solid var(--line);}
+  h2 .num{color:var(--accent);font:700 12px ui-monospace,Menlo,monospace;margin-right:8px;}
+  p{font-size:14px;margin:0 0 14px;}
+  .dim{color:var(--dim);font-size:13px;}
+  b{font-weight:700;}
+  code{font:500 12px ui-monospace,Menlo,monospace;background:var(--panel);padding:2px 5px;border-radius:3px;}
+  .box{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:6px;margin:0 0 16px;}
+  pre{
+    margin:0;padding:16px 18px;overflow-x:auto;
+    font:500 12.5px/1.7 ui-monospace,Menlo,monospace;color:var(--text);
+  }
+  .copy{
+    position:absolute;top:8px;right:8px;background:transparent;color:var(--dim);
+    border:1px solid var(--line);border-radius:4px;font-size:11px;padding:3px 9px;cursor:pointer;
+  }
+  .copy:hover,.copy:focus-visible{color:var(--accent);border-color:var(--accent);}
+  .note{
+    background:var(--panel);border-left:3px solid var(--warn);border-radius:0 4px 4px 0;
+    padding:14px 18px;margin:0 0 16px;font-size:13.5px;
+  }
+  .note b{color:var(--warn);}
+  ul{margin:0 0 14px;padding-left:20px;font-size:13.5px;}
+  li{margin-bottom:8px;}
+  a{color:var(--accent);}
+  .foot{color:var(--dim);font-size:12px;line-height:1.8;margin-top:38px;padding-top:18px;border-top:1px solid var(--line);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/koe/">← 声を見る道具</a>
+
+  <h1>声を抜く</h1>
+  <p class="lead">伴奏の入った曲から歌だけを取り出します。ここだけはブラウザの中で終わりません。</p>
+
+  <p><a href="/koe/file/">録音を読み込む</a> の<b>下ごしらえ</b>にあたる工程です。抜いた声を、そのまま向こうへ食わせます。</p>
+
+  <div class="note">
+    <b>伴奏が入ったままでは測定になりません。</b>
+    低い方の帯はベースとキックが埋めてしまい、周期を探せばベースラインに食いつきます。
+    声が出ているかを見ているつもりで、鳴っているのは伴奏です。
+    無声化のように「声帯が振動しているか」を見たいときは、この工程を飛ばせません。
+  </div>
+
+  <h2><span class="num">01</span>wav にする</h2>
+  <p><code>afconvert</code> は macOS に最初から入っています。<b>Homebrew も ffmpeg も要りません。</b></p>
+  <div class="box">
+    <button class="copy" type="button">コピー</button>
+<pre>mkdir -p ~/lyric-analysis
+afconvert -f WAVE -d LEI16 '/path/to/曲.m4a' ~/lyric-analysis/song.wav</pre>
+  </div>
+
+  <h2><span class="num">02</span>demucs を入れる</h2>
+  <p>仮想環境を切るのは、最近の macOS の Python が <code>externally-managed-environment</code> で <code>pip install</code> を拒むためです。</p>
+  <div class="box">
+    <button class="copy" type="button">コピー</button>
+<pre>cd ~/lyric-analysis
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install demucs</pre>
+  </div>
+  <p class="dim">torch を引くので 1〜2GB 落ちてきます。初回実行時にモデル（300MB ほど）も追加で落ちます。</p>
+
+  <h2><span class="num">03</span>声を抜く</h2>
+  <div class="box">
+    <button class="copy" type="button">コピー</button>
+<pre>demucs --two-stems=vocals song.wav</pre>
+  </div>
+  <p><code>--two-stems=vocals</code> は「ボーカル / それ以外」の2つに割る指定です。4分割より速く、伴奏の内訳は要りません。出力はこうなります。</p>
+  <div class="box">
+<pre>separated/htdemucs/song/vocals.wav
+separated/htdemucs/song/no_vocals.wav</pre>
+  </div>
+  <p class="dim">M シリーズなら4〜5分の曲で数分。精度を上げたいときは <code>-n htdemucs_ft</code> を足します（4倍ほど遅い）。</p>
+
+  <h2><span class="num">04</span>読み込ませる</h2>
+  <p><a href="/koe/file/">録音を読み込む</a> を開き、<code>vocals.wav</code> を選びます。伴奏が無いぶん声紋の縞がはっきり出て、声の高さの線も途切れません。</p>
+  <p><b>倍音の横縞が並んでいれば、声帯が振動しています。</b>縞が消えて霞がかった塗りになっていれば、そこは声になっていません。</p>
+
+  <h2>踏みやすいところ</h2>
+  <ul>
+    <li><b>伴奏込みで見て、全部に声があるように見える。</b>いちばん最初にやる失敗です。demucs を通す前のファイルを見ても意味がありません。</li>
+    <li><b>コマンド行の末尾に注釈を書かない。</b>macOS の既定シェルは、対話入力では <code>#</code> をコメントとして扱わないことがあります。<code>brew install ffmpeg&nbsp;&nbsp;# 説明</code> と打つと <code>#</code> が引数として渡り、無関係なエラーが出ます。</li>
+    <li><b>再生位置の表示を、フレーズの境界と取り違えない。</b>DJ ソフトなどの経過時間はスクラブした場所であって、フレーズの終わりではありません。時刻は <code>vocals.wav</code> を直接聴いて取ります。解析にかけるのと同じファイルなので、ずれが起きません。</li>
+    <li><b>モーラを均等に割らない。</b>歌唱は等間隔ではありません。フレーズの長さをモーラ数で割った値を境界に使うと、有声であるはずの音（ラ行など）まで無声と出ます。境界は耳で取ります。</li>
+  </ul>
+
+  <h2>置き場所</h2>
+  <p>抜いた <code>vocals.wav</code> は<b>市販録音の派生物</b>です。<code>~/lyric-analysis</code> のような作業ディレクトリで完結させ、公開する場所には置かないこと。</p>
+
+  <p class="foot">
+    demucs は MIT ライセンスで、<b>処理はすべて手元のマシンで完結します</b>。音声はどこにも送信されません。
+    このページに書いてあるのは手順だけで、ページ自体は何も実行しません。
+  </p>
+</div>
+<script>
+document.querySelectorAll('.copy').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var pre = btn.parentElement.querySelector('pre');
+    navigator.clipboard.writeText(pre.textContent).then(function () {
+      var before = btn.textContent;
+      btn.textContent = 'コピーしました';
+      setTimeout(function () { btn.textContent = before; }, 1400);
+    });
+  });
+});
+</script>
+</body>
+</html>
