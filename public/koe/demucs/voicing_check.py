@@ -21,6 +21,17 @@ m4a・mp3 等を直接渡すときだけ ffmpeg が要る（brew install ffmpeg�
 有声と出る。demucs 等でボーカルを抜いてからかけること。
 
 出力は判定ではなく測定値である。閾値の当否は耳で確かめること。
+
+**誤りは無声の側へ倒れる。** 耳に聞こえている声が無声と出たときは、まず
+このスクリプトを疑うこと。逆（無声の音を有声と出す）は起きにくい。
+
+変更履歴
+    2026-08-17  有声の条件から低域比を外した。500Hz 固定の境界は F0 が
+                250Hz を超える歌唱では基音しか含まず、明瞭な母音でも
+                0.1 を下回る。旧版はスピッツ「ロビンソン」の歌い出しを
+                全区間「無声」と誤って出していた。あわせて diagnose() を
+                足し、旧版が誤ったはずのフレーム数と、F0 が探索範囲の端に
+                張り付いた回数を実行のたびに出すようにした。
 """
 
 import argparse
@@ -139,8 +150,49 @@ def analyse(x: np.ndarray):
 
 
 def voiced(row, floor):
-    _, rms, period, zcr, low, _ = row
-    return rms > floor and period > 0.45 and low > 0.30 and zcr < 0.30
+    """有声か。
+
+    低域比（low）は 2026-08-17 に条件から外した。500Hz 固定の境界は、
+    F0 が 250Hz を超える歌唱だと基音しか含まない。「あ」のように第1
+    フォルマントが 700Hz 前後の母音では、明瞭に鳴っていても低域比が
+    0.1 を下回る。無声摩擦音を落とす役目は period と zcr が担うので、
+    この条件は冗長なうえに、歌声で構造的な偽陰性を作っていた。
+
+    測定値としては残してある（下の diagnose と区間集計に出る）。
+    """
+    _, rms, period, zcr, _low, _ = row
+    return rms > floor and period > 0.45 and zcr < 0.30
+
+
+def diagnose(rows, floor):
+    """判定そのものが壊れていないかを見る。
+
+    条件を満たすかどうか以前に、条件が当の音源に対して働いているかを疑う。
+    ここに数字が出たときは、帯より先にこちらを読むこと。
+    """
+    v = [r for r in rows if voiced(r, floor)]
+    if not v:
+        return
+
+    notes = []
+
+    edge = [r for r in v if r[5] >= F0_MAX * 0.95 or r[5] <= F0_MIN * 1.05]
+    if len(edge) > len(v) * 0.05:
+        notes.append(
+            f"F0 が探索範囲（{F0_MIN}〜{F0_MAX}Hz）の端に張り付いたフレーム "
+            f"{len(edge)}／{len(v)}。範囲の外へ出た声は下位倍音に食いつくので、"
+            "F0 の値を信用しないこと")
+
+    lowband = [r for r in v if r[4] <= 0.30]
+    if lowband:
+        notes.append(
+            f"低域比 0.30 以下で有声としたフレーム {len(lowband)}／{len(v)}。"
+            "2026-08-17 より前の版は、ここを無声と誤って出していた")
+
+    if notes:
+        print("\n  判定の外側から（自己診断）")
+        for n in notes:
+            print(f"    - {n}")
 
 
 # -------------------------------------------------------------------- 出力
@@ -170,7 +222,7 @@ def main():
     floor = peak * 0.06          # 無音との切り分け
 
     print(f"\n長さ {len(x)/SR:.2f}s / {len(rows)} フレーム（{HOP*1000:.0f}ms 刻み）")
-    print("有声＝周期性>0.45 かつ 低域比>0.30 かつ 零交差率<0.30\n")
+    print("有声＝周期性>0.45 かつ 零交差率<0.30\n")
 
     strip = "".join("|" if voiced(r, floor) else ("." if r[1] > floor else " ")
                     for r in rows)
@@ -178,9 +230,12 @@ def main():
     for i in range(0, len(strip), 100):
         print(f"  {(args.start or 0) + i*HOP:7.2f}s {strip[i:i+100]}")
 
+    diagnose(rows, floor)
+
     if args.marks:
         print("\n区間ごとの集計")
-        print(f"  {'区間':6} {'長さ':>7} {'有声率':>7} {'周期性':>7} {'F0中央':>8} {'零交差':>7}")
+        print(f"  {'区間':6} {'長さ':>7} {'有声率':>7} {'周期性':>7} {'F0中央':>8} "
+              f"{'零交差':>7} {'低域比':>7}")
         base = args.start or 0.0
         marks = []
         for part in args.marks.split(","):
@@ -199,9 +254,10 @@ def main():
             zc = float(np.median([r[3] for r in seg]))
             f0s = [r[5] for r in seg if voiced(r, floor)]
             f0 = float(np.median(f0s)) if f0s else 0.0
+            lw = float(np.median([r[4] for r in seg]))
             flag = "  ← 無声化の疑い" if vr < 0.4 else ""
             print(f"  {name:6} {e-s:6.3f}s {vr*100:6.0f}% {per:7.2f} "
-                  f"{f0:7.0f}Hz {zc:6.2f}{flag}")
+                  f"{f0:7.0f}Hz {zc:6.2f} {lw:6.2f}{flag}")
 
     print("\nこれは測定であって判定ではない。数値と耳が食い違ったら耳を採ること。")
 
