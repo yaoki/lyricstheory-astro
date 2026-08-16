@@ -9,10 +9,15 @@ import {
   VOWEL_LABELS,
   VOWEL_ORDER,
 } from '../../../lib/phoneme/axis';
+import { containsMoraSubsequence, extractLyricQuoteSegments } from '../../../lib/phoneme/lyric-mora';
 
 // 音で引く入口。**新しい URL はこの 1 枚だけで、軸ごとの URL は切らない**（D6）。
 // 絞り込みは /elements/ と同じくクライアント側でやる。切った瞬間に軸の綴りが
 // SEO 資産になり、正規化ルールを直したときに 301 なしで動かせなくなる。
+//
+// **二段構え**（2026-08-15、A案）。国歌大観の五句索引（句という連なりをそのまま引く）に
+// 対応するのは、軸への分解ではなく「連なりの段」のほうである。軸の段（旧・唯一のロジック）は
+// 「音の類縁で広く見る」段として下に残す。詳細は docs/sound-lookup-plan.md。
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -28,6 +33,9 @@ type Row = {
   repetition: string | undefined;
   type: string;
   updated: string;
+  // 引用（<LyricQuote>）から取った、行ごとのモーラ列。連なりの段の元データ。
+  // 引用を持たないカードは空配列（＝連なりの段の対象外、軸の段のみ）
+  moraSegments: string[][];
 };
 
 const rows: Row[] = entries
@@ -44,6 +52,7 @@ const rows: Row[] = entries
       repetition: entry.data.tags?.repetition,
       type: entry.data.type,
       updated: iso(entry.data.updated),
+      moraSegments: extractLyricQuoteSegments(entry.body ?? ''),
     };
   })
   // 音のタグを持たないカード（type: principle など）は音で引けない。
@@ -76,18 +85,23 @@ const vowelAxes = VOWEL_ORDER.filter((k) => vowelCounts.has(k)).map((key) => ({
 // 93枚の引用に一度も現れないのにヒットが返っていた（この装置は語の音で引くのであって
 // 語そのものを探していないため）。それは「その語が歌詞にある」と誤読させる
 // （docs/sound-lookup-plan.md「既知の欠陥」）
+//
+// 例語はいずれも**連なりの段で1枚以上当たる**（なみだ＝『涙がキラリ☆』の「おなじなみだが
+// きらり」等）ことを確認済み。連なりの段が主なので、ここで空振りする語を置くと
+// 新しい欠陥を同じ形で繰り返すことになる
 const EXAMPLES = ['なみだ', 'ふたり', 'さよなら'];
-// 件数は既定の閾値（2 軸以上）で数える。クライアント側と揃えないと、
-// 例に書いてある数と実際に出る枚数が食い違う
+// 件数は既定の閾値（軸=2 軸以上、連なり=完全一致 1 件以上）で数える。クライアント側と
+// 揃えないと、例に書いてある数と実際に出る枚数が食い違う
 const examples = EXAMPLES.map((word) => {
   const { mora, axes } = buildQuery(word);
-  const hits = rows.filter(
+  const axisHits = rows.filter(
     (row) =>
       axes.consonants.filter((c) => row.consonants.includes(c)).length +
         axes.vowels.filter((v) => row.vowels.includes(v)).length >=
       2,
   ).length;
-  return { word, mora, hits };
+  const sequenceHits = rows.filter((row) => containsMoraSubsequence(row.moraSegments, mora)).length;
+  return { word, mora, axisHits, sequenceHits };
 });
 ---
 
@@ -101,7 +115,7 @@ const examples = EXAMPLES.map((word) => {
   </p>
   <h1 class="mb-4 text-2xl font-bold">音で引く</h1>
   <p class="mb-6 text-gray-700">
-    語を入れると、その語の音について書かれた観察が返ります。語そのものを探しているのではありません。返るのは<strong>先人が何をしたかの実例</strong>であって、
+    語を入れると、まず<strong>その音の並びがそのまま現れる観察</strong>を、次に<strong>音の類縁（子音・母音）で広げた観察</strong>を返します。語そのものを探しているのではありません。返るのは<strong>先人が何をしたかの実例</strong>であって、
     韻を踏めるかどうかの判定ではありません。
   </p>
 
@@ -126,7 +140,7 @@ const examples = EXAMPLES.map((word) => {
             <button type="button" data-example={ex.word} class="text-blue-700 underline">
               {ex.word}
             </button>
-            <span class="text-gray-300"> ({ex.hits})</span>
+            <span class="text-gray-300"> (連なり{ex.sequenceHits}・軸{ex.axisHits})</span>
           </>
         ))
       }
@@ -139,9 +153,34 @@ const examples = EXAMPLES.map((word) => {
   </section>
 
   <section class="mb-8">
-    <h2 class="mb-2 text-sm font-semibold text-gray-700">軸で引く</h2>
+    <h2 class="mb-2 text-lg font-semibold text-gray-800">この音の連なりがある観察</h2>
     <p class="mb-3 text-xs text-gray-500">
-      押すと足し引きできます。<strong>子音軸で引くと、その子音を含むモーラのカードにも届きます</strong>——
+      入力した語の音の並びが、<strong>そのままの順序で</strong>引用に現れる観察です。国歌大観の索引が和歌の句をそのまま引けるようにしたのと同じで、ここは語を分解しません。清濁が違えば別の音として扱います。
+    </p>
+    <ul class="space-y-4" id="sequence-list">
+      {
+        rows
+          .filter((row) => row.moraSegments.length > 0)
+          .map((row) => (
+            <li data-mora={JSON.stringify(row.moraSegments)} data-updated={row.updated} hidden>
+              <a href={`/elements/${row.id}/`} class="text-base font-medium text-blue-700 underline">
+                {row.title}
+              </a>
+              <p class="mt-0.5 text-xs text-amber-700" data-sequence-why />
+            </li>
+          ))
+      }
+    </ul>
+    <p class="text-sm text-gray-500" data-sequence-hint>語を入れると、ここに観察が並びます。</p>
+    <p class="text-sm text-gray-500" hidden data-sequence-empty>
+      この音の並びを引用に持つ観察はまだありません。<strong>まだ書いていない</strong>という意味で、その音が使われていないという意味ではありません。
+    </p>
+  </section>
+
+  <section class="mb-8">
+    <h2 class="mb-2 text-sm font-semibold text-gray-700">近い音の観察（軸の一致）</h2>
+    <p class="mb-3 text-xs text-gray-500">
+      ここは語を子音・母音の<strong>軸</strong>へ分解し、音の類縁で広く見る段です。押すと足し引きできます。<strong>子音軸で引くと、その子音を含むモーラのカードにも届きます</strong>——
       「タ行」で引けば <code>t</code> のカードだけでなく <code>ta</code>・<code>te</code> のカードも返ります。
       逆は返りません（<code>t</code> のカードは「ta を観察した」とは言っていないため）。
     </p>
@@ -232,9 +271,41 @@ const examples = EXAMPLES.map((word) => {
 
 <script>
   import { buildQuery, CONSONANT_LABELS, VOWEL_LABELS } from '../../../lib/phoneme/axis';
+  import { containsMoraSubsequence } from '../../../lib/phoneme/lyric-mora';
 
   const list = document.getElementById('sound-list');
   const input = document.getElementById('q') as HTMLInputElement | null;
+
+  // 連なりの段。軸の段（下の list）とは独立した要素・独立した表示ロジックを持つ。
+  // KWIC 禁止（sound-lookup-plan.md「やらないこと」）——ここで出してよいのはタイトル・
+  // リンクと「連なって現れます」の定型文だけで、一致位置や前後の文脈は一切出さない
+  const sequenceList = document.getElementById('sequence-list');
+  const sequenceItems = sequenceList ? (Array.from(sequenceList.children) as HTMLLIElement[]) : [];
+  const sequenceHint = document.querySelector('[data-sequence-hint]') as HTMLElement | null;
+  const sequenceEmpty = document.querySelector('[data-sequence-empty]') as HTMLElement | null;
+
+  const renderSequence = (word: string, mora: string[]) => {
+    const hasQuery = mora.length > 0;
+    let visible = 0;
+    for (const li of sequenceItems) {
+      if (!hasQuery) {
+        li.hidden = true;
+        continue;
+      }
+      const segments = JSON.parse(li.dataset.mora ?? '[]') as string[][];
+      const hit = containsMoraSubsequence(segments, mora);
+      li.hidden = !hit;
+      if (hit) {
+        visible += 1;
+        // 表示するのは「連なって現れる」という事実だけ。一致位置・前後の文字は出さない
+        const why = li.querySelector('[data-sequence-why]') as HTMLElement | null;
+        if (why) why.textContent = `引用に「${word}」が連なって現れます`;
+      }
+    }
+    if (sequenceHint) sequenceHint.hidden = hasQuery;
+    // 0 件は「その音が使われていない」ではなく「まだ書いていない」の意味
+    if (sequenceEmpty) sequenceEmpty.hidden = !hasQuery || visible > 0;
+  };
 
   if (list && input) {
     const items = Array.from(list.children) as HTMLLIElement[];
@@ -342,6 +413,7 @@ const examples = EXAMPLES.map((word) => {
             ? ''
             : `${mora.join(' · ')} → 子音 ${axes.consonants.join('・') || 'なし'} / 母音 ${axes.vowels.join('・') || 'なし'}`;
       }
+      renderSequence(word, mora);
       render();
     };
 
@@ -360,8 +432,10 @@ const examples = EXAMPLES.map((word) => {
         const key = btn.dataset.key ?? '';
         if (selected[kind].has(key)) selected[kind].delete(key);
         else selected[kind].add(key);
-        // 軸を手で触った時点で、語との対応は崩れている。直接一致の強調を外す
+        // 軸を手で触った時点で、語との対応は崩れている。直接一致の強調を外す。
+        // 連なりの段も「語」を前提にしているので、同じタイミングで未入力状態へ戻す
         queryMora = [];
+        renderSequence('', []);
         render();
       });
     });
@@ -378,6 +452,7 @@ const examples = EXAMPLES.map((word) => {
       loosen = false;
       input.value = '';
       if (parseLabel) parseLabel.hidden = true;
+      renderSequence('', []);
       render();
     });
 
