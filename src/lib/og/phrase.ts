@@ -365,6 +365,8 @@ export function parseConsonantPhrase(
     // 畳んだ枠には描画側が括りを付ける
     const units: string[] = [];
     const marked: number[] = [];
+    // 分節の位置。中黒で受ける（2026-08-17 追加）
+    const cuts: number[] = [];
     let open = false;
     let buffer = '';
     for (const ch of line) {
@@ -372,6 +374,18 @@ export function parseConsonantPhrase(
         if (open) throw new PhraseError('「が」で閉じられていません');
         open = true;
         buffer = '';
+        continue;
+      }
+      // 中黒は分節の印。**音ではないので枠を作らず**、直前の音の右へ線を引く位置だけを控える。
+      //
+      // 位置を数字で渡させない（`--cuts '0,5'` のような形にしない）のは、8 音に収める
+      // ときに文脈が落ちて index がずれるためで、phrases が「渡すのは語そのもので、
+      // 位置ではない」と決めたのと同じ理由による。書く側は posfie 2022 の記法
+      // （「あ・たらしい」）をそのまま打てばよく、描画は縦線で出る
+      if (ch === '・') {
+        if (open) throw new PhraseError('「」の中に・は置けません（分節は音と音のあいだに入ります）');
+        if (units.length === 0) throw new PhraseError('行頭に・は置けません');
+        if (!cuts.includes(units.length - 1)) cuts.push(units.length - 1);
         continue;
       }
       if (ch === '」') {
@@ -423,8 +437,11 @@ export function parseConsonantPhrase(
         `${rowIndex + 1} 行目: 囲んだ音が ${marked.length} 個、下の段の記号が ${subs.length} 個です`,
       );
     }
+    // 行末の中黒は行の外を切ることになるので落とす（描画側の検証と同じ線引き）
+    const inner = cuts.filter((at) => at < units.length - 1);
     return {
       units,
+      ...(inner.length > 0 ? { cuts: inner } : {}),
       marks: marked.map((at, i) => ({
         at,
         symbol: symbols[i],
@@ -441,6 +458,9 @@ export function toConsonantYaml(figure: ConsonantFigure): string {
   const lines = ['figure:', `  kind: ${figure.kind}`, '  rows:'];
   for (const row of figure.rows) {
     lines.push(`    - units: [${row.units.map((u) => `"${u}"`).join(', ')}]`);
+    if (row.cuts !== undefined && row.cuts.length > 0) {
+      lines.push(`      cuts: [${row.cuts.join(', ')}]`);
+    }
     lines.push('      marks:');
     if (row.marks.length === 0) lines[lines.length - 1] = '      marks: []';
     for (const m of row.marks) {
