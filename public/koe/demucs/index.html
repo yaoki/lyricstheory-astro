@@ -101,6 +101,25 @@ separated/htdemucs/song/no_vocals.wav</pre>
   <p><a href="/koe/file/">録音を読み込む</a> を開き、<code>vocals.wav</code> を選びます。伴奏が無いぶん声紋の縞がはっきり出て、声の高さの線も途切れません。</p>
   <p><b>倍音の横縞が並んでいれば、声帯が振動しています。</b>縞が消えて霞がかった塗りになっていれば、そこは声になっていません。</p>
 
+  <h2><span class="num">05</span>数字で比べる（任意）</h2>
+  <p>声紋は目で見るものなので、「どちらがどれだけ声になっているか」を並べて比べるには向きません。
+     区間ごとに数字が要るときは、コマンドラインの小さなスクリプトを置いてあります。</p>
+  <p><a href="/koe/demucs/voicing_check.py" download>voicing_check.py</a>
+     — 5ms ごとに有声かどうかを判定し、帯にして並べます。区切りの時刻を渡すと区間ごとに集計します。</p>
+  <div class="box">
+    <button class="copy" type="button">コピー</button>
+<pre>pip install numpy
+python3 voicing_check.py separated/htdemucs/song/vocals.wav \
+  --start 8.85 --end 9.75 \
+  --marks 'た:8.95,ち:9.03,つ:9.14,く:9.29,し:9.40,た:9.485'</pre>
+  </div>
+  <div class="note">
+    <b>区切りは耳で取ること。</b>
+    日本語のモーラは子音が先に来るので、有声区間の頭に印を置くと「母音の頭」になり、
+    その区間は<b>次のモーラの子音を巻き込んで</b>集計されます。数字が動く原因はたいていこれです。
+    出るのは測定値であって判定ではありません。耳と食い違ったら耳を採ってください。
+  </div>
+
   <h2>踏みやすいところ</h2>
   <ul>
     <li><b>伴奏込みで見て、全部に声があるように見える。</b>いちばん最初にやる失敗です。demucs を通す前のファイルを見ても意味がありません。</li>
