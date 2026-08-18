@@ -615,7 +615,8 @@ Chat 側（lyric-analysis-memo スキル）で生成された MDX を受け取�
    Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
    ```
 8. **push**: `git push origin main` → Cloudflare Pages が自動でビルド・デプロイ（1-3分）
-9. **到達確認**: 数分後、`curl -sI https://lyricstheory.com/elements/{slug}/` で HTTP 200 を確認
+9. **到達確認**: 数分後、`curl -sI https://lyricstheory.com/elements/{slug}/` で HTTP 200 を確認。slug を変えたときは、旧 slug が 301 で新 slug へ**直接**飛ぶことも見る（チェーンを作らない）
+   - **クラウドセッションからは実行できない**（2026-08-18 実測。`lyricstheory.com` が egress の許可先に無く 403）。この手順だけがクラウドでは飛ぶので、**やったつもりにならないこと**。ローカルで確認するか、許可先へ足す（[`docs/egress-allowlist-request.md`](docs/egress-allowlist-request.md)）
 
 ### `src/pages/404.astro` を削除しないこと（重要）
 
