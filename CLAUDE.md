@@ -145,7 +145,7 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/sound-looku
 
 未使用だった `rhyme` / `prosody` は入れていない。**使われていない語彙が残ると、分類が語彙の側に引きずられる**（あるから使う）。押韻・韻律のカードを書く番になったら `src/content.config.ts` に1行足せばよく、先に確保しておく利得は無い。
 
-`pattern` が 63/93（68%）と偏っているが、細分化は段階3 の判断に送ってある（`docs/network-design-plan.md`）。
+`pattern` が 70/101（69%）と偏っているが、細分化は段階3 の判断に送ってある（`docs/network-design-plan.md`）。うち6枚は 2026-08-18 に `sequenz` から移ってきたもので、**廃止のぶんだけ偏りは増えている**。
 
 - **principle**: 楽曲を対象としない、記述方針そのもののカード（2026-08-02 追加）。分析の枠組みを決める判断を、個別の楽曲カードに従属させず独立に持たせる。第1号は `phoneme-base-voicing-neutral`（音素ベース・清濁統合）。楽曲カードからは related で参照する
 - **term**: 理論用語の定義カード（2026-08-13 追加）。`principle` が「数え方を決める判断」であるのに対し、`term` は「用語が何を指すか」を扱う。下記「用語カード」を参照
