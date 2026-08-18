@@ -57,6 +57,14 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/theory-glos
 
 音楽理論など他分野から借りるときは、**出典を明記し、借用元との差分を書く**。前例は「回帰反復」（沼野雄司『ファンダメンタルな楽曲分析入門』）で、下記の節に「借用元の定義をそのまま踏襲していない。判定基準を差し替えて使っている」と明記してある。
 
+**書誌の正本は `src/content/books/` にある**（2026-08-18 確定。CLAUDE.md「典拠をどこに置くか」）。この文書が持つのは借用の中身——どこから何を借り、どこが違うか——であって、出版社・刊行年・ISBN ではない。**両方をここに書かないこと。**「回帰反復」の出典は 2026-07-27 まで石桁真礼生『楽式論』と誤記されていた。書誌が複数のファイルに散っていると、訂正がどこかに届かない。
+
+| 借用元 | 借りたもの | 書誌 |
+|:---|:---|:---|
+| 沼野雄司『ファンダメンタルな楽曲分析入門』 | 回帰反復 | `books/numano-musical-analysis` |
+| ノエル・キャロル『批評について』 | 意図とジャッジ | `books/carroll-on-criticism` |
+| Pat Pattison『Songwriting: Essential Guide to Lyric Form and Structure』 | ライムスキーム記法の `x` | `books/pattison-lyric-form` |
+
 **判断の軸は2つあり、どちらも同格である。**
 
 1. 既に地位の定まった用語と衝突しないか
