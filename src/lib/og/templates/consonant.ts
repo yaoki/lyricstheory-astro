@@ -86,7 +86,7 @@ export function consonant(figure: Omit<ConsonantFigure, 'kind'>, ctx: FigureCont
   // その枠で個別に落とす（下の unitSize）。
   //
   // 縦: 横だけ直すと、字が大きくなったぶん行の積み上げが伸びて 1 行目がバッジへ
-  // 食い込む（2026-08-11、ame-nochi-hare-tr-sequenz で実測）。行送り・下の余白・
+  // 食い込む（2026-08-11、ame-nochi-hare-parallel-tr で実測）。行送り・下の余白・
   // 字の上端はすべて size に比例するので、比例項を集めて割れば収まる上限が出る
   const stepRatio = hasSub ? CONSONANT.rowStepRatioWithSub : CONSONANT.rowStepRatio;
   const tickRatio = (SYMMETRY.groupTickGap + SYMMETRY.groupTickHeight) / SYMMETRY.unitFontSize;

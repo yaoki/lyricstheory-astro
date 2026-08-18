@@ -15,7 +15,7 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/theory-glos
 - frontmatter は `src/content.config.ts` の schema に厳密準拠（欠落フィールドはビルドエラー）
 - 歌詞引用は必ず `<LyricQuote song="..." artist="..." lyricist="...">` を経由。生の歌詞ブロックは書かない
 - ルビは `[花|はな]` ショートハンドを使用（remark プラグインで自動変換）
-- IPA・Q notation・音韻的ゼクエンツは、それを含む記事に初めて遭遇したときにコンポーネント（`<IPA>` `<QNotation>` `<PhonoSeq>`）を作成する（MVP原則）
+- IPA・Q notation は、それを含む記事に初めて遭遇したときにコンポーネント（`<IPA>` `<QNotation>`）を作成する（MVP原則）
 
 ## URL 構造
 
@@ -127,7 +127,7 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/sound-looku
 ### 二層構造
 
 - **essays**（`src/content/blog/`）= 結晶層。既存の完成記事。permalink `/{slug}/` は変更しない。
-- **elements**（`src/content/elements/`）= 庭層。分析の最小単位を1件1ファイル（MDX）で持つ新設コレクション。子音ピボットの個別事例、音韻的ゼクエンツの型、押韻パターンなど。公開後も編集し続ける常緑運用。URL は `/elements/{slug}/`。
+- **elements**（`src/content/elements/`）= 庭層。分析の最小単位を1件1ファイル（MDX）で持つ新設コレクション。子音ピボットの個別事例、反復パターンの型、押韻パターンなど。公開後も編集し続ける常緑運用。URL は `/elements/{slug}/`。
 
 ### 成熟度（maturity）
 
@@ -137,9 +137,11 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/sound-looku
 
 ### type（確定語彙）
 
-2026-08-13 に enum 化した（93枚時点）。**確定7語彙**:
+2026-08-13 に enum 化した（93枚時点）。2026-08-18 に `sequenz` を落として **確定6語彙**:
 
-`pivot | sequenz | syllable | pattern | principle | term | other`
+`pivot | syllable | pattern | principle | term | other`
+
+**`sequenz`（音韻的ゼクエンツ）は廃止した**（2026-08-18、やおき裁定）。「子音の並びは同じ、母音は違う」を一語で言おうとしていたが、前半と後半は**別々のフレームの話**だった——C反復のフレームで見れば `t・r → t・r` で並行、CV反復のフレームで見れば `た・ら → と・り` で非並行になる。**このフレーム間の食い違いそのもの**が名指したかった現象であり、単一の操作ではない。どの名前も収まりが悪かったのはそのためである。既存の C反復フレーム＋並行（四操作の確定訳）でそのまま書けるので、新語を立てない。定義と、退けた語の一覧は `docs/theory-glossary.md`「音韻的ゼクエンツ（2026-08-18 廃止）」にある。該当6枚は `type: pattern` へ移し、slug を `<曲>-parallel-<音>` へ改名して 301 を張った。
 
 未使用だった `rhyme` / `prosody` は入れていない。**使われていない語彙が残ると、分類が語彙の側に引きずられる**（あるから使う）。押韻・韻律のカードを書く番になったら `src/content.config.ts` に1行足せばよく、先に確保しておく利得は無い。
 
@@ -335,7 +337,7 @@ COMITIA156 本で確定した三類型をそのまま使う。定義は `../comi
 - **固有名詞のみ romaji**（`utada-hikaru` / `sekai-no-owari` / `dragon-night` / `tadashii-machi`）。アーティスト名は上記の artist 正規化ルールに従う
 - 音韻要素は綴りで表す（`where-to-place-ii-` / `where-to-place-nn-` / `i-dan-`）
 - elements の全体形は `<曲slug>-<観察slug>`（例: `tadashii-machi-t-pivot`）
-- **観察 slug のなかでは、対象の音を末尾に綴る**（2026-08-02 明文化）。下の改称表が `wekapipo-fixed-vowel-a` について定めた原則を、語順の規則として一般化したもの。`houkiboshi-cv-repetition-kana` / `there-will-be-love-there-cv-repetition-ka` / `kuchibue-aba-ke` がこの形。**音が軸そのものであるピボット・ゼクエンツは例外**で、従来どおり音を先頭に置く（`t-pivot` / `k-pivot` / `tr-sequenz`）
+- **観察 slug のなかでは、対象の音を末尾に綴る**（2026-08-02 明文化）。下の改称表が `wekapipo-fixed-vowel-a` について定めた原則を、語順の規則として一般化したもの。`houkiboshi-cv-repetition-kana` / `there-will-be-love-there-cv-repetition-ka` / `kuchibue-aba-ke` がこの形。**音が軸そのものであるピボットは例外**で、従来どおり音を先頭に置く（`t-pivot` / `k-pivot`）。ゼクエンツも 2026-08-18 までは同じ例外に置いていたが、廃止にともない `<曲>-parallel-<音>` へ移した（`ame-nochi-hare-parallel-tr`）。**操作の名を持つカードは、倒置の前例（`tadashii-machi-retrograde-dashita`）と同じく `<操作>-<対象>` の順で綴る**
 - **楽曲を対象としないカード（`type: principle` 等）は `<曲slug>-` を持たず、観察 slug のみで構成する**（例: `phoneme-base-voicing-neutral`。2026-08-02 追加）
 - **読みが確定していないカードは、観察名を置かず音だけで綴ってよい**（2026-08-02 追加）。並べ替えとも倒置とも読める段階で観察名を入れると、slug が一方の読みを固定してしまうため。**読みが確定したら観察名を足して改名し、301 を張る**（2026-08-09 に第1号を実施。清濁を類音としてまとめる判断で読みが倒置に確定し、`tadashii-machi-dashita-tadashi` → `tadashii-machi-retrograde-dashita` へ改名した。旧 slug が2世代あったため、リダイレクトのチェーンを作らないよう両方を新 slug へ直接向けている）
 
@@ -652,7 +654,7 @@ npx astro check   # 型・schema チェック
 
 **elements カードでは `<LyricQuote>` を import せずに使える。** `src/pages/elements/[slug]/index.astro` が `<Content components={{ LyricQuote }} />` で渡している（2026-07-27 追加。それ以前は未配線で、カード内で使うとビルドが `Expected component LyricQuote to be defined` で落ちた）。blog 記事側は従来どおり MDX 冒頭での import が必要。
 
-必要になった時点で追加するコンポーネント：`<IPA>` `<QNotation>` `<PhonoSeq>` `<ConceptLink>`
+必要になった時点で追加するコンポーネント：`<IPA>` `<QNotation>` `<ConceptLink>`
 
 ## 譜例（`<Score>`）
 

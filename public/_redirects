@@ -46,6 +46,19 @@ http://www.lyricstheory.com/* https://lyricstheory.com/:splat 301
 # 観察の中身（中央で母音が動く）を綴る形に改めた。
 /elements/seishun-t-pivot-aba/  /elements/seishun-t-pivot-middle-vowel/  301
 
+# elements のスラッグ改名（2026-08-18）
+# 「音韻的ゼクエンツ」を廃止し、C反復フレームにおける並行へ吸収した（やおき裁定）。
+# 「子音の並びは同じ、母音は違う」の前半と後半は別々のフレームの話で、
+# フレーム間の食い違いそのものが名指したかった現象だったため、単一の操作の名では収まらない。
+# 操作の名を持つカードは倒置の前例（tadashii-machi-retrograde-dashita）に倣い
+# <操作>-<対象> の順で綴る。旧 URL は X に投稿済みのため 301 で保全する。
+/elements/ame-nochi-hare-tr-sequenz/  /elements/ame-nochi-hare-parallel-tr/  301
+/elements/harujion-br-sequenz/  /elements/harujion-parallel-br/  301
+/elements/hello-again-gate-sequenz/  /elements/hello-again-parallel-gate/  301
+/elements/natsu-no-mamono-mt-sequenz/  /elements/natsu-no-mamono-parallel-mt/  301
+/elements/natsu-no-mamono-s-sequenz/  /elements/natsu-no-mamono-parallel-s/  301
+/elements/natsu-no-mamono-tn-sequenz/  /elements/natsu-no-mamono-parallel-tn/  301
+
 # WordPress 時代（2015〜2022）に稼働していた RSS フィードの正規 URL。
 # Wayback Machine で /feed/ 自体が 200 を返していたことを確認済み。
 # フィードリーダーに登録済みの購読者が残っている可能性があるため、URL を保ったまま

@@ -10,7 +10,6 @@ export const TYPE_LABELS: Record<string, string> = {
   principle: '記述方針',
   pivot: '子音ピボット',
   pattern: '反復パターン',
-  sequenz: '音韻的ゼクエンツ',
   syllable: '音節構造',
   rhyme: '押韻',
   prosody: '韻律',
