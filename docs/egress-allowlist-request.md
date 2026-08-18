@@ -1,0 +1,97 @@
+# クラウドセッションの egress 許可依頼（2026-08-18）
+
+Claude Code on the web の環境設定 → ネットワークを **Custom** にして、下記のホストを許可先へ足したい。理由と、足しても解決しないものを併記する。設定の場所は https://code.claude.com/docs/en/claude-code-on-the-web にある。
+
+**この文書は依頼と実測の記録であって、規則ではない。**規則の側（何を照合するか、どこまで書いてよいか）は `CLAUDE.md` が持つ。
+
+---
+
+## 1. 現状の実測（2026-08-18）
+
+許可済みは歌詞系 4 サイトのみ（2026-08-12 に追加）。**そのうち 1 つが死んでいる。**
+
+| ホスト | CONNECT | 本文が読めるか | 備考 |
+|:---|:---:|:---:|:---|
+| `uta-net.com` | 通る | **✕** | サイト側が 403。curl・WebFetch とも |
+| `utaten.com` | 通る | ○ | 曲名検索で『涙がキラリ☆』スピッツ・草野正宗 を返す |
+| `joysound.com` | 通る | ○ | 『涙がキラリ』でスピッツ版と 10-FEET 版が並ぶ |
+| `posfie.com` | 通る | ○ | |
+
+**uta-net の 403 は組織のポリシー拒否ではない。**egress プロキシの `recentRelayFailures` に `uta-net.com` が出ないので、CONNECT は成立している。データセンター IP に対するサイト側の遮断である。**許可先の設定を見ても気づけない**ので、ここに書いておく。
+
+判別のしかた:
+
+```bash
+curl -sS "$HTTPS_PROXY/__agentproxy/status" | python3 -m json.tool
+```
+
+`recentRelayFailures` に出る 403 は組織ポリシー（`gateway answered 403 to CONNECT`）。出ない 403 はサイト側。両者は同じ 403 なので、この区別を飛ばすと「許可されていない」と誤診する。
+
+結果として、**「2 サイト以上で一致を見てから書く」は utaten と joysound の 2 本ちょうどで成立している**（`CLAUDE.md`「照合に使うサイト」）。下限に張り付いているので、どちらかが落ちたら照合が成立しない。
+
+---
+
+## 2. 追加してほしいホスト
+
+### 優先度A — 書籍の書誌を確定するため
+
+`src/content/books/` に本を足すとき、いま**一次情報に当たれない**。2026-08-18 に沼野雄司とノエル・キャロルの 2 冊を追加した際は、検索結果の要約を複数の書店・版元・CiNii で突き合わせるという間接的なやり方しか取れなかった。
+
+| ホスト | 何が解決するか |
+|:---|:---|
+| `api.openbd.jp` | 版元ドットコム／JPRO の書誌 API。ISBN13 → 書名・副題・著者・出版社・刊行日を JSON で返す |
+| `www.hanmoto.com` | 版元ドットコム本体。openBD の人間可読側。版元コメントと書影 |
+| `ndlsearch.ndl.go.jp` | 国立国会図書館サーチ。OpenSearch API あり。openBD が拾わない古い本・学術書に強い |
+
+**とくに openBD が要る。**`books` の schema は `isbn13` と `asin` を必須にしていて、これはアフィリエイトの保証そのものである。加えて `carroll-on-criticism` では**書名の副題の区切りが出典ごとに割れた**（版元は副題を別立て、楽天は ` - `、researchmap は `: `）。openBD は版元が申告した書名をそのまま持つので、これが一撃で決まる。
+
+### 優先度B — 論文と、版元の一次情報
+
+| ホスト | 何が解決するか |
+|:---|:---|
+| `cir.nii.ac.jp`（＋旧 `ci.nii.ac.jp`） | CiNii Research。`ame-nochi-hare-syllabification` の `sources` にある Tamaoka & Makioka (2004) と北村美樹「J-POP の音韻的考察」は**ここでしか裏が取れない**。図書の NCID も引ける |
+| `www.keisoshobo.co.jp` / `www.ongakunotomo.co.jp` | 2026-08-18 に書誌を起こした 2 冊の版元 |
+
+**版元サイトを個別に足すのは運用が持たない**（本ごとに増える）。A の 3 つで足りるなら B の後者は不要である。
+
+### 優先度C — 歌詞照合の 3 本目と、リンク確認
+
+| ホスト | 何が解決するか |
+|:---|:---|
+| `www.j-lyric.net` | uta-net の代替。照合を 2 本から 3 本に戻す。`docs/dead-links-todo.md` が別件で同じ候補を挙げている |
+| `note.com` | `webrefs/sagishi-note` の `lastChecked` 更新 |
+| `soundquest.jp` | `webrefs/soundquest` の同上 |
+| `www.youtube.com` | `webrefs/toydora-music` の同上。加えて `docs/dead-links-todo.md` の埋め込み 3 件（403 / 404）の再確認 |
+
+### コピペ用
+
+```
+api.openbd.jp
+www.hanmoto.com
+ndlsearch.ndl.go.jp
+cir.nii.ac.jp
+ci.nii.ac.jp
+www.j-lyric.net
+note.com
+soundquest.jp
+www.youtube.com
+```
+
+---
+
+## 3. 足しても解決しないもの
+
+**許可先に足す価値が薄い**ので、期待しないでほしいもの。
+
+- **`www.amazon.co.jp`** — `asin` の実在確認に要る（`content.config.ts` が「ISBN が正しくても amazon.co.jp にその版が無いことがある。2026-08-06 実測」と書いている）。ただし Amazon はデータセンター IP を uta-net より強く遮断するので、許可しても 403 で読めない公算が高い。**ASIN の実在確認はローカルの仕事として残る**と見たほうがよい
+- **`claude.ai`** — 共有会話（`/share/...`）はこれを足しても読めない。egress は既に通っていて、止めているのは Cloudflare のチャレンジと、本文がクライアント側で描画されることの 2 つである。**共有会話は貼っていただくのが唯一の経路**
+
+## 4. WebSearch は許可先に関係なく動く
+
+`WebSearch` は egress プロキシを経由しないので、いまでも使える。ただし返るのは**検索結果の要約**であって、ページそのものではない。書誌の裏どりで版元のページを読みたいときは代わりにならない。A を足したい理由はここにある。
+
+## 5. 足したあとの注意
+
+`CLAUDE.md` の「**機械可読な書誌 API に頼らないこと**」は、**曲**の発売年についての規則である（iTunes Search API と MusicBrainz が『涙がキラリ☆』にベスト盤 *CYCLE HIT* の 2006-03-25 を返した実測に基づく）。**書籍の ISBN・出版社には当たらない。**openBD と NDL は版元と国立国会図書館が源泉なので、配信中アルバムの日付が初出年として返るような構造的な誤りが無い。A を足したときに規則を取り違えないこと。
+
+歌詞そのものの扱いは何も変わらない。**照合の結果を引用の供給に使わない**（`CLAUDE.md`「歌詞の扱い」）。許可先が増えても、貼られていない歌詞を書かない線は動かない。

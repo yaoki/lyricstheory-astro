@@ -317,11 +317,16 @@ const elements = defineCollection({
   loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/elements' }),
   schema: z.object({
     title: z.string(),
-    // 2026-08-13 に enum 化（93枚時点）。使用中の6語に term を足した7語で固めた。
+    // 2026-08-13 に enum 化（93枚時点）。2026-08-18 に sequenz を落として6語になった。
     // 未使用だった rhyme / prosody は入れていない。**使われていない語彙が残ると、分類が
     // 語彙の側に引きずられる**（あるから使う）。押韻・韻律のカードを書く番になったら
     // ここへ1行足せばよく、先に確保しておく利得は無い
-    type: z.enum(['pivot', 'sequenz', 'syllable', 'pattern', 'principle', 'term', 'other']),
+    //
+    // sequenz（音韻的ゼクエンツ）は廃止した。「子音の並びは同じ、母音は違う」を一語で
+    // 言おうとしていたが、前半と後半は別々のフレームの話で、**フレーム間の食い違いそのもの**が
+    // 名指したかった現象だった。単一の操作ではないので、既存の C反復フレーム＋並行で書ける
+    // （docs/theory-glossary.md「音韻的ゼクエンツ（2026-08-18 廃止）」）
+    type: z.enum(['pivot', 'syllable', 'pattern', 'principle', 'term', 'other']),
     // どの曲についてのカードか。**曲でカードを束ねられる唯一の機械可読な場所**である。
     // 曲名は title（「アーティスト『曲名』：観察名」）と <LyricQuote song=> にも出るが、
     // 前者は人間可読の題、後者は引用ブロックの属性で、どちらもカードの主題を表す欄ではない。

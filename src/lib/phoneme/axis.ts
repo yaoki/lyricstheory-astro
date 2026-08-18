@@ -48,7 +48,7 @@ export type ParsedTag = {
  *
  * 裸の `n` は**ナ行子音**として扱う。撥音ではない——実測（93枚）で `n` を持つ
  * 3 枚はいずれもナ行の観察だった（`tadashii-machi-n-pivot` の figure は
- * axis: "ナ行子音ピボット"、`natsu-no-mamono-tn-sequenz` は子音のゼクエンツ、
+ * axis: "ナ行子音ピボット"、`natsu-no-mamono-parallel-tn` は子音の並行、
  * `hello-again-mmmnn-fusion` は子音重複による融合）。
  *
  * ただし正規化ルール 1 は撥音も `n` と綴るので、**撥音だけを観察したカードが

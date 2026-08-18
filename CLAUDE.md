@@ -15,7 +15,7 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/theory-glos
 - frontmatter は `src/content.config.ts` の schema に厳密準拠（欠落フィールドはビルドエラー）
 - 歌詞引用は必ず `<LyricQuote song="..." artist="..." lyricist="...">` を経由。生の歌詞ブロックは書かない
 - ルビは `[花|はな]` ショートハンドを使用（remark プラグインで自動変換）
-- IPA・Q notation・音韻的ゼクエンツは、それを含む記事に初めて遭遇したときにコンポーネント（`<IPA>` `<QNotation>` `<PhonoSeq>`）を作成する（MVP原則）
+- IPA・Q notation は、それを含む記事に初めて遭遇したときにコンポーネント（`<IPA>` `<QNotation>`）を作成する（MVP原則）
 
 ## URL 構造
 
@@ -38,15 +38,19 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/theory-glos
 
 **外部サイトへの接続は uta-net.com / utaten.com / joysound.com / posfie.com が許可済み**（2026-08-12、環境設定のネットワークを Custom にして追加）。クラウド環境は既定では allowlist 方式で、パッケージレジストリと GitHub しか通らない。裏どりのために明示的に開けたものである。
 
+**足したいホストの一覧は [`docs/egress-allowlist-request.md`](docs/egress-allowlist-request.md) にある**（2026-08-18）。書誌の裏どりに要る openBD・NDL Search・CiNii が塞がっていること、逆に amazon.co.jp と claude.ai は開けても解決しないことを、実測つきで書いてある。同じ 403 でも**組織のポリシー拒否とサイト側のボット遮断は別物**で、その判別のしかたもそこにある（`curl -sS "$HTTPS_PROXY/__agentproxy/status"` の `recentRelayFailures` に出るかどうかで分かれる）。
+
 ### 照合に使うサイト
 
-| サイト | 見るもの | 2026-08-12 の実測 |
+| サイト | 見るもの | 2026-08-18 の実測 |
 |:---|:---|:---|
-| uta-net.com | 発売日・作詞・作曲 | 『涙がキラリ☆』に `1995/07/07`・草野正宗 を正確に返す |
-| utaten.com | 同上。加えて**ふりがな付き表示** | `1995年7月7日`。uta-net と一致 |
-| joysound.com | 3 つ目の照合先 | 未検証 |
+| uta-net.com | 発売日・作詞・作曲 | **クラウドからは読めない。** サイト側が 403 を返す（curl・WebFetch とも。egress は通っているので組織ポリシーではない） |
+| utaten.com | 同上。加えて**ふりがな付き表示** | 生きている。曲名検索で『涙がキラリ☆』スピッツ・草野正宗 を返す |
+| joysound.com | 3 つ目の照合先 | 生きている（2026-08-12 は未検証だった）。『涙がキラリ』でスピッツ版と 10-FEET 版が並ぶ |
 
-**曲名だけで検索しない。** uta-net で「涙がキラリ」を曲名検索したところ、先頭に出たのは**甲斐よしひろのカバー**で、スピッツ版は別 ID（`song/2295`）だった。カバー版のページには当然そちらの発売日が載る。アーティストで絞り、**開いたページのアーティスト名を必ず確かめる**こと。誤った年を書く経路として最も踏みやすい。
+**uta-net が落ちたので、クラウドでの照合は utaten と joysound の 2 本しかない。**「2 サイト以上で一致を見る」の下限ちょうどで、どちらか一方が落ちたら照合が成立しなくなる。そのときは**照合できないものとして扱い、`unverified` を立てて止まる**こと（1 サイトで書かない）。3 本目を復活させるなら J-Lyric.net が候補で、環境設定のネットワークに `www.j-lyric.net` を足す必要がある（`docs/dead-links-todo.md` が別件で同じ候補を挙げている）。
+
+**曲名だけで検索しない。**（以下は uta-net が読めていた 2026-08-12 の実測だが、罠そのものは他サイトでも同じである。joysound で「涙がキラリ」を引くとスピッツ版と 10-FEET 版が並ぶことを 2026-08-18 に確認した。）uta-net で「涙がキラリ」を曲名検索したところ、先頭に出たのは**甲斐よしひろのカバー**で、スピッツ版は別 ID（`song/2295`）だった。カバー版のページには当然そちらの発売日が載る。アーティストで絞り、**開いたページのアーティスト名を必ず確かめる**こと。誤った年を書く経路として最も踏みやすい。
 
 **2 サイト以上で一致を見てから書く。** 1 サイトの誤記をそのまま通さないため。食い違ったら止まってやおきさんに聞く。
 
@@ -123,7 +127,7 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/sound-looku
 ### 二層構造
 
 - **essays**（`src/content/blog/`）= 結晶層。既存の完成記事。permalink `/{slug}/` は変更しない。
-- **elements**（`src/content/elements/`）= 庭層。分析の最小単位を1件1ファイル（MDX）で持つ新設コレクション。子音ピボットの個別事例、音韻的ゼクエンツの型、押韻パターンなど。公開後も編集し続ける常緑運用。URL は `/elements/{slug}/`。
+- **elements**（`src/content/elements/`）= 庭層。分析の最小単位を1件1ファイル（MDX）で持つ新設コレクション。子音ピボットの個別事例、反復パターンの型、押韻パターンなど。公開後も編集し続ける常緑運用。URL は `/elements/{slug}/`。
 
 ### 成熟度（maturity）
 
@@ -133,13 +137,15 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/sound-looku
 
 ### type（確定語彙）
 
-2026-08-13 に enum 化した（93枚時点）。**確定7語彙**:
+2026-08-13 に enum 化した（93枚時点）。2026-08-18 に `sequenz` を落として **確定6語彙**:
 
-`pivot | sequenz | syllable | pattern | principle | term | other`
+`pivot | syllable | pattern | principle | term | other`
+
+**`sequenz`（音韻的ゼクエンツ）は廃止した**（2026-08-18、やおき裁定）。「子音の並びは同じ、母音は違う」を一語で言おうとしていたが、前半と後半は**別々のフレームの話**だった——C反復のフレームで見れば `t・r → t・r` で並行、CV反復のフレームで見れば `た・ら → と・り` で非並行になる。**このフレーム間の食い違いそのもの**が名指したかった現象であり、単一の操作ではない。どの名前も収まりが悪かったのはそのためである。既存の C反復フレーム＋並行（四操作の確定訳）でそのまま書けるので、新語を立てない。定義と、退けた語の一覧は `docs/theory-glossary.md`「音韻的ゼクエンツ（2026-08-18 廃止）」にある。該当6枚は `type: pattern` へ移し、slug を `<曲>-parallel-<音>` へ改名して 301 を張った。
 
 未使用だった `rhyme` / `prosody` は入れていない。**使われていない語彙が残ると、分類が語彙の側に引きずられる**（あるから使う）。押韻・韻律のカードを書く番になったら `src/content.config.ts` に1行足せばよく、先に確保しておく利得は無い。
 
-`pattern` が 63/93（68%）と偏っているが、細分化は段階3 の判断に送ってある（`docs/network-design-plan.md`）。
+`pattern` が 70/101（69%）と偏っているが、細分化は段階3 の判断に送ってある（`docs/network-design-plan.md`）。うち6枚は 2026-08-18 に `sequenz` から移ってきたもので、**廃止のぶんだけ偏りは増えている**。
 
 - **principle**: 楽曲を対象としない、記述方針そのもののカード（2026-08-02 追加）。分析の枠組みを決める判断を、個別の楽曲カードに従属させず独立に持たせる。第1号は `phoneme-base-voicing-neutral`（音素ベース・清濁統合）。楽曲カードからは related で参照する
 - **term**: 理論用語の定義カード（2026-08-13 追加）。`principle` が「数え方を決める判断」であるのに対し、`term` は「用語が何を指すか」を扱う。下記「用語カード」を参照
@@ -177,6 +183,21 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/sound-looku
 - **`sources` と混同しない。**`sources` はそのカードが典拠にしたもの。`books` は「関係する本」であって、典拠である必要はない
 
 **順序が固定される。**`scripts/check-cards.mjs` の検査6 は `books` の参照先が `draft: false` であることを要求する。レビュー本文が書かれていない本へ張るとビルドが落ちるので、**本文執筆 → `draft: false` → カードに `books:` を追加**の順で進めること。逆順にすると、検査が通らないまま19枚の差分が宙に浮く。
+
+#### 典拠をどこに置くか（2026-08-18 確定）
+
+**外部文献の書誌の正本は `books` に置く。典拠と推薦を分ける別コレクション（`refs` 等）は作らない。**
+
+きっかけは棚卸しである。2026-08-18 時点で、この理論が実際に依拠している2冊が `books` に無く、`docs` の地の文にしか存在しなかった——沼野雄司『ファンダメンタルな楽曲分析入門』（回帰反復の借用元）と、ノエル・キャロル『批評について』（意図とジャッジの借用元）。同日 `books` に追加した（いずれも `draft: true`。レビュー本文はやおき自筆）。
+
+- **「典拠は推薦ではないから別に持つ」は成り立たない。**この2冊はどちらも layer B「分析と批評の方法をつくるための本」に素直に収まり、薦められる本でもある。役割が違うのは事実だが、それは**同じ書誌を2箇所に持つ理由にはならない**
+- **ISBN を持たない典拠（論文）は `sources` に置いたままにする。**該当は2件だけで、どちらも `ame-nochi-hare-syllabification` にある（Tamaoka & Makioka 2004 / 北村美樹「J-POP の音韻的考察」）。`books` の schema が `isbn13` と `asin` を必須にしているのはアフィリエイトの保証そのものなので緩めない。コレクション化は、カードから張りたくなった時点で考える（MVP原則）
+- **`webrefs` が公開0件のまま3つ目の参照コレクションを足さない。**機構を content より先に作る形は既に一度起きている
+
+**借用の中身は `docs/theory-glossary.md` が持ち、`books` は書誌だけを持つ。**glossary の「借用元と、その差分」節にある内容をレビュー本文へ書き写さないこと。写した時点で正本が二重化する（冒頭の規則と同じ失敗である）。
+
+**書誌の裏どりはクラウドセッションからはできない。**openBD・NDL Search・amazon.co.jp・版元サイトはいずれも egress で塞がれている（2026-08-18 実測。歌詞サイトだけが許可済み）。WebSearch の結果を複数の書店・版元・CiNii で突き合わせるところまでは可能だが、**現物の奥付に当たるのはローカルの仕事**である。
+
 
 ### 書籍のページ（`/books/{slug}/`）
 
@@ -316,7 +337,7 @@ COMITIA156 本で確定した三類型をそのまま使う。定義は `../comi
 - **固有名詞のみ romaji**（`utada-hikaru` / `sekai-no-owari` / `dragon-night` / `tadashii-machi`）。アーティスト名は上記の artist 正規化ルールに従う
 - 音韻要素は綴りで表す（`where-to-place-ii-` / `where-to-place-nn-` / `i-dan-`）
 - elements の全体形は `<曲slug>-<観察slug>`（例: `tadashii-machi-t-pivot`）
-- **観察 slug のなかでは、対象の音を末尾に綴る**（2026-08-02 明文化）。下の改称表が `wekapipo-fixed-vowel-a` について定めた原則を、語順の規則として一般化したもの。`houkiboshi-cv-repetition-kana` / `there-will-be-love-there-cv-repetition-ka` / `kuchibue-aba-ke` がこの形。**音が軸そのものであるピボット・ゼクエンツは例外**で、従来どおり音を先頭に置く（`t-pivot` / `k-pivot` / `tr-sequenz`）
+- **観察 slug のなかでは、対象の音を末尾に綴る**（2026-08-02 明文化）。下の改称表が `wekapipo-fixed-vowel-a` について定めた原則を、語順の規則として一般化したもの。`houkiboshi-cv-repetition-kana` / `there-will-be-love-there-cv-repetition-ka` / `kuchibue-aba-ke` がこの形。**音が軸そのものであるピボットは例外**で、従来どおり音を先頭に置く（`t-pivot` / `k-pivot`）。ゼクエンツも 2026-08-18 までは同じ例外に置いていたが、廃止にともない `<曲>-parallel-<音>` へ移した（`ame-nochi-hare-parallel-tr`）。**操作の名を持つカードは、倒置の前例（`tadashii-machi-retrograde-dashita`）と同じく `<操作>-<対象>` の順で綴る**
 - **楽曲を対象としないカード（`type: principle` 等）は `<曲slug>-` を持たず、観察 slug のみで構成する**（例: `phoneme-base-voicing-neutral`。2026-08-02 追加）
 - **読みが確定していないカードは、観察名を置かず音だけで綴ってよい**（2026-08-02 追加）。並べ替えとも倒置とも読める段階で観察名を入れると、slug が一方の読みを固定してしまうため。**読みが確定したら観察名を足して改名し、301 を張る**（2026-08-09 に第1号を実施。清濁を類音としてまとめる判断で読みが倒置に確定し、`tadashii-machi-dashita-tadashi` → `tadashii-machi-retrograde-dashita` へ改名した。旧 slug が2世代あったため、リダイレクトのチェーンを作らないよう両方を新 slug へ直接向けている）
 
@@ -633,7 +654,7 @@ npx astro check   # 型・schema チェック
 
 **elements カードでは `<LyricQuote>` を import せずに使える。** `src/pages/elements/[slug]/index.astro` が `<Content components={{ LyricQuote }} />` で渡している（2026-07-27 追加。それ以前は未配線で、カード内で使うとビルドが `Expected component LyricQuote to be defined` で落ちた）。blog 記事側は従来どおり MDX 冒頭での import が必要。
 
-必要になった時点で追加するコンポーネント：`<IPA>` `<QNotation>` `<PhonoSeq>` `<ConceptLink>`
+必要になった時点で追加するコンポーネント：`<IPA>` `<QNotation>` `<ConceptLink>`
 
 ## 譜例（`<Score>`）
 
