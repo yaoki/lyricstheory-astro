@@ -38,6 +38,8 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/theory-glos
 
 **外部サイトへの接続は uta-net.com / utaten.com / joysound.com / posfie.com が許可済み**（2026-08-12、環境設定のネットワークを Custom にして追加）。クラウド環境は既定では allowlist 方式で、パッケージレジストリと GitHub しか通らない。裏どりのために明示的に開けたものである。
 
+**足したいホストの一覧は [`docs/egress-allowlist-request.md`](docs/egress-allowlist-request.md) にある**（2026-08-18）。書誌の裏どりに要る openBD・NDL Search・CiNii が塞がっていること、逆に amazon.co.jp と claude.ai は開けても解決しないことを、実測つきで書いてある。同じ 403 でも**組織のポリシー拒否とサイト側のボット遮断は別物**で、その判別のしかたもそこにある（`curl -sS "$HTTPS_PROXY/__agentproxy/status"` の `recentRelayFailures` に出るかどうかで分かれる）。
+
 ### 照合に使うサイト
 
 | サイト | 見るもの | 2026-08-18 の実測 |
