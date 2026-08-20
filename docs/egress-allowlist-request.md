@@ -33,6 +33,23 @@ curl -sS "$HTTPS_PROXY/__agentproxy/status" | python3 -m json.tool
 
 ## 2. 追加してほしいホスト
 
+### 最優先 — 自分のサイトの到達確認
+
+| ホスト | 何が解決するか |
+|:---|:---|
+| `lyricstheory.com` | `CLAUDE.md`「新規 element カードのデプロイ workflow」手順9（`curl -sI https://lyricstheory.com/elements/{slug}/` で 200 を確認）を、クラウドセッションから実行できるようにする |
+
+**手順として書かれているのに、クラウドからは実行できない。**2026-08-18 に実測したところ 403（`recentRelayFailures` に出るので**組織のポリシー拒否**であり、uta-net のようなサイト側の遮断ではない）。許可先は歌詞サイト4つだけで、**自分のサイトが入っていない**。
+
+気づいたきっかけは PR #3 である。slug を6本変えて 301 を6本張ったのに、その到達確認だけができなかった。**URL を変えるデプロイは、確認がいちばん要る場面である。**
+
+確認したいのは2つ。
+
+- 新 slug 6本が 200 を返すこと
+- 旧 slug 6本が 301 で新 slug へ飛び、**チェーンになっていない**こと（`public/_redirects` は 2026-08-09 の前例で「旧2世代とも新 slug へ直接向ける」と決めている）
+
+なお `src/pages/404.astro` が存在する理由は、未知のパスへ 200 を返させないことにある——**200 判定を検証として機能させるため**である。検証の仕組みは repo 側に揃っているのに、経路だけが塞がっている。
+
 ### 優先度A — 書籍の書誌を確定するため
 
 `src/content/books/` に本を足すとき、いま**一次情報に当たれない**。2026-08-18 に沼野雄司とノエル・キャロルの 2 冊を追加した際は、検索結果の要約を複数の書店・版元・CiNii で突き合わせるという間接的なやり方しか取れなかった。
@@ -66,6 +83,7 @@ curl -sS "$HTTPS_PROXY/__agentproxy/status" | python3 -m json.tool
 ### コピペ用
 
 ```
+lyricstheory.com
 api.openbd.jp
 www.hanmoto.com
 ndlsearch.ndl.go.jp
