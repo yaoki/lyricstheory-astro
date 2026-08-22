@@ -55,11 +55,17 @@ joysound はカラオケ配信のデータベースなので、**配信される
 
 ## 2. 追加してほしいホスト
 
-### 最優先 — 自分のサイトの到達確認
+### 最優先 — 自分のサイトの到達確認 → **解決済み（2026-08-22）**
 
-| ホスト | 何が解決するか |
+| ホスト | 状態 |
 |:---|:---|
-| `lyricstheory.com` | `CLAUDE.md`「新規 element カードのデプロイ workflow」手順9（`curl -sI https://lyricstheory.com/elements/{slug}/` で 200 を確認）を、クラウドセッションから実行できるようにする |
+| `lyricstheory.com` | **通るようになった。**`https://lyricstheory.com/`・`/elements/`・既存カードのいずれも 200。`recentRelayFailures` は 0 件 |
+
+2026-08-22 のデプロイで実測した。`CLAUDE.md`「新規 element カードのデプロイ workflow」手順9（`curl -sI https://lyricstheory.com/elements/{slug}/` で 200 を確認）は、**クラウドセッションから実行できる**。同日、push 直後は 404、Cloudflare Pages のビルド完了後に 200 へ変わることも確認した——**到達確認が待ち時間の判定としても機能する**。
+
+`CLAUDE.md` の手順9 に「クラウドセッションからは実行できない（2026-08-18 実測）」と書いてあるが、**この記述は古い**。
+
+以下は解決前の記録として残す。
 
 **手順として書かれているのに、クラウドからは実行できない。**2026-08-18 に実測したところ 403（`recentRelayFailures` に出るので**組織のポリシー拒否**であり、uta-net のようなサイト側の遮断ではない）。許可先は歌詞サイト4つだけで、**自分のサイトが入っていない**。
 
@@ -113,7 +119,6 @@ joysound はカラオケ配信のデータベースなので、**配信される
 ### コピペ用
 
 ```
-lyricstheory.com
 s.awa.fm
 awa.fm
 api.openbd.jp
