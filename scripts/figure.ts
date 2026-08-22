@@ -31,7 +31,7 @@ const USAGE = `
   npm run figure -- '<フレーズ>' [--title '<カードのタイトル>'] [--out <出力先.png>] [--no-open]
 
 フレーズは、呼応する音を「」で囲んで書きます。
-前後の文脈もそのまま枠に並びます（最大8音。超えた分は外側から落ちます）。
+前後の文脈もそのまま枠に並びます（最大12音。超えた分は外側から落ちます）。
 
   例) npm run figure -- 'おと「し」て「し」まう'
       → units: ["お","と","し","て","し","ま","う"] / highlight: [2, 4]
@@ -257,7 +257,7 @@ function main(): void {
       trimmed.head > 0 ? `前を${trimmed.head}音` : '',
       trimmed.tail > 0 ? `後ろを${trimmed.tail}音` : '',
     ].filter(Boolean);
-    console.log(`\n※ 8音に収めるため、文脈の${parts.join('・')}落としました`);
+    console.log(`\n※ 12音に収めるため、文脈の${parts.join('・')}落としました`);
   }
 
   // 弧は語と語のあいだに張るので、語が 1 つでは相手がいない
