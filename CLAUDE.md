@@ -36,7 +36,7 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/theory-glos
 
 移動中にモバイルから投げるセッションは、Anthropic 側の VM に**このリポジトリだけ**がクローンされて動く。ローカルマシンの `~/.claude/skills/`、親ディレクトリ（`critique/` 配下の `tasks/` や `comitia156/`）、Claude Code のメモリは一切見えない。
 
-**外部サイトへの接続は uta-net.com / utaten.com / joysound.com / posfie.com が許可済み**（2026-08-12、環境設定のネットワークを Custom にして追加）。クラウド環境は既定では allowlist 方式で、パッケージレジストリと GitHub しか通らない。裏どりのために明示的に開けたものである。
+**外部サイトへの接続は uta-net.com / utaten.com / joysound.com / posfie.com と lyricstheory.com が許可済み**（歌詞サイト4つは 2026-08-12、`lyricstheory.com` は 2026-08-22 に確認。環境設定のネットワークを Custom にして追加）。クラウド環境は既定では allowlist 方式で、パッケージレジストリと GitHub しか通らない。裏どりのために明示的に開けたものである。
 
 **足したいホストの一覧は [`docs/egress-allowlist-request.md`](docs/egress-allowlist-request.md) にある**（2026-08-18）。書誌の裏どりに要る openBD・NDL Search・CiNii が塞がっていること、逆に amazon.co.jp と claude.ai は開けても解決しないことを、実測つきで書いてある。同じ 403 でも**組織のポリシー拒否とサイト側のボット遮断は別物**で、その判別のしかたもそこにある（`curl -sS "$HTTPS_PROXY/__agentproxy/status"` の `recentRelayFailures` に出るかどうかで分かれる）。
 
@@ -200,7 +200,7 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/sound-looku
 
 **借用の中身は `docs/theory-glossary.md` が持ち、`books` は書誌だけを持つ。**glossary の「借用元と、その差分」節にある内容をレビュー本文へ書き写さないこと。写した時点で正本が二重化する（冒頭の規則と同じ失敗である）。
 
-**書誌の裏どりはクラウドセッションからはできない。**openBD・NDL Search・amazon.co.jp・版元サイトはいずれも egress で塞がれている（2026-08-18 実測。歌詞サイトだけが許可済み）。WebSearch の結果を複数の書店・版元・CiNii で突き合わせるところまでは可能だが、**現物の奥付に当たるのはローカルの仕事**である。
+**書誌の裏どりはクラウドセッションからはできない。**openBD・NDL Search・amazon.co.jp・版元サイトはいずれも egress で塞がれている（2026-08-18 実測。許可済みは歌詞サイトと lyricstheory.com だけ）。WebSearch の結果を複数の書店・版元・CiNii で突き合わせるところまでは可能だが、**現物の奥付に当たるのはローカルの仕事**である。
 
 
 ### 書籍のページ（`/books/{slug}/`）
@@ -620,7 +620,9 @@ Chat 側（lyric-analysis-memo スキル）で生成された MDX を受け取�
    ```
 8. **push**: `git push origin main` → Cloudflare Pages が自動でビルド・デプロイ（1-3分）
 9. **到達確認**: 数分後、`curl -sI https://lyricstheory.com/elements/{slug}/` で HTTP 200 を確認。slug を変えたときは、旧 slug が 301 で新 slug へ**直接**飛ぶことも見る（チェーンを作らない）
-   - **クラウドセッションからは実行できない**（2026-08-18 実測。`lyricstheory.com` が egress の許可先に無く 403）。この手順だけがクラウドでは飛ぶので、**やったつもりにならないこと**。ローカルで確認するか、許可先へ足す（[`docs/egress-allowlist-request.md`](docs/egress-allowlist-request.md)）
+   - **クラウドセッションからも実行できる**（2026-08-22 実測。`lyricstheory.com` が許可先に入り 200 が返るようになった。2026-08-18 時点では 403 で実行できず、この手順だけがクラウドでは飛んでいた）
+   - **push 直後は 404 が返る。**Cloudflare Pages のビルドが終わると 200 に変わるので、**この確認はデプロイ待ちの判定にもなる**（2026-08-22 は約15秒）。404 を見た時点で失敗と決めないこと
+   - **エッジへの伝播には差がある。**ビルド完了の直後に7枚を一度に叩いたところ、ページと OG 画像で 200 と 404 が混ざった。20秒ほど置いて取り直すと全部 200 になる。**一度の 404 で騒がない**
 
 ### `src/pages/404.astro` を削除しないこと（重要）
 
