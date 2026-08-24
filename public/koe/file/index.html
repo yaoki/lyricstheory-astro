@@ -154,20 +154,35 @@ function decimate(x,f){
   }
   return out;
 }
+let _corr=null;
 function f0Of(x,i0,sr){
   const W=512, lagMin=Math.max(2,Math.floor(sr/600)), lagMax=Math.floor(sr/70);
   if(i0+lagMax+W>=x.length) return 0;
   let rms=0; for(let i=0;i<W;i++) rms+=x[i0+i]*x[i0+i];
   if(Math.sqrt(rms/W)<0.008) return 0;
   let e0=0; for(let i=0;i<W;i++) e0+=x[i0+i]*x[i0+i];
+  if(!_corr||_corr.length<lagMax+2) _corr=new Float32Array(lagMax+2);
   let best=0,bv=0;
   for(let lag=lagMin;lag<=lagMax;lag++){
     let num=0,el2=0;
     for(let i=0;i<W;i++){ const a=x[i0+i], b=x[i0+i+lag]; num+=a*b; el2+=b*b; }
     const v=num/(Math.sqrt(e0*el2)+1e-9);
+    _corr[lag]=v;
     if(v>bv){bv=v;best=lag;}
   }
-  return bv<0.55?0:sr/best;
+  if(bv<0.55) return 0;
+  // 自己相関は 2T・3T でも山になる。最大値をそのまま採ると1オクターブ下に落ちるので、
+  // 最大の9割を超える「最初の山」を基本周期とする。抑揚の線が突然半分に落ちる事故を防ぐ
+  for(let lag=lagMin+1;lag<best;lag++){
+    if(_corr[lag]>=bv*0.9 && _corr[lag]>=_corr[lag-1] && _corr[lag]>=_corr[lag+1]){ best=lag; break; }
+  }
+  // lag は整数なので、そのままだと量子化による偽の揺れが出る。放物線で頂点を細かく取る
+  let refined=best;
+  if(best>lagMin && best<lagMax){
+    const y0=_corr[best-1],y1=_corr[best],y2=_corr[best+1],den=2*(2*y1-y0-y2);
+    if(Math.abs(den)>1e-9){ const dd=(y2-y0)/den; if(dd>-1&&dd<1) refined=best+dd; }
+  }
+  return sr/refined;
 }
 
 async function handle(file){

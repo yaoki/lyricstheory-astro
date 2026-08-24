@@ -112,6 +112,7 @@ let rec=false,t0=0,lastV=0,cur=[];
 const takes=[];
 
 /* ---- 測る ---- */
+let _corr=null;
 function detectF0(buf,sr){
   const W=1024,lagMin=Math.floor(sr/600),lagMax=Math.floor(sr/60);
   if(lagMax+W>=buf.length) return null;
@@ -120,14 +121,28 @@ function detectF0(buf,sr){
   const pre=new Float64Array(lagMax+W+1);
   for(let i=0;i<lagMax+W;i++) pre[i+1]=pre[i]+buf[i]*buf[i];
   const e0=pre[W];
+  if(!_corr||_corr.length<lagMax+2) _corr=new Float32Array(lagMax+2);
   let best=-1,bv=0;
   for(let lag=lagMin;lag<=lagMax;lag++){
     let num=0;
     for(let i=0;i<W;i++) num+=buf[i]*buf[i+lag];
     const v=num/(Math.sqrt(e0*(pre[lag+W]-pre[lag]))+1e-9);
+    _corr[lag]=v;
     if(v>bv){bv=v;best=lag;}
   }
-  return (best<0||bv<0.5)?null:sr/best;
+  if(best<0||bv<0.5) return null;
+  // 自己相関は 2T・3T でも山になる。最大値をそのまま採ると1オクターブ下に落ちるので、
+  // 最大の9割を超える「最初の山」を基本周期とする
+  for(let lag=lagMin+1;lag<best;lag++){
+    if(_corr[lag]>=bv*0.9 && _corr[lag]>=_corr[lag-1] && _corr[lag]>=_corr[lag+1]){ best=lag; break; }
+  }
+  // lag は整数なので、そのままだと量子化による偽の揺れが出る。放物線で頂点を細かく取る
+  let refined=best;
+  if(best>lagMin && best<lagMax){
+    const y0=_corr[best-1],y1=_corr[best],y2=_corr[best+1],den=2*(2*y1-y0-y2);
+    if(Math.abs(den)>1e-9){ const dd=(y2-y0)/den; if(dd>-1&&dd<1) refined=best+dd; }
+  }
+  return sr/refined;
 }
 
 const med=a=>{const s=[...a].sort((x,y)=>x-y);const n=s.length;return n?(n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2):null;};
