@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="2つの音声を並べ、声紋・高さ・大きさを重ねて比べるツール。解析はすべてブラウザ内で完結し、ファイルはどこにも送信されません。">
+<title>比べる — お手本と自分</title>
+<style>
+  :root{
+    --bg:#0E1117; --panel:#161B24; --line:#232A36;
+    --a:#7FE3C4; --b:#F0A54A; --harm:#E8657A;
+    --text:#E6E8EC; --dim:#8A93A5;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    padding:24px 16px 64px;
+  }
+  .wrap{max-width:1000px;margin:0 auto;}
+  h1{font-size:22px;margin:0 0 2px;letter-spacing:-.01em;display:inline-block;}
+  .sub{color:var(--dim);font-size:12px;margin-left:10px;}
+  .lead{color:var(--dim);font-size:13px;margin:6px 0 18px;line-height:1.75;}
+  .slots{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+  @media (max-width:680px){.slots{grid-template-columns:1fr;}}
+  .slot{
+    border:1px dashed var(--line);border-radius:6px;padding:18px 16px;text-align:center;
+    color:var(--dim);font-size:12px;cursor:pointer;transition:border-color .15s,color .15s;
+  }
+  .slot:hover,.slot.over{color:var(--text);}
+  .slot.a:hover,.slot.a.over,.slot.a.on{border-color:var(--a);}
+  .slot.b:hover,.slot.b.over,.slot.b.on{border-color:var(--b);}
+  .slot .tag{display:block;font-size:14px;font-weight:700;margin-bottom:4px;}
+  .slot.a .tag{color:var(--a);} .slot.b .tag{color:var(--b);}
+  .slot .nm{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--text);margin-top:6px;word-break:break-all;}
+  .bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 10px;}
+  button{
+    font:inherit;font-size:13px;font-weight:600;padding:8px 15px;border-radius:4px;
+    background:transparent;color:var(--dim);border:1px solid var(--line);cursor:pointer;
+  }
+  button:hover:not(:disabled){color:var(--text);border-color:var(--dim);}
+  button.on{border-color:var(--a);color:var(--a);}
+  button.pa{border-color:var(--a);color:var(--a);}
+  button.pb{border-color:var(--b);color:var(--b);}
+  button:disabled{opacity:.3;cursor:default;}
+  .seg{display:flex;gap:0;}
+  .seg button{border-radius:0;margin-left:-1px;}
+  .seg button:first-child{border-radius:4px 0 0 4px;margin-left:0;}
+  .seg button:last-child{border-radius:0 4px 4px 0;}
+  .lbl{color:var(--dim);font-size:11px;margin-right:2px;}
+  .prog{height:3px;background:var(--line);border-radius:2px;overflow:hidden;margin:12px 0;display:none;}
+  .prog i{display:block;height:100%;width:0;background:var(--a);}
+  .err{border:1px solid var(--harm);color:var(--harm);padding:10px 12px;border-radius:4px;font-size:13px;margin:12px 0;display:none;}
+  .cap{color:var(--dim);font-size:12px;margin:16px 0 5px;}
+  .cap b{color:var(--text);}
+  .cap .ta{color:var(--a);font-weight:600;} .cap .tb{color:var(--b);font-weight:600;}
+  canvas{display:block;width:100%;background:var(--panel);border-radius:4px;}
+  .foot{color:var(--dim);font-size:12px;line-height:1.85;margin-top:24px;padding-top:16px;border-top:1px solid var(--line);}
+  .foot b{color:var(--text);}
+  a{color:var(--a);}
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>比べる</h1><span class="sub">お手本と自分</span>
+  <p class="lead">
+    2つの音声を読み込んで、声紋・高さ・大きさを並べます。<b>同じ台詞・同じフレーズ</b>を録ったものどうしで比べてください。
+    ファイルはどこにも送信されません。
+  </p>
+
+  <div class="slots">
+    <div class="slot a" id="slotA">
+      <span class="tag">A　お手本</span>
+      クリックまたはドラッグで読み込み（m4a / mp3 / wav など）
+      <div class="nm" id="nmA"></div>
+    </div>
+    <div class="slot b" id="slotB">
+      <span class="tag">B　自分</span>
+      クリックまたはドラッグで読み込み
+      <div class="nm" id="nmB"></div>
+    </div>
+  </div>
+  <input type="file" id="fileA" accept="audio/*" class="hidden">
+  <input type="file" id="fileB" accept="audio/*" class="hidden">
+
+  <div class="prog" id="prog"><i id="progBar"></i></div>
+  <div class="err" id="err"></div>
+
+  <div id="panel" class="hidden">
+    <div class="bar">
+      <span class="lbl">横軸</span>
+      <div class="seg">
+        <button id="tSec" class="on">秒</button>
+        <button id="tPct">長さをそろえる</button>
+      </div>
+      <span class="lbl" style="margin-left:10px">高さ</span>
+      <div class="seg">
+        <button id="pHz" class="on">Hz</button>
+        <button id="pCent">かたちだけ</button>
+      </div>
+      <button id="playA" class="pa" style="margin-left:auto">▶ A</button>
+      <button id="playB" class="pb">▶ B</button>
+      <button id="png">PNG</button>
+    </div>
+
+    <p class="cap"><span class="ta">A</span> の声紋　<span style="opacity:.7">縦軸 0〜5,000Hz</span></p>
+    <canvas id="sgA" height="200" style="height:200px"></canvas>
+
+    <p class="cap"><span class="tb">B</span> の声紋</p>
+    <canvas id="sgB" height="200" style="height:200px"></canvas>
+
+    <p class="cap">高さの推移 — <b>抑揚のかたち</b>が線に出ます</p>
+    <canvas id="pitch" height="150" style="height:150px"></canvas>
+
+    <p class="cap">大きさの推移 — <b>間の取り方</b>と<b>語尾の落とし方</b>が出ます</p>
+    <canvas id="amp" height="130" style="height:130px"></canvas>
+  </div>
+
+  <p class="foot">
+    <b>絶対値を目標にしないでください。</b>声の高さも、明るい帯（フォルマント）の位置も、その人の喉と口の大きさで決まります。
+    体格が違えば届きません。届かないものを目標にすると、喉を壊します。<br>
+    <b>合わせられるのは動き方です。</b>「かたちだけ」に切り替えると、高さの線がそれぞれの中央値を0にそろえて重なります。
+    絶対的な高さの差が消えて、<b>上がり下がりの型だけ</b>が比べられます。<br>
+    <b>作品は製品です。</b>世に出ている音声はマイク・EQ・コンプレッサ・リバーブを通っています。
+    大きさの線が不自然に平らなら、それは支えではなく<b>コンプレッサ</b>かもしれません。声紋の高い側が妙に伸びていれば EQ です。
+    真似られるのは発声だけで、ミックスは真似られません。<br>
+    著作物は<b>私的な学習の範囲</b>にとどめてください。 ← <a href="/koe/">道具の一覧へ戻る</a>
+  </p>
+</div>
+
+<script>
+const F_TOP=5000, FFT=2048, HOP=512, MAXW=3000, MAXSEC=60, SGH=200;
+const el=id=>document.getElementById(id);
+const errBox=el("err"), prog=el("prog"), progBar=el("progBar"), panel=el("panel");
+const pitchC=el("pitch"), ampC=el("amp");
+
+let ac=null, src=null, playingKey=null;
+let tMode="sec", pMode="hz";
+const D={a:null,b:null};   // {name,buf,dur,f0s,amps,off,frames}
+
+/* ---- 解析の部品（/koe/file/ から流用） ---- */
+function fft(re,im){
+  const n=re.length;
+  for(let i=1,j=0;i<n;i++){
+    let bit=n>>1;
+    for(;j&bit;bit>>=1) j^=bit;
+    j^=bit;
+    if(i<j){ [re[i],re[j]]=[re[j],re[i]]; [im[i],im[j]]=[im[j],im[i]]; }
+  }
+  for(let len=2;len<=n;len<<=1){
+    const ang=-2*Math.PI/len, wr=Math.cos(ang), wi=Math.sin(ang);
+    for(let i=0;i<n;i+=len){
+      let cr=1, ci=0;
+      for(let k=0;k<len/2;k++){
+        const ur=re[i+k], ui=im[i+k];
+        const vr=re[i+k+len/2]*cr-im[i+k+len/2]*ci;
+        const vi=re[i+k+len/2]*ci+im[i+k+len/2]*cr;
+        re[i+k]=ur+vr; im[i+k]=ui+vi;
+        re[i+k+len/2]=ur-vr; im[i+k+len/2]=ui-vi;
+        const ncr=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=ncr;
+      }
+    }
+  }
+}
+const STOPS=[[14,17,23],[26,42,86],[110,44,110],[214,102,60],[248,214,150],[255,255,255]];
+function color(t){
+  t=Math.max(0,Math.min(1,t))*(STOPS.length-1);
+  const i=Math.min(STOPS.length-2,Math.floor(t)), f=t-i;
+  const p=STOPS[i], q=STOPS[i+1];
+  return [p[0]+(q[0]-p[0])*f, p[1]+(q[1]-p[1])*f, p[2]+(q[2]-p[2])*f];
+}
+function mono(b){
+  const n=b.length, out=new Float32Array(n);
+  for(let c=0;c<b.numberOfChannels;c++){
+    const d=b.getChannelData(c);
+    for(let i=0;i<n;i++) out[i]+=d[i];
+  }
+  const k=1/b.numberOfChannels;
+  for(let i=0;i<n;i++) out[i]*=k;
+  return out;
+}
+function decimate(x,f){
+  const n=Math.floor(x.length/f), out=new Float32Array(n);
+  for(let i=0;i<n;i++){
+    let s=0;
+    for(let j=0;j<f;j++) s+=x[i*f+j];
+    out[i]=s/f;
+  }
+  return out;
+}
+let _corr=null;
+function f0Of(x,i0,sr){
+  const W=512, lagMin=Math.max(2,Math.floor(sr/600)), lagMax=Math.floor(sr/70);
+  if(i0+lagMax+W>=x.length) return 0;
+  let e0=0; for(let i=0;i<W;i++) e0+=x[i0+i]*x[i0+i];
+  if(Math.sqrt(e0/W)<0.008) return 0;
+  if(!_corr||_corr.length<lagMax+2) _corr=new Float32Array(lagMax+2);
+  let best=0,bv=0;
+  for(let lag=lagMin;lag<=lagMax;lag++){
+    let num=0,e2=0;
+    for(let i=0;i<W;i++){ const p=x[i0+i], q=x[i0+i+lag]; num+=p*q; e2+=q*q; }
+    const v=num/(Math.sqrt(e0*e2)+1e-9);
+    _corr[lag]=v;
+    if(v>bv){bv=v;best=lag;}
+  }
+  if(bv<0.55) return 0;
+  // 自己相関は 2T・3T でも山になる。最大値をそのまま採ると1オクターブ下に落ちるので、
+  // 最大の9割を超える「最初の山」を基本周期とする
+  for(let lag=lagMin+1;lag<best;lag++){
+    if(_corr[lag]>=bv*0.9 && _corr[lag]>=_corr[lag-1] && _corr[lag]>=_corr[lag+1]){ best=lag; break; }
+  }
+  // lag は整数なので、そのままだと量子化による偽の揺れが出る。放物線で頂点を細かく取る
+  let refined=best;
+  if(best>lagMin && best<lagMax){
+    const y0=_corr[best-1], y1=_corr[best], y2=_corr[best+1], den=2*(2*y1-y0-y2);
+    if(Math.abs(den)>1e-9){
+      const dd=(y2-y0)/den;
+      if(dd>-1&&dd<1) refined=best+dd;
+    }
+  }
+  return sr/refined;
+}
+const med=a=>{const s=[...a].sort((x,y)=>x-y);const n=s.length;return n?(n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2):null;};
+
+/* ---- 読み込みと解析 ---- */
+async function load(key,file){
+  errBox.style.display="none";
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    const buf=await ac.decodeAudioData(await file.arrayBuffer());
+    if(buf.duration>MAXSEC) throw new Error("long");
+    el("nm"+key.toUpperCase()).textContent=file.name+"　"+buf.duration.toFixed(1)+"秒";
+    el("slot"+key.toUpperCase()).classList.add("on");
+    await analyze(key,file.name,buf);
+    if(D.a&&D.b) panel.classList.remove("hidden");
+    draw();
+  }catch(e){
+    errBox.textContent = e.message==="long"
+      ? "長すぎます。"+MAXSEC+"秒以内にしてください。比べたいフレーズだけ切り出すほうが見やすくなります。"
+      : "読み込めませんでした。音声ファイルか、形式がブラウザに対応しているかを確認してください。";
+    errBox.style.display="block";
+  }
+}
+
+function analyze(key,name,buf){
+  return new Promise(resolve=>{
+    const x=mono(buf), sr=buf.sampleRate;
+    const frames=Math.max(1,Math.floor((x.length-FFT)/HOP));
+    const bins=Math.min(FFT/2, Math.ceil(F_TOP/(sr/FFT)));
+    const win=new Float32Array(FFT);
+    for(let i=0;i<FFT;i++) win[i]=0.5-0.5*Math.cos(2*Math.PI*i/(FFT-1));
+    const db=new Float32Array(frames*bins);
+    let maxDb=-Infinity;
+    const re=new Float32Array(FFT), im=new Float32Array(FFT);
+    const dx=decimate(x,4), dsr=sr/4;
+    const f0s=new Float32Array(frames), amps=new Float32Array(frames);
+
+    prog.style.display="block";
+    let f=0;
+    function chunk(){
+      const end=Math.min(frames,f+120);
+      for(;f<end;f++){
+        const o=f*HOP;
+        for(let i=0;i<FFT;i++){ re[i]=x[o+i]*win[i]; im[i]=0; }
+        fft(re,im);
+        for(let b=0;b<bins;b++){
+          const m=Math.sqrt(re[b]*re[b]+im[b]*im[b]);
+          const v=20*Math.log10(m+1e-9);
+          db[f*bins+b]=v;
+          if(v>maxDb) maxDb=v;
+        }
+        let s=0; for(let i=0;i<HOP;i++) s+=x[o+i]*x[o+i];
+        amps[f]=20*Math.log10(Math.sqrt(s/HOP)+1e-9);
+        f0s[f]=f0Of(dx,Math.floor(o/4),dsr);
+      }
+      progBar.style.width=Math.round(f/frames*100)+"%";
+      if(f<frames) requestAnimationFrame(chunk);
+      else{
+        prog.style.display="none"; progBar.style.width="0";
+        const off=document.createElement("canvas");
+        const w=Math.min(frames,MAXW);
+        off.width=w; off.height=SGH;
+        const octx=off.getContext("2d"), img=octx.createImageData(w,SGH);
+        const floor=maxDb-72;
+        for(let px=0;px<w;px++){
+          const fr=Math.floor(px/w*frames);
+          for(let y=0;y<SGH;y++){
+            const b=Math.min(bins-1,Math.round((1-y/SGH)*(bins-1)));
+            const t=(db[fr*bins+b]-floor)/(maxDb-floor);
+            const c=color(t), p=(y*w+px)*4;
+            img.data[p]=c[0]; img.data[p+1]=c[1]; img.data[p+2]=c[2]; img.data[p+3]=255;
+          }
+        }
+        octx.putImageData(img,0,0);
+        const voiced=[...f0s].filter(v=>v>0);
+        D[key]={name,buf,dur:buf.duration,f0s,amps,off,frames,f0med:med(voiced)};
+        resolve();
+      }
+    }
+    chunk();
+  });
+}
+
+/* ---- 描画 ---- */
+function fit(c){
+  const dpr=window.devicePixelRatio||1, w=c.clientWidth, h=c.clientHeight;
+  if(c.width!==Math.round(w*dpr)||c.height!==Math.round(h*dpr)){
+    c.width=Math.round(w*dpr); c.height=Math.round(h*dpr);
+  }
+  const ctx=c.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx,w,h};
+}
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const PL=46, PR=8;
+
+function maxDur(){ return Math.max(D.a?D.a.dur:0, D.b?D.b.dur:0, .5); }
+
+// フレーム番号 → 描画x
+function xOfFrame(d,i,px,pw){
+  const t=i/d.frames*d.dur;
+  return px + (tMode==="pct" ? t/d.dur : t/maxDur()) * pw;
+}
+
+function drawSpec(canvas,key){
+  const {ctx,w,h}=fit(canvas);
+  ctx.fillStyle=css("--panel"); ctx.fillRect(0,0,w,h);
+  const d=D[key]; if(!d) return;
+  const pw=w-PL-PR;
+  const ww = tMode==="pct" ? pw : pw*(d.dur/maxDur());
+  ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(d.off,0,0,d.off.width,d.off.height,PL,0,ww,h);
+  ctx.strokeStyle=css("--line"); ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(PL,0); ctx.lineTo(PL,h); ctx.stroke();
+  ctx.fillStyle=css("--dim"); ctx.font="10px ui-monospace,Menlo,monospace"; ctx.textAlign="right";
+  [1000,2000,3000,4000].forEach(f=>{ ctx.fillText((f/1000)+"k", PL-5, h-(f/F_TOP)*h+3.5); });
+  ctx.textAlign="left";
+}
+
+function plotLines(canvas,field,fmt,useCent){
+  const {ctx,w,h}=fit(canvas);
+  ctx.fillStyle=css("--panel"); ctx.fillRect(0,0,w,h);
+  const PT=8, PB=20, px=PL, py=PT, pw=w-PL-PR, ph=h-PT-PB;
+
+  const vals=k=>{
+    const d=D[k]; if(!d) return [];
+    const out=[];
+    for(let i=0;i<d.frames;i++){
+      let v=d[field][i];
+      if(field==="f0s"){ if(!v) { out.push(null); continue; } if(useCent) v=1200*Math.log2(v/d.f0med); }
+      else if(v<-70){ out.push(null); continue; }
+      out.push(v);
+    }
+    return out;
+  };
+  const A=vals("a"), B=vals("b");
+  let lo=Infinity,hi=-Infinity;
+  [A,B].forEach(s=>s.forEach(v=>{ if(v!=null&&isFinite(v)){ if(v<lo)lo=v; if(v>hi)hi=v; }}));
+  if(!isFinite(lo)){ lo=0; hi=1; }
+  const pad=Math.max((hi-lo)*0.15, useCent?60:(field==="f0s"?20:3));
+  lo-=pad; hi+=pad;
+  const yOf=v=>py+ph-(v-lo)/(hi-lo)*ph;
+
+  ctx.strokeStyle=css("--line"); ctx.fillStyle=css("--dim");
+  ctx.font="10px ui-monospace,Menlo,monospace"; ctx.lineWidth=1;
+  const md=maxDur();
+  ctx.textAlign="center";
+  if(tMode==="pct"){
+    for(let p=0;p<=100;p+=25){
+      const x=px+p/100*pw;
+      ctx.beginPath(); ctx.moveTo(x,py); ctx.lineTo(x,py+ph); ctx.stroke();
+      ctx.fillText(p+"%",x,h-6);
+    }
+  }else{
+    const step=md<=6?1:md<=15?2:5;
+    for(let t=0;t<=md;t+=step){
+      const x=px+t/md*pw;
+      ctx.beginPath(); ctx.moveTo(x,py); ctx.lineTo(x,py+ph); ctx.stroke();
+      ctx.fillText(t+"s",x,h-6);
+    }
+  }
+  ctx.textAlign="right";
+  for(let k=0;k<=3;k++){
+    const v=lo+(hi-lo)*k/3, y=yOf(v);
+    ctx.beginPath(); ctx.moveTo(px,y); ctx.lineTo(px+pw,y); ctx.stroke();
+    ctx.fillText(fmt(v),px-6,y+3.5);
+  }
+  ctx.textAlign="left";
+  if(useCent){                       // 0セント＝各自の中央値
+    const y=yOf(0);
+    ctx.strokeStyle=css("--dim"); ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(px,y); ctx.lineTo(px+pw,y); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  [["a",A,css("--a")],["b",B,css("--b")]].forEach(([k,s,col])=>{
+    const d=D[k]; if(!d) return;
+    ctx.strokeStyle=col; ctx.lineWidth=1.7; ctx.beginPath();
+    let pen=false;
+    s.forEach((v,i)=>{
+      if(v==null){ pen=false; return; }
+      const x=xOfFrame(d,i,px,pw), y=yOf(v);
+      pen?ctx.lineTo(x,y):ctx.moveTo(x,y); pen=true;
+    });
+    ctx.stroke();
+  });
+}
+
+function draw(){
+  drawSpec(el("sgA"),"a"); drawSpec(el("sgB"),"b");
+  plotLines(pitchC,"f0s", v=>pMode==="cent"?(v>0?"+":"")+Math.round(v):Math.round(v)+"", pMode==="cent");
+  plotLines(ampC,"amps", v=>Math.round(v)+"", false);
+}
+
+/* ---- 再生 ---- */
+function stopPlay(){
+  if(src){ try{src.stop();}catch(e){} src=null; }
+  playingKey=null;
+  el("playA").textContent="▶ A"; el("playB").textContent="▶ B";
+}
+function play(key){
+  const d=D[key]; if(!d) return;
+  if(playingKey===key){ stopPlay(); return; }
+  stopPlay();
+  src=ac.createBufferSource(); src.buffer=d.buf; src.connect(ac.destination);
+  src.onended=()=>{ if(playingKey===key) stopPlay(); };
+  src.start(); playingKey=key;
+  el("play"+key.toUpperCase()).textContent="■ "+key.toUpperCase();
+}
+
+/* ---- PNG ---- */
+function savePNG(){
+  const W=1000, H=760, S=2;
+  const c=document.createElement("canvas");
+  c.width=W*S; c.height=H*S;
+  const x=c.getContext("2d"); x.scale(S,S);
+  x.fillStyle="#0E1117"; x.fillRect(0,0,W,H);
+  x.fillStyle="#E6E8EC"; x.font="600 19px -apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif";
+  x.fillText("比べる — お手本と自分",32,42);
+  const d=new Date(), p=n=>String(n).padStart(2,"0");
+  x.fillStyle="#8A93A5"; x.font="12px ui-monospace,Menlo,monospace";
+  x.fillText(d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes()),32,62);
+  x.fillStyle="#7FE3C4"; x.fillText("A  "+(D.a?D.a.name:"—"),32,86);
+  x.fillStyle="#F0A54A"; x.fillText("B  "+(D.b?D.b.name:"—"),32,104);
+  const secs=[["sgA",130,"Aの声紋"],["sgB",350,"Bの声紋"],["pitch",570,"高さ"+(pMode==="cent"?"（かたちだけ）":"（Hz）")],["amp",680,"大きさ"]];
+  secs.forEach(([id,y,label])=>{
+    x.fillStyle="#8A93A5"; x.font="11px -apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif";
+    x.fillText(label,32,y-6);
+    const s=el(id);
+    x.drawImage(s,0,0,s.width,s.height,32,y,W-64,id.startsWith("sg")?200:(id==="pitch"?96:64));
+  });
+  c.toBlob(b=>{
+    const u=URL.createObjectURL(b), a=document.createElement("a");
+    a.href=u; a.download="kuraberu-"+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"-"+p(d.getHours())+p(d.getMinutes())+".png";
+    a.click(); setTimeout(()=>URL.revokeObjectURL(u),1000);
+  });
+}
+
+/* ---- 配線 ---- */
+["a","b"].forEach(k=>{
+  const K=k.toUpperCase(), slot=el("slot"+K), input=el("file"+K);
+  slot.addEventListener("click",()=>input.click());
+  input.addEventListener("change",e=>{ if(e.target.files[0]) load(k,e.target.files[0]); });
+  slot.addEventListener("dragover",e=>{e.preventDefault();slot.classList.add("over");});
+  slot.addEventListener("dragleave",()=>slot.classList.remove("over"));
+  slot.addEventListener("drop",e=>{
+    e.preventDefault(); slot.classList.remove("over");
+    if(e.dataTransfer.files[0]) load(k,e.dataTransfer.files[0]);
+  });
+});
+function seg(onId,offId,set){
+  el(onId).addEventListener("click",()=>{ set(); el(onId).classList.add("on"); el(offId).classList.remove("on"); draw(); });
+}
+seg("tSec","tPct",()=>tMode="sec"); seg("tPct","tSec",()=>tMode="pct");
+seg("pHz","pCent",()=>pMode="hz");  seg("pCent","pHz",()=>pMode="cent");
+el("playA").addEventListener("click",()=>play("a"));
+el("playB").addEventListener("click",()=>play("b"));
+el("png").addEventListener("click",savePNG);
+window.addEventListener("resize",draw);
+</script>
+</body>
+</html>
