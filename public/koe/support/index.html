@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="発声を続けているあいだの大きさと高さの推移を記録し、複数回を重ねて比べるツール。処理はすべてブラウザ内で完結し、音声はどこにも送信されません。">
+<title>支えを測る — 持続と安定</title>
+<style>
+  :root{
+    --bg:#0E1117; --panel:#161B24; --line:#232A36;
+    --text:#E6E8EC; --dim:#8A93A5;
+    --t1:#7FE3C4; --t2:#F0A54A; --t3:#9B8FE3;
+    --warn:#E8657A;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    padding:24px 16px 64px;
+  }
+  .wrap{max-width:840px;margin:0 auto;}
+  h1{font-size:22px;margin:0 0 2px;letter-spacing:-.01em;display:inline-block;}
+  .sub{color:var(--dim);font-size:12px;margin-left:10px;}
+  .lead{color:var(--dim);font-size:13px;margin:6px 0 18px;line-height:1.75;}
+  .bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:14px;}
+  button{
+    font:inherit;font-size:14px;font-weight:600;padding:9px 18px;border-radius:4px;
+    background:var(--t1);color:var(--bg);border:1px solid var(--t1);cursor:pointer;
+  }
+  button.on{background:transparent;color:var(--t1);}
+  button.ghost{background:transparent;color:var(--dim);border-color:var(--line);font-weight:500;}
+  button.ghost:hover:not(:disabled){color:var(--text);border-color:var(--dim);}
+  button:disabled{opacity:.35;cursor:default;}
+  .state{margin-left:auto;text-align:right;}
+  .state .big{font:600 17px ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;}
+  .state .small{color:var(--dim);font-size:11px;}
+  .live{color:var(--t2);}
+  .err{border:1px solid var(--warn);color:var(--warn);padding:10px 12px;border-radius:4px;font-size:13px;margin-bottom:16px;display:none;}
+  .cap{color:var(--dim);font-size:12px;margin:0 0 5px;display:flex;justify-content:space-between;align-items:baseline;gap:12px;}
+  .cap b{color:var(--text);font-weight:600;}
+  canvas{display:block;width:100%;background:var(--panel);border-radius:4px;margin-bottom:18px;}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:8px;}
+  th{text-align:left;color:var(--dim);font-weight:500;font-size:11px;padding:0 8px 6px 0;border-bottom:1px solid var(--line);white-space:nowrap;}
+  td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;vertical-align:middle;}
+  .swatch{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px;vertical-align:baseline;}
+  input.nm{
+    background:transparent;border:none;border-bottom:1px dashed var(--line);
+    color:var(--text);font:inherit;font-size:12.5px;padding:2px 0;width:100%;max-width:190px;
+  }
+  input.nm:focus{outline:none;border-bottom-color:var(--t1);}
+  .del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:15px;padding:0 4px;line-height:1;}
+  .del:hover{color:var(--warn);}
+  .empty{color:var(--dim);font-size:12.5px;padding:14px 0 18px;}
+  .foot{color:var(--dim);font-size:12px;line-height:1.85;margin-top:26px;padding-top:16px;border-top:1px solid var(--line);}
+  .foot b{color:var(--text);}
+  a{color:var(--t1);}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>支えを測る</h1><span class="sub">持続と安定</span>
+  <p class="lead">
+    声を出しているあいだの「大きさ」と「高さ」の推移を、そのまま線にします。声が始まると自動で記録が始まり、止めると1本のテイクになります。
+    3本まで重ねられるので、<b>条件を変えた前と後</b>を並べて比べられます。
+  </p>
+
+  <div class="bar">
+    <button id="btn">マイクを開始</button>
+    <button id="png" class="ghost" disabled>PNGで保存</button>
+    <button id="clr" class="ghost" disabled>全部消す</button>
+    <div class="state">
+      <div class="big" id="big">—</div>
+      <div class="small" id="small">開始すると、まず0.7秒だけ静かにしてください</div>
+    </div>
+  </div>
+
+  <div class="err" id="err"></div>
+
+  <p class="cap"><span>大きさ <b>dB</b> — 支えが効いていれば平ら、切れると落ちる</span><span id="cap1"></span></p>
+  <canvas id="c1" height="170" style="height:170px"></canvas>
+
+  <p class="cap"><span>高さ <b>Hz</b> — 動力が乱れると、ここも揺れる</span><span id="cap2"></span></p>
+  <canvas id="c2" height="170" style="height:170px"></canvas>
+
+  <table id="tbl">
+    <thead>
+      <tr><th style="width:38%">テイク</th><th>続いた長さ</th><th>大きさの揺れ</th><th>高さの揺れ</th><th>終わりの落ち</th><th></th></tr>
+    </thead>
+    <tbody id="tb"></tbody>
+  </table>
+  <div class="empty" id="empty">まだ記録がありません。</div>
+
+  <p class="foot">
+    <b>これは測定値であって、採点ではありません。</b>「揺れ」は中央8割の区間のばらつき、「終わりの落ち」は最後の1秒が中央部よりどれだけ下がったかです。
+    数値の良し悪しの線は引いていません。<b>同じ人が、同じマイクとの距離で、条件だけ変えて比べる</b>ときに意味を持ちます。距離が変われば大きさは変わるので、テイクをまたぐ絶対値は比べられません。<br>
+    高さは自己相関で拾っています。かすれた声や小さすぎる声では線が切れますが、これは声が出ていないという意味ではなく、<b>測れなかった</b>という意味です。<br>
+    音声はブラウザの中だけで処理され、どこにも送信されません。 ← <a href="/koe/">道具の一覧へ戻る</a>
+  </p>
+</div>
+
+<script>
+const COL=["#7FE3C4","#F0A54A","#9B8FE3"], MAXT=3;
+const el=id=>document.getElementById(id);
+const btn=el("btn"),pngB=el("png"),clrB=el("clr"),errBox=el("err");
+const bigEl=el("big"),smallEl=el("small"),c1=el("c1"),c2=el("c2"),tb=el("tb"),emptyEl=el("empty");
+
+let ac=null,an=null,stream=null,raf=null;
+let calUntil=0,floor=-60,thresh=-45;
+let rec=false,t0=0,lastV=0,cur=[];
+const takes=[];
+
+/* ---- 測る ---- */
+function detectF0(buf,sr){
+  const W=1024,lagMin=Math.floor(sr/600),lagMax=Math.floor(sr/60);
+  if(lagMax+W>=buf.length) return null;
+  let rms=0; for(let i=0;i<W;i++) rms+=buf[i]*buf[i];
+  if(Math.sqrt(rms/W)<0.012) return null;
+  const pre=new Float64Array(lagMax+W+1);
+  for(let i=0;i<lagMax+W;i++) pre[i+1]=pre[i]+buf[i]*buf[i];
+  const e0=pre[W];
+  let best=-1,bv=0;
+  for(let lag=lagMin;lag<=lagMax;lag++){
+    let num=0;
+    for(let i=0;i<W;i++) num+=buf[i]*buf[i+lag];
+    const v=num/(Math.sqrt(e0*(pre[lag+W]-pre[lag]))+1e-9);
+    if(v>bv){bv=v;best=lag;}
+  }
+  return (best<0||bv<0.5)?null:sr/best;
+}
+
+const med=a=>{const s=[...a].sort((x,y)=>x-y);const n=s.length;return n?(n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2):null;};
+const avg=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:null;
+const sd=a=>{if(a.length<2) return null;const m=avg(a);return Math.sqrt(a.reduce((s,v)=>s+(v-m)*(v-m),0)/a.length);};
+
+function stats(d){
+  const dur=d.length?d[d.length-1].t:0;
+  const lo=dur*0.1,hi=dur*0.9;
+  const mid=d.filter(p=>p.t>=lo&&p.t<=hi);
+  const midDb=mid.map(p=>p.db);
+  const midF=mid.map(p=>p.f0).filter(v=>v);
+  let cents=null;
+  if(midF.length>2){
+    const m=med(midF);
+    cents=sd(midF.map(v=>1200*Math.log2(v/m)));
+  }
+  const tail=d.filter(p=>p.t>dur-1).map(p=>p.db);
+  const drop=(tail.length>2&&midDb.length>2)?avg(tail)-avg(midDb):null;
+  return {dur,dbSd:sd(midDb),cents,drop};
+}
+
+/* ---- 描く ---- */
+function fit(c){
+  const dpr=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;
+  if(c.width!==Math.round(w*dpr)||c.height!==Math.round(h*dpr)){
+    c.width=Math.round(w*dpr); c.height=Math.round(h*dpr);
+  }
+  const ctx=c.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx,w,h};
+}
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+function series(){
+  const all=takes.map((t,i)=>({d:t.data,c:COL[i%3]}));
+  if(rec&&cur.length) all.push({d:cur,c:COL[takes.length%3],live:true});
+  return all;
+}
+
+function plot(ctx,X,Y,W,H,field,fmt,pal){
+  const all=series();
+  ctx.fillStyle=pal.panel; ctx.fillRect(X,Y,W,H);
+
+  let maxT=5,lo=Infinity,hi=-Infinity;
+  all.forEach(s=>{
+    if(s.d.length) maxT=Math.max(maxT,s.d[s.d.length-1].t);
+    s.d.forEach(p=>{const v=p[field]; if(v!=null&&isFinite(v)){ if(v<lo)lo=v; if(v>hi)hi=v; }});
+  });
+  maxT=Math.ceil(maxT);
+  if(!isFinite(lo)){ lo=field==="db"?-60:100; hi=field==="db"?-10:300; }
+  const pad=Math.max((hi-lo)*0.18,field==="db"?3:8);
+  lo-=pad; hi+=pad;
+
+  const PL=44,PB=20,PT=8,PR=8;
+  const px=X+PL,py=Y+PT,pw=W-PL-PR,ph=H-PT-PB;
+  const xOf=t=>px+t/maxT*pw;
+  const yOf=v=>py+ph-(v-lo)/(hi-lo)*ph;
+
+  ctx.strokeStyle=pal.line; ctx.fillStyle=pal.dim; ctx.lineWidth=1;
+  ctx.font="10px ui-monospace,Menlo,monospace";
+  const stepT=maxT<=8?1:maxT<=20?2:5;
+  ctx.textAlign="center";
+  for(let t=0;t<=maxT;t+=stepT){
+    const x=xOf(t);
+    ctx.beginPath(); ctx.moveTo(x,py); ctx.lineTo(x,py+ph); ctx.stroke();
+    ctx.fillText(t+"s",x,Y+H-6);
+  }
+  ctx.textAlign="right";
+  for(let k=0;k<=3;k++){
+    const v=lo+(hi-lo)*k/3,y=yOf(v);
+    ctx.beginPath(); ctx.moveTo(px,y); ctx.lineTo(px+pw,y); ctx.stroke();
+    ctx.fillText(fmt(v),px-6,y+3.5);
+  }
+  ctx.textAlign="left";
+
+  all.forEach(s=>{
+    ctx.strokeStyle=s.c; ctx.lineWidth=s.live?1.3:1.8;
+    if(s.live) ctx.setLineDash([3,3]);
+    ctx.beginPath();
+    let pen=false;
+    s.d.forEach(p=>{
+      const v=p[field];
+      if(v==null||!isFinite(v)){ pen=false; return; }
+      const x=xOf(p.t),y=yOf(v);
+      pen?ctx.lineTo(x,y):ctx.moveTo(x,y); pen=true;
+    });
+    ctx.stroke(); ctx.setLineDash([]);
+  });
+}
+
+function draw(){
+  const pal={panel:css("--panel"),line:css("--line"),dim:css("--dim")};
+  const a=fit(c1); plot(a.ctx,0,0,a.w,a.h,"db",v=>v.toFixed(0),pal);
+  const b=fit(c2); plot(b.ctx,0,0,b.w,b.h,"f0",v=>v.toFixed(0),pal);
+}
+
+/* ---- 一覧 ---- */
+const fmtN=(v,d,u)=>v==null?"—":v.toFixed(d)+u;
+// 丸めてから符号を決める（-0.04 を「-0.0」と出さないため）
+const fmtDrop=v=>{ if(v==null) return "—"; const r=+v.toFixed(1); return (r>0?"+":"")+r.toFixed(1)+" dB"; };
+function rows(){
+  tb.innerHTML="";
+  takes.forEach((t,i)=>{
+    const tr=document.createElement("tr");
+    const c=COL[i%3];
+    tr.innerHTML=
+      '<td><span class="swatch" style="background:'+c+'"></span><input class="nm" value="'+t.name.replace(/"/g,"&quot;")+'"></td>'+
+      "<td>"+t.s.dur.toFixed(1)+" 秒</td>"+
+      "<td>"+fmtN(t.s.dbSd,1," dB")+"</td>"+
+      "<td>"+fmtN(t.s.cents,0," ¢")+"</td>"+
+      "<td>"+fmtDrop(t.s.drop)+"</td>"+
+      '<td style="text-align:right"><button class="del" title="消す">×</button></td>';
+    tr.querySelector(".nm").addEventListener("input",e=>{t.name=e.target.value;});
+    tr.querySelector(".del").addEventListener("click",()=>{takes.splice(i,1);rows();draw();sync();});
+    tb.appendChild(tr);
+  });
+  emptyEl.style.display=takes.length?"none":"block";
+  el("tbl").style.display=takes.length?"":"none";
+}
+function sync(){
+  pngB.disabled=!takes.length; clrB.disabled=!takes.length;
+}
+
+/* ---- 記録 ---- */
+function finish(){
+  rec=false;
+  const d=cur.filter(p=>p.t<=lastV-t0+0.05);
+  cur=[];
+  if(d.length<10||d[d.length-1].t<0.8){ draw(); return; }
+  if(takes.length>=MAXT) takes.shift();
+  takes.push({name:(takes.length+1)+"回目",data:d,s:stats(d)});
+  rows(); draw(); sync();
+}
+
+function loop(){
+  if(!an||!ac) return;
+  const buf=new Float32Array(an.fftSize);
+  an.getFloatTimeDomainData(buf);
+  let s=0; for(let i=0;i<buf.length;i++) s+=buf[i]*buf[i];
+  const db=20*Math.log10(Math.sqrt(s/buf.length)+1e-9);
+  const now=ac.currentTime;
+
+  if(now<calUntil){
+    floor=Math.max(floor,db);
+    bigEl.textContent="測定中…";
+    smallEl.textContent="静かにしてください（雑音の大きさを測っています）";
+    raf=requestAnimationFrame(loop); return;
+  }
+  if(thresh===-45&&floor>-60){ thresh=Math.max(floor+10,-50); floor=-60; }
+
+  const voiced=db>thresh;
+  if(voiced){
+    if(!rec){ rec=true; t0=now; cur=[]; }
+    lastV=now;
+  }
+  if(rec){
+    cur.push({t:now-t0,db,f0:detectF0(buf,ac.sampleRate)});
+    bigEl.innerHTML='<span class="live">● '+(now-t0).toFixed(1)+" 秒</span>";
+    smallEl.textContent="記録中。声を止めると1本になります";
+    if(!voiced&&now-lastV>0.35) finish();
+  }else{
+    bigEl.textContent=takes.length?takes.length+" / "+MAXT+" 本":"待機中";
+    smallEl.textContent="声を出すと自動で始まります"+(takes.length>=MAXT?"（次は古いものから消えます）":"");
+  }
+  draw();
+  raf=requestAnimationFrame(loop);
+}
+
+/* ---- PNG ---- */
+function savePNG(){
+  const W=1000,H=660,S=2;
+  const c=document.createElement("canvas");
+  c.width=W*S; c.height=H*S;
+  const x=c.getContext("2d"); x.scale(S,S);
+  const pal={panel:"#161B24",line:"#232A36",dim:"#8A93A5"};
+
+  x.fillStyle="#0E1117"; x.fillRect(0,0,W,H);
+  x.fillStyle="#E6E8EC"; x.font="600 20px -apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif";
+  x.fillText("支えを測る",34,44);
+  x.fillStyle=pal.dim; x.font="12px ui-monospace,Menlo,monospace";
+  const d=new Date(),p=n=>String(n).padStart(2,"0");
+  x.fillText(d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes()),34,64);
+
+  let ly=92;
+  takes.forEach((t,i)=>{
+    x.fillStyle=COL[i%3]; x.beginPath(); x.arc(40,ly-4,4.5,0,7); x.fill();
+    x.fillStyle="#E6E8EC"; x.font="13px -apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif";
+    x.fillText(t.name,52,ly);
+    x.fillStyle=pal.dim; x.font="12px ui-monospace,Menlo,monospace";
+    x.fillText(t.s.dur.toFixed(1)+"秒　揺れ "+fmtN(t.s.dbSd,1,"dB")+" / "+fmtN(t.s.cents,0,"¢")+"　終わりの落ち "+
+      fmtDrop(t.s.drop),240,ly);
+    ly+=22;
+  });
+
+  const gy=ly+14;
+  x.fillStyle=pal.dim; x.font="12px -apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif";
+  x.fillText("大きさ（dB）",34,gy-6);
+  plot(x,34,gy,W-68,200,"db",v=>v.toFixed(0),pal);
+  x.fillText("高さ（Hz）",34,gy+232);
+  plot(x,34,gy+240,W-68,200,"f0",v=>v.toFixed(0),pal);
+
+  x.fillStyle=pal.dim; x.font="11px -apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif";
+  x.fillText("測定値であって採点ではありません。マイクとの距離が同じときにだけ、テイク間の大きさが比べられます。",34,H-20);
+
+  c.toBlob(b=>{
+    const u=URL.createObjectURL(b),a=document.createElement("a");
+    a.href=u; a.download="sasae-"+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"-"+p(d.getHours())+p(d.getMinutes())+".png";
+    a.click(); setTimeout(()=>URL.revokeObjectURL(u),1000);
+  });
+}
+
+/* ---- 起動 ---- */
+function stop(){
+  if(raf) cancelAnimationFrame(raf); raf=null;
+  if(stream) stream.getTracks().forEach(t=>t.stop()); stream=null;
+  if(ac) ac.close(); ac=null; an=null;
+  rec=false; cur=[]; thresh=-45; floor=-60;
+  btn.textContent="マイクを開始"; btn.classList.remove("on");
+  bigEl.textContent="—"; smallEl.textContent="開始すると、まず0.7秒だけ静かにしてください";
+  draw();
+}
+
+async function start(){
+  errBox.style.display="none";
+  try{
+    if(!navigator.mediaDevices) throw new Error("no mediaDevices");
+    stream=await navigator.mediaDevices.getUserMedia({
+      audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}
+    });
+    ac=new (window.AudioContext||window.webkitAudioContext)();
+    await ac.resume();
+    an=ac.createAnalyser();
+    an.fftSize=4096; an.smoothingTimeConstant=0;
+    ac.createMediaStreamSource(stream).connect(an);
+    calUntil=ac.currentTime+0.7; floor=-60; thresh=-45;
+    btn.textContent="停止"; btn.classList.add("on");
+    loop();
+  }catch(e){
+    errBox.textContent="マイクを開けませんでした。ブラウザのマイク許可と、macOSの「システム設定 › プライバシーとセキュリティ › マイク」でこのブラウザが許可されているかを確認してください。";
+    errBox.style.display="block";
+    stop();
+  }
+}
+
+btn.addEventListener("click",()=>{ ac?stop():start(); });
+pngB.addEventListener("click",savePNG);
+clrB.addEventListener("click",()=>{ takes.length=0; rows(); draw(); sync(); });
+window.addEventListener("resize",()=>{ if(!raf) draw(); });
+rows(); sync(); draw();
+</script>
+</body>
+</html>
