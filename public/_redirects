@@ -64,3 +64,8 @@ http://www.lyricstheory.com/* https://lyricstheory.com/:splat 301
 # フィードリーダーに登録済みの購読者が残っている可能性があるため、URL を保ったまま
 # 現行のフィード実装へ透過的に書き換える（リダイレクトではなく 200）。
 /feed/  /feed/index.xml  200
+
+# elements のカード統合（2026-09-05）
+# 「の…こ」の枠は文節（年下の｜男の子）を割っていたため畳み、
+# 同じ音を文節の内側で見る対称形のカードへ寄せた（やおき裁定）
+/elements/toshishita-no-otokonoko-cv-repetition-noko/  /elements/toshishita-no-otokonoko-aba-ko/  301
