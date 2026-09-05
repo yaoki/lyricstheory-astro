@@ -20,8 +20,13 @@ tools: Read, Bash, Grep, Glob
 
 ```bash
 node scripts/thumbnail.mjs dist/og/<slug>.png
-# → /tmp/figure-check-small.png（幅 400px）
+# → /tmp/figure-check-<slug>-small.png（幅 400px）
 ```
+
+**出力先には入力の slug が入ります**（2026-09-05 変更）。それ以前は固定パスだったため、
+判定を 2 本並行で走らせると縮小版を互いに上書きし、**別のカードの図を読んだまま判定が進みました**
+（同日実測。判定側がハッシュ照合で気づいて出し直している）。スクリプトが出したパスを
+そのまま読んでください。**別のパスを推測で組み立てないこと。**
 
 縮小版で読めない図は、原寸でどれだけ美しくても不合格です。
 

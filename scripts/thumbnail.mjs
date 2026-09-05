@@ -18,7 +18,19 @@ import path from 'node:path';
 import { Resvg } from '@resvg/resvg-js';
 
 const DEFAULT_WIDTH = 400;
-const DEFAULT_OUT = '/tmp/figure-check-small.png';
+
+/**
+ * 出力先の既定。**入力のファイル名を混ぜる**（2026-09-05 変更）。
+ *
+ * それまでは固定パス `/tmp/figure-check-small.png` だった。figure-critic を 2 本
+ * 並行で走らせると縮小版を互いに上書きし、**別のカードの図を読んだまま判定が進む**。
+ * 2026-09-05 に実測——`toshishita-no-otokonoko-cv-repetition-tono` の判定が
+ * `-aba-ko` の縮小版を読んでいた（判定側がハッシュ照合で検出。結論は出し直した）。
+ *
+ * 「並行で走らせない」という運用で塞がないのは、**判定が 1 枚ずつとは限らない**ため。
+ * カードを 2 枚同時に足す場面は普通にあり、そのたびに手順を思い出すことに賭けられない。
+ */
+const defaultOutFor = (input) => `/tmp/figure-check-${path.basename(input, '.png')}-small.png`;
 
 /**
  * PNG の IHDR チャンクから幅と高さを読む。
@@ -58,12 +70,12 @@ const [, , inputArg, outArg, widthArg] = process.argv;
 if (!inputArg) {
   console.error(
     '使い方: node scripts/thumbnail.mjs <入力.png> [出力.png] [幅]\n' +
-      `  出力先の既定は ${DEFAULT_OUT}、幅の既定は ${DEFAULT_WIDTH}px`,
+      `  出力先の既定は /tmp/figure-check-<入力名>-small.png、幅の既定は ${DEFAULT_WIDTH}px`,
   );
   process.exit(1);
 }
 
-const outPath = outArg || DEFAULT_OUT;
+const outPath = outArg || defaultOutFor(inputArg);
 const width = Number(widthArg) || DEFAULT_WIDTH;
 const input = fs.readFileSync(inputArg);
 const output = shrinkPng(input, width);
