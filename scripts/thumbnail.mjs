@@ -29,6 +29,9 @@ const DEFAULT_WIDTH = 400;
  *
  * 「並行で走らせない」という運用で塞がないのは、**判定が 1 枚ずつとは限らない**ため。
  * カードを 2 枚同時に足す場面は普通にあり、そのたびに手順を思い出すことに賭けられない。
+ *
+ * @param {string} input 縮小する PNG のパス
+ * @returns {string}
  */
 const defaultOutFor = (input) => `/tmp/figure-check-${path.basename(input, '.png')}-small.png`;
 
