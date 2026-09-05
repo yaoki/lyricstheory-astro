@@ -93,15 +93,24 @@ export function single(figure: Omit<SingleFigure, 'kind'>, ctx: FigureContext): 
       })
     : centers;
 
+  // 順序の軸が立たないカードは弧を引かない（figure.arcs: false）。呼応は色だけが示す。
   // phrases があるときは語どうしを 1 本で結ぶ。色は音の側が担うので、弧は先頭の色で引く。
   // なければ従来どおり組ごとに結び、結ぶ相手がいない組（要素が 1 つ以下）には弧を描かない
-  const spans: Span[] = phrases
-    ? [{ from: 0, to: phrases.length - 1, accent: ACCENTS[0] }]
-    : groups.flatMap((group, i) =>
-        group.length >= 2
-          ? [{ from: Math.min(...group), to: Math.max(...group), accent: ACCENTS[i % ACCENTS.length] }]
-          : [],
-      );
+  const spans: Span[] = figure.arcs === false
+    ? []
+    : phrases
+      ? [{ from: 0, to: phrases.length - 1, accent: ACCENTS[0] }]
+      : groups.flatMap((group, i) =>
+          group.length >= 2
+            ? [
+                {
+                  from: Math.min(...group),
+                  to: Math.max(...group),
+                  accent: ACCENTS[i % ACCENTS.length],
+                },
+              ]
+            : [],
+        );
   const arcs = spans.map((span) => arcPath(span, spans, arcAnchors, size, scale)).join('');
 
   const maxTitleEm = available / SYMMETRY.titleFontSize;

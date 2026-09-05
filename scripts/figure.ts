@@ -54,6 +54,12 @@ const USAGE = `
 
   例) npm run figure -- --phrases 'つみ,つつみ' '「つ」〈み〉を「つ」「つ」〈み〉こんで'
 
+--no-arcs を付けると弧を引かず、呼応を色だけで示します。
+弧の向きと重なりは操作（倒置／並行）の記法なので、四操作が当たらないカード
+——単独の音の反復が二組あるもの——で引くと、図が本文と食い違います。
+
+  例) npm run figure -- --repetition cv --no-arcs 'としした「の」おと〈こ〉「の」〈こ〉'
+
 --pivot <軸ラベル> を付けると子音ピボットの図になります。
 書き方は同じですが、囲みの外は**伏せた印**になり文字が出ません。
 そのため囲む数に上限はありません（伏せ字を挟むかぎり歌詞にならないため）。
@@ -163,6 +169,8 @@ function main(): void {
   let card: string | undefined;
   // 語のまとまり。弧を語どうしで結び、色は音ごとに残したいときに渡す
   let phraseWords: string[] = [];
+  // 弧を引かない。順序の軸が立たないカード（単独の音の反復が二組あるもの）で使う
+  let noArcs = false;
   const positional: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
@@ -170,6 +178,7 @@ function main(): void {
     if (arg === '--title') title = args[++i] ?? '';
     else if (arg === '--out') out = args[++i];
     else if (arg === '--no-open') shouldOpen = false;
+    else if (arg === '--no-arcs') noArcs = true;
     else if (arg === '--repetition') repetition = args[++i] ?? 'cv';
     else if (arg === '--pivot') pivotAxis = args[++i] ?? '';
     else if (arg === '--marks') markLines.push(args[++i] ?? '');
@@ -252,6 +261,7 @@ function main(): void {
   }
 
   const { figure, trimmed } = parsed;
+  if (noArcs) figure.arcs = false;
   if (trimmed.head > 0 || trimmed.tail > 0) {
     const parts = [
       trimmed.head > 0 ? `前を${trimmed.head}音` : '',

@@ -496,6 +496,8 @@ export function toYaml(figure: SingleFigure): string {
     `  units: [${units}]`,
     `  highlight: ${highlight}`,
   ];
+  // 既定（弧を引く）は書かない。落としたときだけ、そう決めた印としてカードに残す
+  if (figure.arcs === false) lines.push('  arcs: false');
   if (figure.phrases !== undefined) {
     lines.push(`  phrases: [${figure.phrases.map(([a, b]) => `[${a}, ${b}]`).join(', ')}]`);
   }

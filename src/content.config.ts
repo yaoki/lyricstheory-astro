@@ -92,6 +92,16 @@ const singleFigure = z
       .array(z.tuple([z.number().int().nonnegative(), z.number().int().nonnegative()]))
       .min(2)
       .optional(),
+    // 呼応の弧を引くか。既定は引く。
+    //
+    // false にするのは**順序の軸が立たないカード**である。弧の向きと重なりは操作の記法で
+    // （CLAUDE.md「図の決めごと」——入れ子なら倒置、平行にずれて並ぶなら並行）、四操作が
+    // 当たらないカードで引くと図が本文と正面から食い違う。単独の音の反復が二組あるカードは
+    // 組が二つある時点で弧が必ず重なるので、縮小すると同順の呼応と見分けがつかない。
+    //
+    // 色は単独で呼応を担える（このテンプレートは元々「枠は描かず、色の差だけで呼応を示す」）。
+    // 子音ピボットのガードレール4と同趣旨の、single 版にあたる（2026-09-05 追加）
+    arcs: z.boolean().default(true),
   })
   .superRefine((figure, ctx) => {
     const groups: number[][] =
