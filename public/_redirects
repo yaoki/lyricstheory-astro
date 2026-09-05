@@ -66,6 +66,7 @@ http://www.lyricstheory.com/* https://lyricstheory.com/:splat 301
 /feed/  /feed/index.xml  200
 
 # elements のカード統合（2026-09-05）
-# 「の…こ」の枠は文節（年下の｜男の子）を割っていたため畳み、
-# 同じ音を文節の内側で見る対称形のカードへ寄せた（やおき裁定）
+# 「の…こ」の読みは、二つの現れが隣接していて聞き分けられず、隣接する
+# 「このこ」の対称形のほうが強いため畳んだ（2026-09-05、やおき裁定）。
+# 同じ音を扱う対称形のカードへ寄せている
 /elements/toshishita-no-otokonoko-cv-repetition-noko/  /elements/toshishita-no-otokonoko-aba-ko/  301
