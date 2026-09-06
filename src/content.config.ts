@@ -26,28 +26,6 @@ const blog = defineCollection({
   }),
 });
 
-const concept = defineCollection({
-  loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/concept' }),
-  schema: z.object({
-    title: z.string(),
-    description: z.string().min(20).max(400),
-    slug: z.string().regex(/^[a-z0-9-]+$/),
-    aliases: z.array(z.string()).default([]),
-    references: z
-      .array(
-        z.object({
-          citation: z.string(),
-          url: z.string().url().optional(),
-        }),
-      )
-      .default([]),
-    relatedConcepts: z.array(z.string()).default([]),
-    pubDate: z.coerce.date(),
-    updatedDate: z.coerce.date().optional(),
-    draft: z.boolean().default(false),
-  }),
-});
-
 const author = defineCollection({
   loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/author' }),
   schema: z.object({
@@ -465,4 +443,4 @@ const webrefs = defineCollection({
   }),
 });
 
-export const collections = { blog, concept, author, elements, books, webrefs };
+export const collections = { blog, author, elements, books, webrefs };
