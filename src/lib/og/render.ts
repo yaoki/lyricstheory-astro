@@ -31,7 +31,12 @@ function assertFonts(): void {
   checked = true;
 }
 
-export function renderPng(svg: string): Buffer {
+/**
+ * width を引数化してあるのは、サムネ生成（/og/thumb/）が同じ SVG を
+ * 320px で直接描き直すため。既定値は従来どおり CANVAS.width（1200）で、
+ * 呼び出し側を変えない限り出力は変わらない。
+ */
+export function renderPng(svg: string, width: number = CANVAS.width): Buffer {
   assertFonts();
   const resvg = new Resvg(svg, {
     font: {
@@ -39,7 +44,7 @@ export function renderPng(svg: string): Buffer {
       loadSystemFonts: false,
       defaultFontFamily: FONT_FAMILY,
     },
-    fitTo: { mode: 'width', value: CANVAS.width },
+    fitTo: { mode: 'width', value: width },
   });
   return resvg.render().asPng();
 }
