@@ -62,7 +62,29 @@ function stripLeadingLabel(line: string): string {
 
 /**
  * MDX 本文（`entry.body`。frontmatter を除いた生ソース）から `<LyricQuote>` の中身を
- * すべて抜き出し、行・「／」区切りごとのモーラ列（セグメント）にする。
+ * すべて抜き出し、行・「／」区切りごとの**かな文字列**（クリーニング済み・モーラ化前）にする。
+ *
+ * `extractLyricQuoteSegments`（モーラ列を返す）と `extractLyricQuoteLines`（引用行索引が
+ * 使う、かな文字列を返す）は前処理が完全に同じなので、ここに共通化してある。
+ * ロジックを変えるときはこの1箇所を直せば両方に効く。
+ */
+function extractCleanedLines(body: string): string[] {
+  const lines: string[] = [];
+  for (const block of body.matchAll(/<LyricQuote[^>]*>([\s\S]*?)<\/LyricQuote>/g)) {
+    for (const rawLine of block[1].trim().split('\n')) {
+      for (const piece of rawLine.split('／')) {
+        if (!piece.trim()) continue;
+        const cleaned = stripLeadingLabel(stripDecoration(piece)).replace(/[\s　]/g, '');
+        if (!cleaned) continue;
+        lines.push(cleaned);
+      }
+    }
+  }
+  return lines;
+}
+
+/**
+ * `extractCleanedLines` の結果をモーラ列（連なりの段が引く単位）にする。
  *
  * カタカナは `kanaToMora` 内部の `toHiragana` でひらがな化されるので、そのまま渡してよい
  * （利用者が「ムード」とカタカナで打っても、歌詞側のひらがな表記「むーど」と一致する）。
@@ -72,19 +94,23 @@ function stripLeadingLabel(line: string): string {
  * 「連なりの段の対象外（軸の段のみ）」として扱うこと。
  */
 export function extractLyricQuoteSegments(body: string): string[][] {
-  const segments: string[][] = [];
-  for (const block of body.matchAll(/<LyricQuote[^>]*>([\s\S]*?)<\/LyricQuote>/g)) {
-    for (const rawLine of block[1].trim().split('\n')) {
-      for (const piece of rawLine.split('／')) {
-        if (!piece.trim()) continue;
-        const cleaned = stripLeadingLabel(stripDecoration(piece)).replace(/[\s　]/g, '');
-        if (!cleaned) continue;
-        const mora = kanaToMora(cleaned);
-        if (mora.length > 0) segments.push(mora);
-      }
-    }
-  }
-  return segments;
+  return extractCleanedLines(body)
+    .map((cleaned) => kanaToMora(cleaned))
+    .filter((mora) => mora.length > 0);
+}
+
+/**
+ * 作業用の本（`BOOK=1`）の引用行索引が使う、クリーニング済みの**かな文字列**を返す。
+ *
+ * `extractLyricQuoteSegments` と同じ前処理を通すが、モーラ配列へ割らずに文字列のまま返す
+ * ——索引は `Intl.Collator('ja')` で五十音順に並べるためで、モーラ配列は並べ替えに使えない。
+ *
+ * `kanaToMora(cleaned).length > 0` で絞るのは segments 側と対象を揃えるため（漢字だけの
+ * 行のように、かな順に並べても意味を持たない行を落とす）。行はカードが既に引用している
+ * 範囲そのものなので、この索引を足しても repo の引用総量は増えない。
+ */
+export function extractLyricQuoteLines(body: string): string[] {
+  return extractCleanedLines(body).filter((line) => kanaToMora(line).length > 0);
 }
 
 /**

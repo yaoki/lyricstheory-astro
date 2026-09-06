@@ -234,6 +234,9 @@ export default defineConfig({
     }),
     sitemap({
       serialize: serializeSitemapItem,
+      // BOOK=1 で /elements/book/ を生成したときも、sitemap には載せない（noindex と対）。
+      // 作業用の本は印刷前提の内部ページで、検索エンジンに拾わせる意図が無いため
+      filter: (page) => !page.includes('/elements/book/'),
     }),
   ],
   vite: {

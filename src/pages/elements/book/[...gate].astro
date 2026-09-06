@@ -1,0 +1,470 @@
+---
+/**
+ * 国歌大観方式の作業用冊子（`BOOK=1 npm run build` のときだけ生成される）。
+ *
+ * 非動的ページ（`index.astro` 単体）は `getStaticPaths` を持てないため、環境変数だけで
+ * 生成をオン/オフできない。**rest パラメータの動的ルート**（`[...gate]`）にしておけば、
+ * `getStaticPaths` が空配列を返したときにパスが1つも生成されず、`dist/elements/book/` が
+ * ディレクトリごと存在しなくなる。BOOK=1 のときだけ `params.gate` を持たない1パスを返し、
+ * 通常どおり `/elements/book/` に出す。
+ *
+ * 通常のビルド・デプロイからは常に除外される。sitemap からの除外は
+ * `astro.config.mjs` の `sitemap({ filter })` が担い、このページ自体にも念のため
+ * `noindex` を立てて二重に防いでいる。
+ */
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import LyricQuote from '../../../components/LyricQuote.astro';
+import Score from '../../../components/Score.astro';
+import { invertReferences, resolveCardLinks, type CardLink } from '../../../lib/backlinks';
+import {
+  axesOf,
+  CONSONANT_ORDER,
+  CONSONANT_LABELS,
+  VOWEL_ORDER,
+  VOWEL_LABELS,
+} from '../../../lib/phoneme/axis';
+import { extractLyricQuoteLines } from '../../../lib/phoneme/lyric-mora';
+
+export async function getStaticPaths() {
+  return process.env.BOOK === '1' ? [{ params: { gate: undefined } }] : [];
+}
+
+// 表示用ラベル。カードページ（[slug]/index.astro）が持つ MATURITY_LABELS 等と同じ発想の
+// ローカル複製で、正本を持つ理論用語（docs/theory-glossary.md）とは違い、単なる UI 文言なので
+// 複製してよい。
+const TYPE_LABELS: Record<string, string> = {
+  pivot: 'pivot（子音ピボット）',
+  syllable: 'syllable（音節構造）',
+  pattern: 'pattern（反復パターン）',
+  principle: 'principle（記述方針）',
+  term: 'term（理論用語）',
+  other: 'other',
+};
+
+const REPETITION_LABELS: Record<string, string> = {
+  c: 'C反復',
+  v: 'V反復',
+  cv: 'CV反復',
+};
+
+const [elements, posts] = await Promise.all([getCollection('elements'), getCollection('blog')]);
+const sorted = elements.slice().sort((a, b) => a.data.no - b.data.no);
+
+// 参照は片側に書けば両側に出る（src/lib/backlinks.ts）。カードページと同じ逆引きを使う。
+const backlinks = {
+  related: invertReferences(elements, 'related'),
+  terms: invertReferences(elements, 'terms'),
+};
+const noById = new Map(elements.map((e) => [e.id, e.data.no]));
+const collator = new Intl.Collator('ja');
+
+type DisplayLink = CardLink & { no?: number };
+const toDisplay = (link: CardLink): DisplayLink => ({
+  ...link,
+  no: link.kind === 'element' ? noById.get(link.id) : undefined,
+});
+
+// ---- カード本文の下ごしらえ（no 昇順） -------------------------------------
+const cards = await Promise.all(
+  sorted.map(async (entry) => {
+    const { Content } = await render(entry);
+    const links = resolveCardLinks(entry, elements, posts, backlinks);
+
+    const metaParts: string[] = [TYPE_LABELS[entry.data.type] ?? entry.data.type];
+    const repetition = entry.data.tags?.repetition;
+    if (repetition) metaParts.push(REPETITION_LABELS[repetition]);
+    if (entry.data.song) metaParts.push(`${entry.data.song.artist}『${entry.data.song.title}』`);
+    const phoneme = entry.data.tags?.phoneme ?? [];
+    if (phoneme.length > 0) metaParts.push(`音素: ${phoneme.join(', ')}`);
+    metaParts.push(`作成: ${entry.data.created.toISOString().slice(0, 10)}`);
+    metaParts.push(`更新: ${entry.data.updated.toISOString().slice(0, 10)}`);
+
+    return {
+      no: entry.data.no,
+      id: entry.id,
+      title: entry.data.title,
+      metaLine: metaParts.join(' ・ '),
+      hasFigure: entry.data.figure !== undefined,
+      Content,
+      usedBy: links.usedBy.map(toDisplay),
+      terms: links.terms.map(toDisplay),
+      related: links.related.map(toDisplay),
+      sources: entry.data.sources ?? [],
+    };
+  }),
+);
+
+// ---- 巻末索引1: 作家 --------------------------------------------------------
+// 作家の五十音順は出さない（atlas と同じ理由。artist は roman slug のみで読み仮名を持たない）。
+// カード数の降順にし、同数はカード内の no が若い順で安定させる。
+const artistBuckets = new Map<string, Map<string, number[]>>();
+for (const entry of sorted) {
+  const song = entry.data.song;
+  if (!song) continue;
+  if (!artistBuckets.has(song.artist)) artistBuckets.set(song.artist, new Map());
+  const songs = artistBuckets.get(song.artist)!;
+  if (!songs.has(song.title)) songs.set(song.title, []);
+  songs.get(song.title)!.push(entry.data.no);
+}
+const artistIndex = [...artistBuckets.entries()]
+  .map(([artist, songs]) => {
+    const songList = [...songs.entries()]
+      .map(([title, nos]) => ({ title, nos: nos.slice().sort((a, b) => a - b) }))
+      .sort((a, b) => a.nos[0] - b.nos[0]);
+    const count = songList.reduce((sum, s) => sum + s.nos.length, 0);
+    return { artist, count, songs: songList };
+  })
+  .sort((a, b) => b.count - a.count || collator.compare(a.artist, b.artist));
+
+// ---- 巻末索引2: 曲名 --------------------------------------------------------
+// 同名異曲を分けるため artist を含めたキーでまとめ、五十音順（Intl.Collator('ja')）で並べる。
+const songBuckets = new Map<string, { title: string; artist: string; nos: number[] }>();
+for (const entry of sorted) {
+  const song = entry.data.song;
+  if (!song) continue;
+  const key = `${song.title} ${song.artist}`;
+  if (!songBuckets.has(key)) songBuckets.set(key, { title: song.title, artist: song.artist, nos: [] });
+  songBuckets.get(key)!.nos.push(entry.data.no);
+}
+const songIndex = [...songBuckets.values()]
+  .map((s) => ({ ...s, nos: s.nos.slice().sort((a, b) => a - b) }))
+  .sort((a, b) => collator.compare(a.title, b.title) || collator.compare(a.artist, b.artist));
+
+// ---- 巻末索引3: 音素 --------------------------------------------------------
+// axesOf で軸へ畳み、五十音の並び（CONSONANT_ORDER / VOWEL_ORDER）で出す。
+const consonantBuckets = new Map<string, number[]>();
+const vowelBuckets = new Map<string, number[]>();
+for (const entry of sorted) {
+  const phoneme = entry.data.tags?.phoneme ?? [];
+  if (phoneme.length === 0) continue;
+  const axes = axesOf(phoneme);
+  for (const c of axes.consonants) {
+    if (!consonantBuckets.has(c)) consonantBuckets.set(c, []);
+    consonantBuckets.get(c)!.push(entry.data.no);
+  }
+  for (const v of axes.vowels) {
+    if (!vowelBuckets.has(v)) vowelBuckets.set(v, []);
+    vowelBuckets.get(v)!.push(entry.data.no);
+  }
+}
+const consonantIndex = CONSONANT_ORDER.filter((c) => consonantBuckets.has(c)).map((c) => ({
+  axis: c,
+  label: CONSONANT_LABELS[c] ?? c,
+  nos: consonantBuckets.get(c)!,
+}));
+const vowelIndex = VOWEL_ORDER.filter((v) => vowelBuckets.has(v)).map((v) => ({
+  axis: v,
+  label: VOWEL_LABELS[v] ?? v,
+  nos: vowelBuckets.get(v)!,
+}));
+
+// ---- 巻末索引4: 用語 --------------------------------------------------------
+const termIndex = sorted
+  .filter((e) => e.data.type === 'term')
+  .map((term) => ({
+    no: term.data.no,
+    title: term.data.title,
+    usedBy: (backlinks.terms.get(term.id) ?? [])
+      .map((id) => noById.get(id))
+      .filter((n): n is number => n !== undefined)
+      .sort((a, b) => a - b),
+  }));
+
+const TYPE_ORDER = ['pivot', 'syllable', 'pattern', 'principle', 'term', 'other'] as const;
+const typeIndex = TYPE_ORDER.map((type) => ({
+  type,
+  label: TYPE_LABELS[type],
+  nos: sorted.filter((e) => e.data.type === type).map((e) => e.data.no),
+})).filter((t) => t.nos.length > 0);
+
+const REPETITION_ORDER = ['c', 'v', 'cv'] as const;
+const repetitionIndex = REPETITION_ORDER.map((rep) => ({
+  repetition: rep,
+  label: REPETITION_LABELS[rep],
+  nos: sorted.filter((e) => e.data.tags?.repetition === rep).map((e) => e.data.no),
+})).filter((r) => r.nos.length > 0);
+
+// ---- 巻末索引5: 引用行（国歌大観の各句索引に相当） ---------------------------
+// 行はカードが既に <LyricQuote> で引用している範囲そのものなので、この索引を足しても
+// repo の引用総量は増えない。同じ行が複数カードにあれば1項目にまとめる。
+const lineBuckets = new Map<string, Set<number>>();
+for (const entry of sorted) {
+  for (const line of extractLyricQuoteLines(entry.body ?? '')) {
+    if (!lineBuckets.has(line)) lineBuckets.set(line, new Set());
+    lineBuckets.get(line)!.add(entry.data.no);
+  }
+}
+const lineIndex = [...lineBuckets.entries()]
+  .map(([line, nos]) => ({ line, nos: [...nos].sort((a, b) => a - b) }))
+  .sort((a, b) => collator.compare(a.line, b.line));
+
+const generatedAt = new Date().toISOString().slice(0, 10);
+---
+
+<BaseLayout
+  title="elements 作業用冊子"
+  description={`elements ${sorted.length}枚の作業用冊子（国歌大観方式・BOOK=1 のときだけ生成）`}
+>
+  <meta name="robots" content="noindex" slot="head" />
+
+  {/* 扉 */}
+  <section class="book-title mb-16 text-center">
+    <p class="text-sm text-gray-500">lyricstheory.com</p>
+    <h1 class="my-4 text-3xl font-bold">elements 作業用</h1>
+    <p class="text-sm text-gray-600">生成日: {generatedAt} ・ {sorted.length}枚</p>
+  </section>
+
+  {/* 目次 */}
+  <section class="book-toc mb-16">
+    <h2 class="mb-4 text-xl font-bold">目次</h2>
+    <ul class="book-toc-list text-sm leading-7">
+      {sorted.map((entry) => (
+        <li>
+          <a href={`#e${entry.data.no}`}>
+            E{entry.data.no} {entry.data.title}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  {/* 本文: no 昇順 */}
+  {cards.map((card) => {
+    const { Content } = card;
+    const sections = [
+      { heading: 'この用語を使っているカード', items: card.usedBy },
+      { heading: 'この観察が使う用語', items: card.terms },
+      { heading: '関連', items: card.related },
+    ].filter((section) => section.items.length > 0);
+
+    return (
+      <article class="card" id={`e${card.no}`}>
+        <header class="mb-3">
+          <div class="flex flex-wrap items-baseline gap-3">
+            <span class="font-mono text-2xl font-bold">E{card.no}</span>
+            <h2 class="text-lg font-bold">{card.title}</h2>
+          </div>
+          <p class="mt-1 text-xs text-gray-600">{card.metaLine}</p>
+        </header>
+
+        {card.hasFigure && (
+          <figure class="mb-4 aspect-[1200/400] overflow-hidden border border-gray-300">
+            <img
+              src={`/og/${card.id}.png`}
+              alt={`図: ${card.title}`}
+              width="1200"
+              height="630"
+              class="block h-auto w-full"
+            />
+          </figure>
+        )}
+
+        <div class="prose max-w-none book-body">
+          <Content components={{ LyricQuote, Score }} />
+        </div>
+
+        {sections.map((section) => (
+          <div class="mt-4 text-xs">
+            <p class="font-semibold text-gray-700">{section.heading}</p>
+            <ul class="list-disc pl-5">
+              {section.items.map((item) => (
+                <li>
+                  {item.no ? `E${item.no} ` : ''}
+                  {item.title}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+
+        {card.sources.length > 0 && (
+          <div class="mt-4 text-xs">
+            <p class="font-semibold text-gray-700">出典</p>
+            <ul class="list-disc pl-5">
+              {card.sources.map((source) => (
+                <li>{source}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </article>
+    );
+  })}
+
+  {/* 巻末索引1: 作家 */}
+  <section class="book-index-section">
+    <h2 class="mb-2 text-xl font-bold">索引1: 作家</h2>
+    <p class="mb-4 text-xs text-gray-500">
+      並びはカード数の降順。artist は roman slug のみで読み仮名を持たないため五十音順は取らない（/elements/atlas/ と同じ理由）
+    </p>
+    <ul class="book-index text-sm leading-6">
+      {artistIndex.map((a) => (
+        <li class="mb-3 break-inside-avoid">
+          <p class="font-semibold">
+            {a.artist}（{a.count}）
+          </p>
+          <ul class="pl-4">
+            {a.songs.map((s) => (
+              <li>
+                『{s.title}』:{' '}
+                {s.nos.map((no) => (
+                  <a href={`#e${no}`}>E{no}</a>
+                ))}
+              </li>
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  {/* 巻末索引2: 曲名 */}
+  <section class="book-index-section">
+    <h2 class="mb-4 text-xl font-bold">索引2: 曲名</h2>
+    <ul class="book-index text-sm leading-6">
+      {songIndex.map((s) => (
+        <li class="mb-2 break-inside-avoid">
+          『{s.title}』（{s.artist}）:{' '}
+          {s.nos.map((no) => (
+            <a href={`#e${no}`}>E{no}</a>
+          ))}
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  {/* 巻末索引3: 音素 */}
+  <section class="book-index-section">
+    <h2 class="mb-4 text-xl font-bold">索引3: 音素</h2>
+    <h3 class="mb-2 text-sm font-semibold text-gray-700">子音軸</h3>
+    <ul class="book-index mb-6 text-sm leading-6">
+      {consonantIndex.map((c) => (
+        <li class="mb-2 break-inside-avoid">
+          {c.label}（{c.axis}）:{' '}
+          {c.nos.map((no) => (
+            <a href={`#e${no}`}>E{no}</a>
+          ))}
+        </li>
+      ))}
+    </ul>
+    <h3 class="mb-2 text-sm font-semibold text-gray-700">母音軸</h3>
+    <ul class="book-index text-sm leading-6">
+      {vowelIndex.map((v) => (
+        <li class="mb-2 break-inside-avoid">
+          {v.label}（{v.axis}）:{' '}
+          {v.nos.map((no) => (
+            <a href={`#e${no}`}>E{no}</a>
+          ))}
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  {/* 巻末索引4: 用語 */}
+  <section class="book-index-section">
+    <h2 class="mb-4 text-xl font-bold">索引4: 用語</h2>
+    <ul class="book-index mb-6 text-sm leading-6">
+      {termIndex.map((t) => (
+        <li class="mb-2 break-inside-avoid">
+          <a href={`#e${t.no}`}>
+            E{t.no} {t.title}
+          </a>
+          {t.usedBy.length > 0 && (
+            <Fragment>
+              {' '}
+              — 実例:{' '}
+              {t.usedBy.map((no) => (
+                <a href={`#e${no}`}>E{no}</a>
+              ))}
+            </Fragment>
+          )}
+        </li>
+      ))}
+    </ul>
+    <h3 class="mb-2 text-sm font-semibold text-gray-700">分類: type</h3>
+    <ul class="book-index mb-6 text-sm leading-6">
+      {typeIndex.map((t) => (
+        <li class="mb-2 break-inside-avoid">
+          {t.label}:{' '}
+          {t.nos.map((no) => (
+            <a href={`#e${no}`}>E{no}</a>
+          ))}
+        </li>
+      ))}
+    </ul>
+    <h3 class="mb-2 text-sm font-semibold text-gray-700">分類: repetition</h3>
+    <ul class="book-index text-sm leading-6">
+      {repetitionIndex.map((r) => (
+        <li class="mb-2 break-inside-avoid">
+          {r.label}:{' '}
+          {r.nos.map((no) => (
+            <a href={`#e${no}`}>E{no}</a>
+          ))}
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  {/* 巻末索引5: 引用行（国歌大観の各句索引に相当） */}
+  <section class="book-index-section">
+    <h2 class="mb-2 text-xl font-bold">索引5: 引用行</h2>
+    <p class="mb-4 text-xs text-gray-500">
+      各カードが既に本文で引用している行を五十音順に並べたもの。この索引自体は新しい引用を持たない
+    </p>
+    <ul class="book-index text-sm leading-6">
+      {lineIndex.map((l) => (
+        <li class="mb-2 break-inside-avoid">
+          {l.line}:{' '}
+          {l.nos.map((no) => (
+            <a href={`#e${no}`}>E{no}</a>
+          ))}
+        </li>
+      ))}
+    </ul>
+  </section>
+</BaseLayout>
+
+<style is:global>
+  /* このページだけの印刷 CSS。BaseLayout 側には触れない。 */
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  @media print {
+    /* サイト共通の header/footer と、その中の nav は印刷物に要らない */
+    body > header,
+    body > footer {
+      display: none;
+    }
+
+    /* 1カード=1見出しで新しいページから始める（国歌大観方式） */
+    .card,
+    .book-toc,
+    .book-index-section {
+      break-before: page;
+    }
+
+    .book-toc-list,
+    .book-index {
+      columns: 2;
+      column-gap: 2rem;
+    }
+
+    body {
+      font-size: 10.5pt;
+    }
+
+    a {
+      color: black;
+      text-decoration: underline;
+    }
+  }
+
+  /* 画面表示でも読める最小限の余白（印刷専用の大余白を screen に持ち込まない） */
+  .book-index-section h2,
+  .book-index-section h3 {
+    break-after: avoid;
+  }
+</style>
