@@ -163,6 +163,32 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/sound-looku
 - **term**: 理論用語の定義カード（2026-08-13 追加）。`principle` が「数え方を決める判断」であるのに対し、`term` は「用語が何を指すか」を扱う。下記「用語カード」を参照
 - **pattern**: 反復パターンの上位型。距離のバリエーション（連続反復・1音おき反復・2音おき反復・倒置反復 等）を含む。サブカテゴリの細分化は該当カードが5枚以上溜まってから判断する。
 
+### 通し番号 `no`（2026-09-06 追加）
+
+カードは frontmatter の `no`（正の整数）で番号を持ち、表示と会話では **`E42`** と呼ぶ。132 枚を超えたころに、やおきさんが Claude と対話するときにどのカードを指しているか特定するのが大変になったため。slug は改名されうる（`shiina → sheena`、`sequenz → parallel`）が、番号は変わらない。
+
+- **追記のみ。改番しない。欠番を許す。** 途中に挿入して振り直すと番号が二重化する（挿入・削除を重ねた旧ケッヘル番号は枝番だらけになり、2024 年の第 9 版が「新発見は末尾 K.627 以降へ追記」で収拾した。国歌大観も新編で挿入が起き、旧番号と新番号を呼び分ける羽目になった）。ロウド民謡索引と同じ受入順である
+- **番号は手で決めない。** `node scripts/assign-numbers.mjs` が、`no` の無いカードに既存最大値の次から振る（順序は `created` → git の初回追加時刻 → ファイル名）。新規カードを置いたら走らせる
+- `scripts/check-cards.mjs` 検査9 が欠落・重複でビルドを止める
+- **`/e/42/` は本来のカードへの 301** で、実体は `/elements/<slug>/` にしか無い。`astro.config.mjs` の `shortUrls` integration がビルド時に `dist/_redirects` へ追記する。`public/_redirects` は手書きの正本なので、番号の行をそこへ書かない
+- 機械可読索引は `/elements/index.json`（`no` 順）。Claude のクラウドセッションから `lyricstheory.com` は読めるので、カードの特定はまずこれを引く。ローカルでは `npm run find -- 粉雪` / `npm run find -- E42`
+
+### 索引ページ（`/elements/atlas/`）
+
+五十音図（子音の行 × 母音の列にカード数）・作家×手法のマトリクス・`no` 順の台帳・図のコンタクトシートを 1 枚に置く。**新しい URL はこの 1 枚だけ**で、五十音図のマスを押しても URL は増えない（D6）。サムネは `/og/thumb/<slug>.png`（幅 320。`src/pages/og/thumb/[slug].png.ts` が同じ SVG を小さく描く）。
+
+作家の五十音順は**出さない**。artist は roman slug しか持たず、読み仮名のフィールドが無い。読みを推測して並べると誤る（木石岳を「きいし がく」と読めなかった前例）。読みが要るなら `reading` フィールドを足してから。
+
+### 作業用の本（`BOOK=1 npm run build`）
+
+国歌大観方式の作業用冊子。`src/pages/elements/book/[...gate].astro` は環境変数 `BOOK=1` のときだけ生成され、**通常のビルドとデプロイには含まれない**（sitemap からも除外、`noindex`）。`no` 順に全カードの本文と図を並べ、巻末に作家・曲名・音素・用語・引用行の 5 索引を付ける。
+
+```bash
+BOOK=1 npm run build && open dist/elements/book/index.html
+```
+
+Chrome で PDF に書き出し、duplex-print スキルで `--pdf --book` として刷る。
+
 ### 機械可読の参照フィールド（2026-08-13 追加）
 
 段階1 で `song` / `terms` / `books` / `webrefs` を同時に足した。3 つの調査がそれぞれ独立にフィールド追加を提案していたため、93枚を 3 回触らずに 1 回で済ませている（`docs/network-design-plan.md`）。

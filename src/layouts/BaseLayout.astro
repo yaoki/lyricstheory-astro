@@ -122,6 +122,13 @@ function absoluteUrl(pathOrUrl: string): string {
       <a href="/" class="text-lg font-bold">{siteName}</a>
       <nav class="flex gap-4 text-sm">
         <a href="/elements/" class="text-gray-600 hover:underline">elements</a>
+        {/*
+          索引と「音で引く」をヘッダーに出す。2026-09-06 までヘッダーは elements と推薦図書の
+          2 本だけで、/elements/sounds/ は一覧ページの中からしか辿れなかった。カードが 132 枚に
+          なり、一覧をスクロールする以外の入口が要る
+        */}
+        <a href="/elements/atlas/" class="text-gray-600 hover:underline">索引</a>
+        <a href="/elements/sounds/" class="text-gray-600 hover:underline">音で引く</a>
         <a href="/books/" class="text-gray-600 hover:underline">推薦図書</a>
       </nav>
     </header>

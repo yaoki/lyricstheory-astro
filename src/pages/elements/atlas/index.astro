@@ -1,0 +1,593 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { invertReferences } from '../../../lib/backlinks';
+import { TYPE_ORDER, typeLabel } from '../../../lib/element-types';
+import {
+  CONSONANT_LABELS,
+  CONSONANT_ORDER,
+  VOWEL_LABELS,
+  VOWEL_ORDER,
+} from '../../../lib/phoneme/axis';
+import { classifyPhonemeTags, moraTokensOf, shortTitle, termColumnTitle } from './logic';
+
+// 索引ページ。**新しい URL はこの 1 枚だけで、五十音図のマスを押しても URL は増えない**
+// （D6）。すべての絞り込みはこのページの中で完結する。
+
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+const entries = await getCollection('elements');
+const byNo = [...entries].sort((a, b) => a.data.no - b.data.no);
+
+// ---- 1. 五十音図 ------------------------------------------------------------
+// **onset×vowel の直積を取らない。** `parseTag` をタグごとに呼び、そのタグ自身が
+// 申告している交点だけを拾う（依頼文の警告どおり、直積だと `[k, a]` のカードに
+// 存在しない「か」が立つ）。分類そのものは logic.ts の `classifyPhonemeTags` に切り出した。
+const cellCounts = new Map<string, number>(); // "onset|vowel"
+const rowOnlyCounts = new Map<string, number>(); // onset か、撥音・促音の記号
+const vowelOnlyCounts = new Map<string, number>(); // vowel
+
+let phonemeCardCount = 0;
+for (const entry of entries) {
+  const tags = entry.data.tags?.phoneme ?? [];
+  if (tags.length === 0) continue;
+  phonemeCardCount += 1;
+  const { cells, rowOnly, vowelOnly } = classifyPhonemeTags(tags);
+  for (const k of cells) cellCounts.set(k, (cellCounts.get(k) ?? 0) + 1);
+  for (const k of rowOnly) rowOnlyCounts.set(k, (rowOnlyCounts.get(k) ?? 0) + 1);
+  for (const k of vowelOnly) vowelOnlyCounts.set(k, (vowelOnlyCounts.get(k) ?? 0) + 1);
+}
+
+type SeionRow = { key: string; label: string; cells: number[]; rowOnly: number };
+
+const seionRows: SeionRow[] = CONSONANT_ORDER.map((c) => ({
+  key: c,
+  label: CONSONANT_LABELS[c] ?? c,
+  cells: VOWEL_ORDER.map((v) => cellCounts.get(`${c}|${v}`) ?? 0),
+  rowOnly: rowOnlyCounts.get(c) ?? 0,
+}))
+  // カードが1枚も無い行は出さない（撥音「ん」は現行データでは単体申告が無く、ここで落ちる）
+  .filter((row) => row.rowOnly > 0 || row.cells.some((n) => n > 0));
+
+const vowelOnlyCells = VOWEL_ORDER.map((v) => vowelOnlyCounts.get(v) ?? 0);
+
+// 報告用（ページには出さない）。合計は「同じカードが複数セルにまたがる」ぶんだけ
+// カード枚数以上になる
+const seionTotal =
+  [...cellCounts.values()].reduce((a, b) => a + b, 0) +
+  [...rowOnlyCounts.values()].reduce((a, b) => a + b, 0) +
+  [...vowelOnlyCounts.values()].reduce((a, b) => a + b, 0);
+
+// ---- 2. 作家 × 手法のマトリクス ----------------------------------------------
+const typeCounts = new Map<string, number>();
+for (const entry of entries) typeCounts.set(entry.data.type, (typeCounts.get(entry.data.type) ?? 0) + 1);
+
+// term は個別の用語列として別枠で扱うので、type の列からは外す
+const typeColumns = TYPE_ORDER.filter((t) => t !== 'term' && (typeCounts.get(t) ?? 0) > 0);
+
+// 依頼文の表記順（C反復 / V反復 / CV反復）をそのまま列順にする
+const REPETITION_COLUMNS = ['c', 'v', 'cv'] as const;
+const REPETITION_LABELS: Record<string, string> = { c: 'C反復', v: 'V反復', cv: 'CV反復' };
+
+const termCards = byNo.filter((e) => e.data.type === 'term');
+const termsBacklinks = invertReferences(entries, 'terms');
+
+type MatrixColumn = { kind: 'type' | 'rep' | 'term'; key: string; label: string };
+
+const matrixColumns: MatrixColumn[] = [
+  ...typeColumns.map((t) => ({ kind: 'type' as const, key: t, label: typeLabel(t) })),
+  ...REPETITION_COLUMNS.map((r) => ({ kind: 'rep' as const, key: r, label: REPETITION_LABELS[r] })),
+  ...termCards.map((t) => ({ kind: 'term' as const, key: t.id, label: termColumnTitle(t.data.title) })),
+];
+
+// 行 = artist（流通表記）。カード数の降順、同数は artist 名で安定させる。
+// song を持たないカード（principle / term）は空文字をセンチネルにして「用語と方針」へ集める
+const THEORY_KEY = '';
+const artistCounts = new Map<string, number>();
+for (const entry of entries) {
+  const artist = entry.data.song?.artist ?? THEORY_KEY;
+  artistCounts.set(artist, (artistCounts.get(artist) ?? 0) + 1);
+}
+const artistKeys = [...artistCounts.keys()]
+  .filter((k) => k !== THEORY_KEY)
+  .sort((a, b) => artistCounts.get(b)! - artistCounts.get(a)! || a.localeCompare(b, 'ja'));
+
+type MatrixRow = { key: string; heading: string; cells: number[] };
+
+const buildMatrixRow = (key: string, heading: string): MatrixRow => {
+  const cardsInRow = entries.filter((e) => (e.data.song?.artist ?? THEORY_KEY) === key);
+  const cells = matrixColumns.map((col) => {
+    if (col.kind === 'type') return cardsInRow.filter((e) => e.data.type === col.key).length;
+    if (col.kind === 'rep') return cardsInRow.filter((e) => e.data.tags?.repetition === col.key).length;
+    // 用語列は逆引き（この用語を terms に挙げているカード）を作家ごとに数える
+    const users = new Set(termsBacklinks.get(col.key) ?? []);
+    return cardsInRow.filter((e) => users.has(e.id)).length;
+  });
+  return { key, heading, cells };
+};
+
+const matrixRows: MatrixRow[] = [
+  ...artistKeys.map((key) => buildMatrixRow(key, key)),
+  ...(artistCounts.has(THEORY_KEY) ? [buildMatrixRow(THEORY_KEY, '用語と方針')] : []),
+];
+
+// ---- 3. 台帳／図の一覧 --------------------------------------------------------
+type ListRow = {
+  id: string;
+  no: number;
+  title: string;
+  shortTitle: string;
+  artist: string;
+  song: string | null;
+  phoneme: string[];
+  type: string;
+  typeLabel: string;
+  repetition: string | undefined;
+  updated: string;
+  hasFigure: boolean;
+  // 五十音図のセルの数字と、押したときに出る枚数を一致させるため、data-c / data-v は
+  // **軸レベル（axesOf）ではなく、裸のタグの申告そのもの**を持つ。「行のみ」列の 13 は
+  // `t` を裸で申告した 13 枚であって、`ta` `te` を含む軸の到達 33 枚ではない。
+  // 軸で広く見る入口は /elements/sounds/ が担う。ここは索引なので、数えたものを出す
+  consonants: string[]; // classifyPhonemeTags の rowOnly。data-c
+  vowels: string[]; // classifyPhonemeTags の vowelOnly。data-v
+  mora: string[]; // onset+vowel のモーラ。data-cv
+  terms: string[];
+};
+
+const listRows: ListRow[] = byNo.map((entry) => {
+  const tags = entry.data.tags?.phoneme ?? [];
+  const { rowOnly, vowelOnly } = classifyPhonemeTags(tags);
+  return {
+    id: entry.id,
+    no: entry.data.no,
+    title: entry.data.title,
+    shortTitle: shortTitle(entry.data.title),
+    artist: entry.data.song?.artist ?? THEORY_KEY,
+    song: entry.data.song ? `${entry.data.song.artist}『${entry.data.song.title}』` : null,
+    phoneme: tags,
+    type: entry.data.type,
+    typeLabel: typeLabel(entry.data.type),
+    repetition: entry.data.tags?.repetition,
+    updated: iso(entry.data.updated),
+    hasFigure: Boolean(entry.data.figure),
+    consonants: [...rowOnly],
+    vowels: [...vowelOnly],
+    mora: moraTokensOf(tags),
+    terms: entry.data.terms ?? [],
+  };
+});
+---
+
+<BaseLayout
+  title="索引 | elements | lyricstheory.com"
+  description="五十音図・作家×手法の表・台帳から elements のカードを引くための索引。"
+>
+  <p class="mb-2 text-sm text-gray-500">
+    <a href="/" class="hover:underline">lyricstheory.com</a> /
+    <a href="/elements/" class="hover:underline">elements</a> / 索引
+  </p>
+  <h1 class="mb-4 text-2xl font-bold">索引</h1>
+  <p class="mb-8 text-gray-700">
+    五十音図・作家×手法の表・台帳（一覧）を 1 枚にまとめました。マスやセルを押しても遷移せず、下の一覧をこのページの中で絞り込みます。
+  </p>
+
+  {/* ---- 1. 五十音図 ---- */}
+  <section class="mb-10">
+    <h2 class="mb-2 text-lg font-semibold text-gray-800">五十音図</h2>
+    <p class="mb-3 text-xs text-gray-500">
+      セルの数字は、その子音×母音の交点を<strong>そのタグで直接申告している</strong>カード数です。「けい」のような融合タグは k×e と k×i の両方に数えます。裸の子音タグ（vowels
+      が無いタグ）は右端の「行のみ」、裸の母音タグは最上段の「母音のみ」に数えます。押すと下の一覧をそのモーラ・軸で絞り込みます。
+    </p>
+    {/*
+      検算用（画面には出さない）。五十音図の合計はカードが複数セルへ数えられる分だけ
+      枚数以上になる。`npm run build` 後に curl でこの属性を読める
+    */}
+    <p class="sr-only" data-seion-total={seionTotal} data-phoneme-card-count={phonemeCardCount} />
+    <div class="overflow-x-auto">
+      <table class="border-collapse text-xs">
+        <thead>
+          <tr>
+            <th class="p-1 text-left text-gray-400"> </th>
+            {VOWEL_ORDER.map((v) => (
+              <th class="p-1 text-center font-normal text-gray-500">{VOWEL_LABELS[v]}</th>
+            ))}
+            <th class="p-1 text-center font-normal text-gray-400">行のみ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th class="p-1 text-left font-normal text-emerald-700">母音のみ</th>
+            {
+              vowelOnlyCells.map((n, i) => (
+                <td class="p-0.5">
+                  <button
+                    type="button"
+                    data-filter={`v|${VOWEL_ORDER[i]}`}
+                    data-desc={`母音のみ・${VOWEL_LABELS[VOWEL_ORDER[i]]}`}
+                    aria-pressed="false"
+                    class={`h-7 w-9 rounded border text-center aria-pressed:border-emerald-700 aria-pressed:bg-emerald-700 aria-pressed:text-white ${
+                      n > 0 ? 'border-emerald-400 text-emerald-800' : 'border-gray-100 text-gray-300'
+                    }`}
+                  >
+                    {n > 0 ? n : ''}
+                  </button>
+                </td>
+              ))
+            }
+            <td class="p-0.5 text-center text-gray-300">·</td>
+          </tr>
+          {
+            seionRows.map((row) => (
+              <tr>
+                <th class="p-1 text-left font-normal text-gray-700">{row.label}</th>
+                {row.cells.map((n, i) => (
+                  <td class="p-0.5">
+                    <button
+                      type="button"
+                      data-filter={`cv|${row.key}${VOWEL_ORDER[i]}`}
+                      data-desc={`モーラ「${row.key}${VOWEL_ORDER[i]}」`}
+                      aria-pressed="false"
+                      class={`h-7 w-9 rounded border text-center aria-pressed:border-gray-800 aria-pressed:bg-gray-800 aria-pressed:text-white ${
+                        n > 0 ? 'border-gray-400 font-medium text-gray-800' : 'border-gray-100 text-gray-300'
+                      }`}
+                    >
+                      {n > 0 ? n : ''}
+                    </button>
+                  </td>
+                ))}
+                <td class="p-0.5">
+                  <button
+                    type="button"
+                    data-filter={`c|${row.key}`}
+                    data-desc={`${row.label}・行のみ`}
+                    aria-pressed="false"
+                    class={`h-7 w-9 rounded border text-center aria-pressed:border-gray-800 aria-pressed:bg-gray-800 aria-pressed:text-white ${
+                      row.rowOnly > 0 ? 'border-gray-400 text-gray-600' : 'border-gray-100 text-gray-300'
+                    }`}
+                  >
+                    {row.rowOnly > 0 ? row.rowOnly : ''}
+                  </button>
+                </td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {/* ---- 2. 作家 × 手法のマトリクス ---- */}
+  <section class="mb-10">
+    <h2 class="mb-2 text-lg font-semibold text-gray-800">作家 × 手法</h2>
+    <p class="mb-3 text-xs text-gray-500">
+      行は作家（カード数の降順）、列は type・反復の類型・用語カードです。押すと下の一覧をその組み合わせで絞り込みます。
+    </p>
+    <div class="overflow-x-auto">
+      <table class="border-collapse text-xs">
+        <thead>
+          <tr>
+            <th class="p-1 text-left text-gray-400"> </th>
+            {
+              matrixColumns.map((col) => (
+                <th class="whitespace-nowrap p-1 text-left font-normal text-gray-500">{col.label}</th>
+              ))
+            }
+          </tr>
+        </thead>
+        <tbody>
+          {
+            matrixRows.map((row) => (
+              <tr>
+                <th class="whitespace-nowrap p-1 text-left font-normal text-gray-700">{row.heading}</th>
+                {row.cells.map((n, i) => {
+                  const col = matrixColumns[i];
+                  return (
+                    <td class="p-0.5">
+                      <button
+                        type="button"
+                        data-filter={`matrix|${row.key}|${col.kind}|${col.key}`}
+                        data-desc={`${row.heading} × ${col.label}`}
+                        aria-pressed="false"
+                        class={`h-7 min-w-9 rounded border px-1.5 text-center aria-pressed:border-gray-800 aria-pressed:bg-gray-800 aria-pressed:text-white ${
+                          n > 0 ? 'border-gray-400 text-gray-800' : 'border-gray-100 text-gray-300'
+                        }`}
+                      >
+                        {n > 0 ? n : '·'}
+                      </button>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="mt-2 text-[11px] text-gray-400">
+      空白（·）は「未分析」の意味です。その作家にその手法が無いという意味ではありません。
+    </p>
+  </section>
+
+  {/* ---- 3. 一覧（台帳／図） ---- */}
+  <section class="mb-10">
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-2 border-b pb-2 text-xs">
+      <p class="text-gray-500" data-count>{listRows.length} 枚</p>
+      <div class="flex flex-wrap gap-2">
+        <button
+          type="button"
+          data-clear
+          hidden
+          class="rounded border border-gray-300 px-2 py-1 text-gray-600"
+        >
+          選択を消す
+        </button>
+        <span class="mx-1 text-gray-300">|</span>
+        <button
+          type="button"
+          data-sort="no"
+          aria-pressed="true"
+          class="rounded border border-gray-300 px-2 py-1 text-gray-600 aria-pressed:border-gray-700 aria-pressed:text-gray-900"
+        >
+          no順
+        </button>
+        <button
+          type="button"
+          data-sort="artist"
+          aria-pressed="false"
+          class="rounded border border-gray-300 px-2 py-1 text-gray-600 aria-pressed:border-gray-700 aria-pressed:text-gray-900"
+        >
+          作家順
+        </button>
+        <button
+          type="button"
+          data-sort="updated"
+          aria-pressed="false"
+          class="rounded border border-gray-300 px-2 py-1 text-gray-600 aria-pressed:border-gray-700 aria-pressed:text-gray-900"
+        >
+          更新順
+        </button>
+        <span class="mx-1 text-gray-300">|</span>
+        <button
+          type="button"
+          data-view-btn="ledger"
+          aria-pressed="true"
+          class="rounded border border-gray-300 px-2 py-1 text-gray-600 aria-pressed:border-gray-700 aria-pressed:text-gray-900"
+        >
+          台帳
+        </button>
+        <button
+          type="button"
+          data-view-btn="grid"
+          aria-pressed="false"
+          class="rounded border border-gray-300 px-2 py-1 text-gray-600 aria-pressed:border-gray-700 aria-pressed:text-gray-900"
+        >
+          図
+        </button>
+      </div>
+    </div>
+
+    {/*
+      台帳と図は同じ <li> の中に両方の DOM を持たせ、切替は <ul> の data-view 属性を
+      CSS で出し分ける（下の <style>）。**Tailwind の `hidden` クラスは使わない**——
+      絞り込みで使う JS の `.hidden` プロパティ（属性）と混ざると、どちらが効いているか
+      分からなくなる（sounds/index.astro と同じ注意）
+    */}
+    <ul id="atlas-list" data-view="ledger">
+      {
+        listRows.map((row) => (
+          <li
+            data-no={row.no}
+            data-c={row.consonants.join(' ')}
+            data-v={row.vowels.join(' ')}
+            data-cv={row.mora.join(' ')}
+            data-artist={row.artist}
+            data-type={row.type}
+            data-repetition={row.repetition ?? ''}
+            data-terms={row.terms.join(' ')}
+            data-updated={row.updated}
+            class="border-b border-gray-100 py-2"
+          >
+            <div data-cell="ledger" class="flex items-center gap-3 text-xs">
+              <span class="w-9 shrink-0 font-mono text-gray-400">E{row.no}</span>
+              <div class="aspect-[1200/400] w-24 shrink-0 overflow-hidden rounded border border-gray-100 bg-gray-50">
+                {row.hasFigure && (
+                  <img
+                    src={`/og/thumb/${row.id}.png`}
+                    width="96"
+                    height="32"
+                    loading="lazy"
+                    alt=""
+                    class="block w-full"
+                  />
+                )}
+              </div>
+              <a href={`/elements/${row.id}/`} class="min-w-0 flex-1 truncate text-blue-700 underline">
+                {row.title}
+              </a>
+              <span class="hidden w-28 shrink-0 truncate text-gray-500 sm:block">{row.artist || '—'}</span>
+              <span class="hidden w-40 shrink-0 truncate text-gray-500 md:block">{row.song ?? '—'}</span>
+              <span class="hidden w-28 shrink-0 truncate text-gray-400 lg:block">
+                {row.phoneme.join(', ') || '—'}
+              </span>
+              <span class="w-16 shrink-0 truncate text-gray-400">{row.typeLabel}</span>
+              <span class="w-20 shrink-0 text-gray-400">{row.updated}</span>
+            </div>
+
+            <div data-cell="grid">
+              {row.hasFigure ? (
+                <a href={`/elements/${row.id}/`} class="block">
+                  <div class="aspect-[1200/400] overflow-hidden rounded border border-gray-200 bg-gray-50">
+                    <img
+                      src={`/og/thumb/${row.id}.png`}
+                      width="320"
+                      height="168"
+                      loading="lazy"
+                      alt=""
+                      class="block w-full"
+                    />
+                  </div>
+                  <p class="mt-1 text-xs">
+                    <span class="font-mono text-gray-400">E{row.no}</span>{' '}
+                    <span class="text-gray-700">{row.shortTitle}</span>
+                  </p>
+                </a>
+              ) : (
+                <a
+                  href={`/elements/${row.id}/`}
+                  class="flex aspect-[1200/400] flex-col items-center justify-center rounded border border-dashed border-gray-200 p-2 text-center"
+                >
+                  <span class="font-mono text-gray-400">E{row.no}</span>
+                  <span class="mt-1 text-xs text-gray-600">{row.shortTitle}</span>
+                </a>
+              )}
+            </div>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <section class="mt-16 border-t pt-6 text-sm text-gray-600">
+    <p>
+      <a href="/elements/" class="text-blue-700 underline">カード一覧へ戻る</a> ／{' '}
+      <a href="/elements/sounds/" class="text-blue-700 underline">音で引く</a>
+    </p>
+    <p class="mt-2 text-xs text-gray-400">
+      作家の五十音順は出していません。artist は roman slug しか持たず、読み仮名のフィールドが無いためです（読みを推測して並べると誤ります。木石岳を「きいし
+      がく」と読めなかった前例があります）。
+    </p>
+  </section>
+</BaseLayout>
+
+<style>
+  /*
+    台帳（密なリスト）と図（コンタクトシート）の切替。**Tailwind の `hidden` クラスは
+    使わず**、data-view 属性に対する素の CSS セレクタで出し分ける。JS 側は
+    filter で外れたカードにだけ `.hidden` プロパティを使うので、この2つが同じ仕組みで
+    衝突することが無い
+  */
+  #atlas-list[data-view='ledger'] > li [data-cell='grid'] {
+    display: none;
+  }
+  #atlas-list[data-view='ledger'] > li [data-cell='ledger'] {
+    display: flex;
+  }
+  #atlas-list[data-view='grid'] > li [data-cell='ledger'] {
+    display: none;
+  }
+  #atlas-list[data-view='grid'] > li [data-cell='grid'] {
+    display: block;
+  }
+  #atlas-list[data-view='grid'] {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  @media (min-width: 640px) {
+    #atlas-list[data-view='grid'] {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 768px) {
+    #atlas-list[data-view='grid'] {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  #atlas-list[data-view='grid'] > li {
+    border-bottom: none;
+  }
+</style>
+
+<script>
+  import { hashToFilter, matchesFilter } from './logic';
+
+  const list = document.getElementById('atlas-list');
+  if (list) {
+    const items = Array.from(list.children) as HTMLLIElement[];
+    const countLabel = document.querySelector('[data-count]');
+    const clearButton = document.querySelector('[data-clear]') as HTMLButtonElement | null;
+
+    // 五十音図・マトリクスのセルは全部同じ `data-filter` / `data-desc` を持つ。
+    // 種類（cv / c / v / matrix）で処理を分けなくて済むよう、matchesFilter 側に寄せてある
+    const filterButtons = Array.from(document.querySelectorAll('[data-filter]')) as HTMLButtonElement[];
+    const descByFilter = new Map(filterButtons.map((b) => [b.dataset.filter ?? '', b.dataset.desc ?? '']));
+
+    let currentFilter: string | null = null;
+
+    const render = () => {
+      let visible = 0;
+      items.forEach((li) => {
+        const show = matchesFilter(li.dataset, currentFilter);
+        li.hidden = !show;
+        if (show) visible += 1;
+      });
+
+      if (countLabel) {
+        const desc = currentFilter ? (descByFilter.get(currentFilter) ?? '') : '';
+        countLabel.textContent = currentFilter
+          ? `${visible} 枚を表示中（${desc}）`
+          : `${items.length} 枚`;
+      }
+      if (clearButton) clearButton.hidden = !currentFilter;
+      filterButtons.forEach((btn) => {
+        btn.setAttribute('aria-pressed', String(btn.dataset.filter === currentFilter));
+      });
+    };
+
+    filterButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.filter ?? null;
+        // 同じセルをもう一度押したら解除する（sounds ページの軸ボタンと同じトグル）
+        currentFilter = currentFilter === key ? null : key;
+        render();
+      });
+    });
+
+    clearButton?.addEventListener('click', () => {
+      currentFilter = null;
+      render();
+    });
+
+    // `#cv=ka` `#c=t` `#v=a` の hash で初期状態を指定できる。ファセット URL を
+    // 切っているのではなく、この 1 枚の中の状態を指しているだけ（D6）
+    currentFilter = hashToFilter(location.hash);
+    render();
+  }
+
+  // ---- 並べ替え（no / artist / updated） ----------------------------------
+  const sortButtons = document.querySelectorAll('[data-sort]');
+  if (list) {
+    const compareBy: Record<string, (a: HTMLLIElement, b: HTMLLIElement) => number> = {
+      no: (a, b) => Number(a.dataset.no ?? 0) - Number(b.dataset.no ?? 0),
+      artist: (a, b) =>
+        (a.dataset.artist ?? '').localeCompare(b.dataset.artist ?? '', 'ja') ||
+        Number(a.dataset.no ?? 0) - Number(b.dataset.no ?? 0),
+      updated: (a, b) =>
+        (b.dataset.updated ?? '').localeCompare(a.dataset.updated ?? '') ||
+        Number(a.dataset.no ?? 0) - Number(b.dataset.no ?? 0),
+    };
+
+    sortButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = (btn as HTMLElement).dataset.sort ?? 'no';
+        Array.from(list.children)
+          .sort((a, b) => compareBy[key](a as HTMLLIElement, b as HTMLLIElement))
+          .forEach((li) => list.appendChild(li));
+        sortButtons.forEach((b) => b.setAttribute('aria-pressed', String((b as HTMLElement).dataset.sort === key)));
+      });
+    });
+  }
+
+  // ---- 台帳／図 の切替 -------------------------------------------------------
+  const viewButtons = document.querySelectorAll('[data-view-btn]');
+  viewButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const view = (btn as HTMLElement).dataset.viewBtn ?? 'ledger';
+      list?.setAttribute('data-view', view);
+      viewButtons.forEach((b) =>
+        b.setAttribute('aria-pressed', String((b as HTMLElement).dataset.viewBtn === view)),
+      );
+    });
+  });
+</script>
