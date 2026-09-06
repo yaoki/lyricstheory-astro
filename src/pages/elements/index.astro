@@ -320,7 +320,9 @@ const rangeLabel = `${iso(new Date(startSunday))} 〜 ${iso(new Date(todayUTC))}
             data-order={order}
             data-updated={iso(entry.data.updated)}
             data-created={iso(entry.data.created)}
+            data-no={entry.data.no}
           >
+            <span class="mr-1 font-mono text-xs text-gray-400">E{entry.data.no}</span>
             <a href={`/elements/${entry.id}/`} class="text-lg font-medium text-blue-700 underline">
               {entry.data.title}
             </a>

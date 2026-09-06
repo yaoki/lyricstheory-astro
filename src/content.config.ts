@@ -307,6 +307,10 @@ const elements = defineCollection({
   loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/elements' }),
   schema: z.object({
     title: z.string(),
+    // 通し番号。created 順の連番で、追記のみ・改番禁止・欠番許容（ケッヘル 2024 年版と同じ
+    // 原則）。挿入改番した旧ケッヘル・国歌大観は番号が二重化して破綻した。表示形式は `E42`。
+    // 手で振らない。`scripts/assign-numbers.mjs` で採番する（title の直後に文字列挿入する）
+    no: z.number().int().positive(),
     // 2026-08-13 に enum 化（93枚時点）。2026-08-18 に sequenz を落として6語になった。
     // 未使用だった rhyme / prosody は入れていない。**使われていない語彙が残ると、分類が
     // 語彙の側に引きずられる**（あるから使う）。押韻・韻律のカードを書く番になったら

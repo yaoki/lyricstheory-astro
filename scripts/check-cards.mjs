@@ -18,10 +18,14 @@
  *   検査6  books / webrefs の参照先が無い、または draft のままであること
  *   検査7  card id が、将来のファセット URL のための予約語と衝突すること
  *   検査8  title の曲名と song が食い違っていること
+ *   検査9  no が欠落している・正の整数でない・重複していること
  *
  * 検査5〜8 は 2026-08-13 追加（段階1）。1〜4 が「貼付されたテキストの変異」を見るのに対し、
  * 5〜8 は**参照とメタデータの整合**を見る。前者は歌詞の写し崩れ、後者はリンク切れと
  * 分類の割れを止める。
+ *
+ * 検査9 は通し番号（`E42` 表記）の導入にともない追加。created 順の連番・追記のみ・
+ * 改番禁止・欠番許容という方針（`scripts/assign-numbers.mjs`）が壊れていないかを見る。
  *
  * 検査2 は 2026-08-11 の事故（`ad1a478`、夏の魔物 1-A の「の」脱落。2枚のカードが同じ行を
  * 図にしていて片方だけ字が落ちていた）を、事故当時のツリーで誤検出ゼロのまま検出できる。
@@ -52,13 +56,16 @@ const MAX_LENGTH_GAP = 3;
  *   将来 `/elements/song/<slug>/` のようなファセットを切るときの 1 セグメント目の候補。
  *   URL はまだ切らない（切った瞬間に slug が SEO 資産になり、改名に 301 が要る）。
  *   2026-08-13 時点で衝突は 0 件なので、いま予約しておけば無償で済む。
- * - `sounds`
- *   **既に実在するページ**（`src/pages/elements/sounds/index.astro`＝音で引く入口）。
- *   Astro は静的ルートを動的ルートより優先するので、この id のカードを書くと
- *   ビルドは通ったままカードのページだけが**黙って消える**。検査5 が related の
- *   タイポで塞いだのと同じ「静かに消える」経路なので、id 側で止める。
+ * - `sounds` / `atlas` / `book` / `e`
+ *   **既に実在する、または将来実在させる静的ページ**。Astro は静的ルートを動的ルートより
+ *   優先するので、これらの id でカードを書くとビルドは通ったままカードのページだけが
+ *   **黙って消える**。検査5 が related のタイポで塞いだのと同じ「静かに消える」経路なので、
+ *   id 側で止める。
+ *   - `sounds`: `src/pages/elements/sounds/index.astro`（音で引く入口）
+ *   - `atlas` / `book`: `/elements/atlas/` `/elements/book/` の静的ページ
+ *   - `e`: `/e/<no>/` の短縮 URL（`astro.config.mjs` の `shortUrls` integration）
  */
-const RESERVED_SLUGS = ['artist', 'song', 'type', 'phoneme', 'era', 'tag', 'sounds'];
+const RESERVED_SLUGS = ['artist', 'song', 'type', 'phoneme', 'era', 'tag', 'sounds', 'atlas', 'book', 'e'];
 
 /**
  * 比較用に正規化する。呼応の鉤括弧・強調・空白は表記の都合なので落とし、
@@ -190,6 +197,14 @@ function readCard(filePath) {
 
   const title = (frontmatter.match(/^title:[ \t]*"(.*)"[ \t]*$/m) ?? [, ''])[1];
   const type = (frontmatter.match(/^type:[ \t]*"?([a-z]+)"?[ \t]*$/m) ?? [, ''])[1];
+  // 通し番号（E42 表記）。検査9 が欠落・非正の整数・重複を見る。
+  // まず行の有無を見てから正の整数かを判定する（`no: 0` や `no: -1` を
+  // 「欠落」ではなく「正の整数でない」として区別するため）
+  const noLineMatch = frontmatter.match(/^no:[ \t]*(.+?)[ \t]*$/m);
+  const noRaw = noLineMatch ? noLineMatch[1] : undefined;
+  const no = noRaw !== undefined && /^\d+$/.test(noRaw) ? Number(noRaw) : undefined;
+  const noPresent = noRaw !== undefined;
+  const noValid = no !== undefined && Number.isInteger(no) && no > 0;
 
   // frontmatter の song。キーの順序に依らないよう、ブロックを取ってから個別に拾う
   const songBlock = frontmatter.match(/^song:\r?\n((?:[ \t]+.*\r?\n?)*)/m);
@@ -209,6 +224,9 @@ function readCard(filePath) {
   return {
     slug: path.basename(filePath).replace(/\.mdx?$/, ''),
     title,
+    no,
+    noPresent,
+    noValid,
     type,
     song,
     titleSong,
@@ -479,6 +497,43 @@ export function runCardChecks(rootDir) {
           `    → 同じ曲を指す 2 つがずれると、一覧で曲が 2 つに割れます。`,
       );
     }
+  }
+
+  // 検査9: no が欠落している・正の整数でない・重複していること
+  //
+  // no は created 順の連番（追記のみ・改番禁止・欠番許容）。手で振ると連番が
+  // 崩れるので、欠けているカードは scripts/assign-numbers.mjs で振り直す。
+  /** @type {Map<number, string[]>} */
+  const byNo = new Map();
+  for (const card of cards) {
+    if (!card.noPresent) {
+      errors.push(
+        `[no が無い] ${card.slug}\n` +
+          `    → node scripts/assign-numbers.mjs で振ってください。手で番号を決めない・改番しない。`,
+      );
+      continue;
+    }
+    if (!card.noValid) {
+      errors.push(
+        `[no が不正] ${card.slug}\n` +
+          `    → no は正の整数にしてください。手で書いた値が壊れている可能性があります。` +
+          `node scripts/assign-numbers.mjs で振り直してください。`,
+      );
+      continue;
+    }
+    const no = /** @type {number} */ (card.no);
+    const bucket = byNo.get(no) ?? [];
+    bucket.push(card.slug);
+    byNo.set(no, bucket);
+  }
+  for (const [no, slugs] of byNo) {
+    if (slugs.length <= 1) continue;
+    errors.push(
+      `[no が重複] E${no} が ${slugs.length} 枚のカードに振られています\n` +
+        slugs.map((s) => `    ・${s}`).join('\n') +
+        `\n    → 改番せず、後から追加した側の no 行を削除してから` +
+        ` node scripts/assign-numbers.mjs で振り直してください（既存の番号は動かさない）。`,
+    );
   }
 
   return { errors, skipped, cardCount: cards.length };

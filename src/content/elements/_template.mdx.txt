@@ -34,6 +34,8 @@
 # 「アーティスト『曲名』：観察名」の順で書く。カード単体で誰の何の曲の何の観察かが伝わるように。
 # 楽曲を対象としないカード（principle / term）はこの限りではない
 title: ""
+# 通し番号。node scripts/assign-numbers.mjs で振る。手で番号を決めない・改番しない
+no:
 # 確定7語彙。これ以外はビルドが落ちる
 # pivot | sequenz | syllable | pattern | principle | term | other
 type: ""
