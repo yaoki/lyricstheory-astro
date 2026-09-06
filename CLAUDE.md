@@ -170,7 +170,7 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/sound-looku
 - **追記のみ。改番しない。欠番を許す。** 途中に挿入して振り直すと番号が二重化する（挿入・削除を重ねた旧ケッヘル番号は枝番だらけになり、2024 年の第 9 版が「新発見は末尾 K.627 以降へ追記」で収拾した。国歌大観も新編で挿入が起き、旧番号と新番号を呼び分ける羽目になった）。ロウド民謡索引と同じ受入順である
 - **番号は手で決めない。** `node scripts/assign-numbers.mjs` が、`no` の無いカードに既存最大値の次から振る（順序は `created` → git の初回追加時刻 → ファイル名）。新規カードを置いたら走らせる
 - `scripts/check-cards.mjs` 検査9 が欠落・重複でビルドを止める
-- **`/e/42/` は本来のカードへの 301** で、実体は `/elements/<slug>/` にしか無い。`astro.config.mjs` の `shortUrls` integration がビルド時に `dist/_redirects` へ追記する。`public/_redirects` は手書きの正本なので、番号の行をそこへ書かない
+- **`/e/42/` は本来のカードへの 301** で、実体は `/elements/<slug>/` にしか無い。`functions/e/[[path]].js`（Cloudflare Pages Functions）が `/elements/e-map.json`（番号→slug、ビルド時生成）を引いて返す。関数が動くのは `/e/*` だけ（`public/_routes.json`）。**`_redirects` に番号の行を書かない**——Cloudflare Pages は `_redirects` を合計 100 行で打ち切る（2026-09-06 本番実測。手書き 21 行＋番号 135 行で `/e/80/` 以降が 404 になった）。打ち切りは末尾から起きるので、番号の行を置くと後から足す改名転送が黙って落ちる
 - 機械可読索引は `/elements/index.json`（`no` 順）。Claude のクラウドセッションから `lyricstheory.com` は読めるので、カードの特定はまずこれを引く。ローカルでは `npm run find -- 粉雪` / `npm run find -- E42`
 
 ### 索引ページ（`/elements/atlas/`）

@@ -22,3 +22,6 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# wrangler pages dev（functions のローカル検証）の一時ファイル
+.wrangler/

@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "description": "Pages Functions を呼ぶのは短縮 URL /e/<no>/ だけ。それ以外は静的アセットのまま配信し、関数の実行回数を使わない（functions/e/[[path]].js）",
+  "include": ["/e/*"],
+  "exclude": []
+}
