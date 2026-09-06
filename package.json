@@ -12,7 +12,8 @@
     "astro": "astro",
     "figure": "tsx scripts/figure.ts",
     "check:cards": "node scripts/check-cards.mjs",
-    "thumb": "node scripts/thumbnail.mjs"
+    "thumb": "node scripts/thumbnail.mjs",
+    "find": "node scripts/find-card.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "^7.0.3",

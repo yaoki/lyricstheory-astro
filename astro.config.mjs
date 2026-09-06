@@ -174,6 +174,46 @@ const checkCards = {
   },
 };
 
+// --- 通し番号の短縮 URL（/e/<no>/）を dist/_redirects に自動追記する ------------
+// `public/_redirects` は手書きの正本なので触らない。ここで追記するのはビルド生成物
+// （`dist/_redirects`）の末尾だけで、Cloudflare Pages はビルドごとの dist を配信する
+// ので手書きの分と衝突しない（Cloudflare Pages は同一ファイルの記述を上から順に
+// マッチさせるため、末尾に足しても手書きのルールを上書きしない）。
+
+/** @type {import('astro').AstroIntegration} */
+const shortUrls = {
+  name: 'short-urls',
+  hooks: {
+    'astro:build:done': async ({ dir, logger }) => {
+      const outDir = fileURLToPath(dir);
+      const elementsDir = path.join(__dirname, 'src/content/elements');
+      /** @type {{ no: number, slug: string }[]} */
+      const entries = [];
+      for (const file of fs.readdirSync(elementsDir).filter((f) => /\.mdx?$/.test(f))) {
+        const filePath = path.join(elementsDir, file);
+        const fm = readFrontmatterBlock(filePath);
+        const noStr = extractFrontmatterField(fm, 'no');
+        if (!noStr) continue;
+        const no = Number(noStr);
+        if (!Number.isInteger(no) || no <= 0) continue;
+        entries.push({ no, slug: file.replace(/\.mdx?$/, '') });
+      }
+      entries.sort((a, b) => a.no - b.no);
+
+      const lines = [
+        '',
+        '# /e/<no>/ → カード（ビルド時に自動生成。手で編集しない）',
+        ...entries.map(({ no, slug }) => `/e/${no}/  /elements/${slug}/  301`),
+        '',
+      ];
+
+      const redirectsPath = path.join(outDir, '_redirects');
+      fs.appendFileSync(redirectsPath, lines.join('\n'));
+      logger.info(`短縮 URL /e/<no>/ を ${entries.length} 件、dist/_redirects へ追記しました`);
+    },
+  },
+};
+
 // https://astro.build/config
 export default defineConfig({
   site: 'https://lyricstheory.com',
@@ -187,6 +227,7 @@ export default defineConfig({
   },
   integrations: [
     checkCards,
+    shortUrls,
     mdx({
       remarkPlugins: [remarkRuby, remarkFirstImage, remarkTocExtract],
       rehypePlugins: [rehypeSlug],

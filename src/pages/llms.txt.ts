@@ -106,14 +106,12 @@ ${booksByLayer
 
   const elementSections = types
     .map((type) => {
-      const list = (byType.get(type) ?? [])
-        .slice()
-        .sort((a, b) => b.data.updated.valueOf() - a.data.updated.valueOf());
+      const list = (byType.get(type) ?? []).slice().sort((a, b) => a.data.no - b.data.no);
       const heading = `${typeLabel(type)}（${type}）`;
       const lines = list
         .map(
           (card) =>
-            `- [${card.data.title}](${site}/elements/${card.id}/): 更新 ${iso(card.data.updated)}`,
+            `- E${card.data.no} [${card.data.title}](${site}/elements/${card.id}/): 更新 ${iso(card.data.updated)}`,
         )
         .join('\n');
       return `### ${heading}\n\n${lines}`;
@@ -141,6 +139,8 @@ ${orderedPosts.map((p) => `- [${p.title}](${site}/${p.slug}/): ${p.note}`).join(
 分析の最小単位を1件1カードで持つ。公開後も編集を続ける常緑運用のため、記事と違って内容が更新される。一覧は ${site}/elements/ にある。
 
 カードは成熟度（seed = 観察メモ / budding = 他カードとの関連が張られた状態 / evergreen = 定義・事例・反例が揃った状態）で管理される。
+
+各カードには created 順の通し番号（例: E42）が振られる。機械可読索引は ${site}/elements/index.json、索引ページは ${site}/elements/atlas/ にある。E42 は ${site}/e/42/ で本来のカード（/elements/{slug}/）へ 301 リダイレクトする。
 
 ${elementSections}
 
