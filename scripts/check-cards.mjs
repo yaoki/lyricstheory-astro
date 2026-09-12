@@ -19,10 +19,20 @@
  *   検査7  card id が、将来のファセット URL のための予約語と衝突すること
  *   検査8  title の曲名と song が食い違っていること
  *   検査9  no が欠落している・正の整数でない・重複していること
+ *   検査10 引用の囲みに、図とまったく重ならないものが混ざっていること
  *
  * 検査5〜8 は 2026-08-13 追加（段階1）。1〜4 が「貼付されたテキストの変異」を見るのに対し、
  * 5〜8 は**参照とメタデータの整合**を見る。前者は歌詞の写し崩れ、後者はリンク切れと
  * 分類の割れを止める。
+ *
+ * 検査10 は 2026-09-12 追加。E141 で顕在化した——「たーみなる」4 音を見るカードで「なか」を
+ * 囲んでおり、対応先を持たない「か」が組に入っていた。同型が E106（「ぶり」。同じ曲の
+ * E95「子音 br の並行」の観察が紛れ込んでいた）と E94（互いに呼応しない中身「て」「し」）に
+ * あり、どちらも人が読んで気づいたものだった。**囲みは歌詞の字ではなく「どこを見るか」の
+ * 指定なので、normalizeLyricLine が最初に落とす。**すなわち検査2・3 はどちらも見ていない。
+ *
+ * 見るのは「囲みが図より広いこと」ではない。それは正当でありうる（E56 の展開、E124 の
+ * 頭韻の拡張形。2026-09-12 やおき裁定）。見るのは**図の強調をひとつも含まない囲み**である。
  *
  * 検査9 は通し番号（`E42` 表記）の導入にともない追加。created 順の連番・追記のみ・
  * 改番禁止・欠番許容という方針（`scripts/assign-numbers.mjs`）が壊れていないかを見る。
@@ -236,10 +246,121 @@ function readCard(filePath) {
     webrefs,
     quotes,
     figures: figures.map(normalizeLyricLine).filter(isPureKana),
+    figureEmphasis: emphasizedByFigure(frontmatter),
     unverified,
     figureSource,
     skipped,
   };
+}
+
+/**
+ * figure から「強調されている音」を行ごとに取り出す。
+ *
+ * 引用の囲み（「」〈〉〔〕）は figure の正本である（`src/lib/og/phrase.ts` の parsePhrase が
+ * 囲みから units と highlight を起こす）。ところが pair だけは手書きなので、両者は乖離しうる。
+ * そして乖離しても検査2・3 は素通りする——normalizeLyricLine が鉤括弧を落としてから
+ * 比べるためで、**囲みの中身はどの検査も見ていなかった**（2026-09-12、E141 で顕在化）。
+ *
+ * 取れない形（pivot / consonant / correspondences 省略 / highlight 省略）は null を返して
+ * 検査から外す。pivot は呼応しない音を伏せる別の記法なので、囲みとは対応しない。
+ *
+ * @param {string} frontmatter
+ * @returns {{ emphasis: string[][], units: string[][] } | null}
+ */
+function emphasizedByFigure(frontmatter) {
+  const block = frontmatter.match(/^figure:\r?\n((?:[ \t]+.*\r?\n?)*)/m);
+  if (!block) return null;
+  const body = block[1];
+  const kind = (body.match(/kind:[ \t]*["']?(\w+)["']?/) ?? [, ''])[1];
+
+  /** YAML のフロー記法は JSON と互換なので、そのまま読む @param {string | undefined} raw */
+  const parse = (raw) => {
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  };
+
+  if (kind === 'single') {
+    const units = parse((body.match(/units:[ \t]*(\[.*\])[ \t]*$/m) ?? [])[1]);
+    const highlight = parse((body.match(/highlight:[ \t]*(\[.*\])[ \t]*$/m) ?? [])[1]);
+    if (!Array.isArray(units) || !Array.isArray(highlight)) return null;
+    const groups = typeof highlight[0] === 'number' ? [highlight] : highlight;
+    const picked = groups
+      .flat()
+      .map((index) => units[index])
+      .filter((unit) => typeof unit === 'string');
+    return { emphasis: [picked], units: [units] };
+  }
+
+  if (kind === 'pair') {
+    // 複数行リスト記法（- [...]）とインライン記法（rows: [[...], [...]]）の両方に効かせる
+    let rows = [...body.matchAll(/^[ \t]*-[ \t]*(\[[^\n]*\])[ \t]*$/gm)].map((m) => parse(m[1]));
+    if (rows.length !== 2 || rows.some((row) => !Array.isArray(row))) {
+      const inline = parse((body.match(/rows:[ \t]*(\[\[.*\]\])[ \t]*$/m) ?? [])[1]);
+      if (!Array.isArray(inline) || inline.length !== 2) return null;
+      rows = inline;
+    }
+    const correspondences = parse(
+      (body.match(/correspondences:[ \t]*(\[.*\])[ \t]*$/m) ?? [])[1],
+    );
+    if (!Array.isArray(correspondences)) return null;
+    /** @type {string[][]} */
+    const picked = [[], []];
+    for (const entry of correspondences) {
+      if (!Array.isArray(entry) || entry.length !== 2) return null;
+      entry.forEach((side, i) => {
+        for (const index of Array.isArray(side) ? side : [side]) {
+          const unit = rows[i]?.[index];
+          if (typeof unit === 'string') picked[i].push(unit);
+        }
+      });
+    }
+    return { emphasis: picked, units: rows };
+  }
+
+  return null;
+}
+
+/**
+ * 引用の行から、囲まれた音を取り出す。組（「」〈〉〔〕）は区別しない。
+ * @param {string} raw
+ * @returns {string[]}
+ */
+function bracketedIn(raw) {
+  /** @type {string[]} */
+  const found = [];
+  for (const [open, close] of [
+    ['「', '」'],
+    ['〈', '〉'],
+    ['〔', '〕'],
+  ]) {
+    for (const m of raw.matchAll(new RegExp(`${open}([^${close}]*)${close}`, 'g'))) {
+      if (m[1]) found.push(m[1]);
+    }
+  }
+  return found;
+}
+
+/**
+ * かなの多重集合として畳む。並び順も組の構造も見ない。
+ * 引用が語をまとめて囲み、図が音ごとに色を分けることは正常なので
+ * （`konayuki-cv-repetition-voicing-kodo-koto` の「こど」「こと」）、比べるのは中身だけである。
+ *
+ *
+ * 長音・促音・小書きの仮名は落とす。phrase.ts の変換規則（囲みの外は 1 音 1 枠、
+ * **拗音・長音は前の音に結合、促音は独立**）により、引用の字と図の枠は正常に食い違うためである。
+ *
+ * - 長音: 引用の「た」ー に対し、図は「たー」で 1 枠（E138）
+ * - 拗音: 引用の「じょ」に対し、図も「じょ」で 1 枠。字数だけが違う
+ * - 促音: 図では独立した 1 枠を占めるが、**強調の対象にはならない**。促音は母音を持たず、
+ *   母音の層では透明だからである（`hello-again-consecutive-vowel-a4` ほか、本文が明記している）
+ * @param {string[]} pieces
+ */
+function kanaBag(pieces) {
+  return [...pieces.join('').replace(/[ーっゃゅょぁぃぅぇぉゎ]/g, '')].sort().join('');
 }
 
 /**
@@ -534,6 +655,58 @@ export function runCardChecks(rootDir) {
         `\n    → 改番せず、後から追加した側の no 行を削除してから` +
         ` node scripts/assign-numbers.mjs で振り直してください（既存の番号は動かさない）。`,
     );
+  }
+
+  // 検査10: 引用の囲みと、図が強調している音が食い違っていないか
+  //
+  // 囲みは「どこを見るか」の指定であって歌詞の字ではないため、normalizeLyricLine が
+  // 最初に落とす。すなわち検査2・3 はどちらも囲みを見ていない。2026-09-12 に E141 で
+  // 顕在化した——「たーみなる」4音を見るカードで「なか」を囲んでおり、対応先を持たない
+  // 「か」が組に入っていた。同型が E106 にもあり、そちらは別カード E95（子音 br の並行）の
+  // 観察「ぶり」が引用に混ざっていた。どちらも人が読んで気づいたものである。
+  //
+  // 比べるのはかなの多重集合だけで、組の構造は比べない（kanaBag のコメントを参照）。
+  // 図は引用の一部を切り出すので、行の対応は包含で決める。検査3 と同じ判定である。
+  for (const card of cards) {
+    if (!card.figureEmphasis || card.quotes.length === 0) continue;
+    const { emphasis, units } = card.figureEmphasis;
+
+    // 図の行と引用行の対応を先に決める。**同じ引用行に図の 2 行が載るときは比べられない**——
+    // pair は離れた 2 箇所を上下に並べる記法なので、1 行の引用から起こしたカードがある
+    // （E138。1-A の一行の冒頭と末尾を対比している）。その行の囲みは 2 行ぶんまとめて
+    // 取れてしまい、どちらがどちらのものか決まらない。
+    const matched = units.map((row) => {
+      const line = normalizeLyricLine(row.join(''));
+      return line ? card.quotes.findIndex((q) => q.line.includes(line)) : -1;
+    });
+    if (matched.some((index) => index < 0)) continue;
+    if (new Set(matched).size !== matched.length) continue;
+
+    for (const [i, quoteIndex] of matched.entries()) {
+      const quote = card.quotes[quoteIndex];
+      const bracketed = bracketedIn(quote.raw);
+      // 囲みを書かない流儀のカードがある。書いていないことは欠陥ではない
+      if (bracketed.length === 0) continue;
+
+      // **見るのは「囲みが図より広いこと」ではなく「図とまったく重ならない囲み」である。**
+      // 囲みが図より広いのは正当でありうる——E56（展開。「なら」→「ながら」の挿入物「が」を
+      // 囲みに含めないと展開が見えない）と E124（頭韻の拡張形として「ここ」を囲む、
+      // 2026-09-12 やおき裁定）。いっぽう、図の強調をひとつも含まない囲みは、別の観察が
+      // 引用に紛れ込んだ跡である——E106 の「ぶり」は同じ曲の E95（子音 br の並行）の観察で、
+      // E94 の「て」「し」は互いに呼応しない中身だった。
+      const emphasisBag = kanaBag(emphasis[i]);
+      const stray = bracketed.filter(
+        (piece) => ![...kanaBag([piece])].some((kana) => emphasisBag.includes(kana)),
+      );
+      if (stray.length === 0) continue;
+      errors.push(
+        `[図と重ならない囲み] ${card.slug}\n` +
+          `    浮いている囲み: ${stray.join('・')}\n` +
+          `    図の強調　　　: ${emphasis[i].join('・') || '(なし)'}\n` +
+          `    → 引用の「」は、そのカードが見ている音を囲むものです。別のカードの観察が` +
+          `紛れ込んでいないか確かめてください。`,
+      );
+    }
   }
 
   return { errors, skipped, cardCount: cards.length };
