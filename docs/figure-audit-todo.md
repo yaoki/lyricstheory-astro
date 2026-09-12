@@ -67,7 +67,7 @@ wraps: [[17], [17, 31]]   # 各行を折り返す位置（音の index）
 
 **2026-09-12 追記：図を持てないことの代償がひとつ増えた。** 同日に足した検査10（図と重ならない囲み）は figure を突き合わせ相手にするので、**figure を持たないカードでは引用の `「」` が誰にも検算されない**。実際 E141（171「インターセクション」）がその状態で公開され、囲みが「なか」と2音になって対応先を持たない「か」が入ったまま、人が読むまで気づかれなかった。
 
-いま figure を持たず歌詞を引用しているのは4枚である——E22 `kuchibue-consecutive-as-special-case` / E46 `there-will-be-love-there-cv-repetition-ka` / E48 `there-will-be-love-there-return-repetition` / E141 `intersection-cv-repetition-taminaru`。**前3枚は上記 D-2・D-3 の課題そのものであり、E141 は別口である**——1行の冒頭が同じ行の後半へ散る形で、pair の `correspondences` は上下2行の対応しか結べない。**検査のために型を取り違えた図を足さないこと。**上で `there-will-be-love-there-cv-repetition-ka` について下した判断（consonant の流用はしない）がそのまま当たる。
+**単音の反復に figure が無いのは自明である**（単独の音はフィギュアをなさない）ので、ここで数えるのは 2 音以上の観察に限る。その条件で figure を持たないのは4枚である——E22 `kuchibue-consecutive-as-special-case` / E46 `there-will-be-love-there-cv-repetition-ka` / E48 `there-will-be-love-there-return-repetition` / E141 `intersection-cv-repetition-taminaru`。**前3枚は上記 D-2・D-3 の課題そのものであり、E141 は別口である**——1行の冒頭が同じ行の後半へ散る形で、pair の `correspondences` は上下2行の対応しか結べない。**検査のために型を取り違えた図を足さないこと。**上で `there-will-be-love-there-cv-repetition-ka` について下した判断（consonant の流用はしない）がそのまま当たる。
 
 3枚に共通するのは、**箇所が3つ以上あって、その全部を1枚に載せないと観察が成り立たない**という形である。上の規則（箇所の数＝行数）で言えば行が3本以上要るということになる。ただし `there-will-be-love-there-cv-repetition-ka` は「1行のなかに3点」＋「別の1行のなかに2点」なので、行を増やすだけで済むのか、行内の点の数も同時に扱う必要があるのかは、実装前に判定する。
 

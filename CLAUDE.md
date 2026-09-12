@@ -180,15 +180,46 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/sound-looku
 
 作家の五十音順は**出さない**。artist は roman slug しか持たず、読み仮名のフィールドが無い。読みを推測して並べると誤る（木石岳を「きいし がく」と読めなかった前例）。読みが要るなら `reading` フィールドを足してから。
 
-### 作業用の本（`BOOK=1 npm run build`）
+### 冊子（`scripts/make-book.py`）
 
-国歌大観方式の作業用冊子。`src/pages/elements/book/[...gate].astro` は環境変数 `BOOK=1` のときだけ生成され、**通常のビルドとデプロイには含まれない**（sitemap からも除外、`noindex`）。`no` 順に全カードの本文と図を並べ、巻末に作家・曲名・音素・用語・引用行の 5 索引を付ける。
+国歌大観方式の作業用冊子。`src/pages/elements/book/[...gate].astro` が 3 つの版を出す。環境変数 `BOOK=1` のときだけ生成され、**通常のビルドとデプロイには含まれない**（sitemap からも除外、`noindex`）。
+
+| 版 | 中身 | 判型 | URL |
+|---|---|---|---|
+| `full` | 全部入り（本文＋索引＋目次） | A4 | `/elements/book/` |
+| `lookup` | 索引と用語集だけ | A4 | `/elements/book/lookup/` |
+| `lookup-a5` | 同上 | A5 | `/elements/book/lookup-a5/` |
 
 ```bash
-BOOK=1 npm run build && open dist/elements/book/index.html
+python3 scripts/make-book.py lookup-a5 --impose   # 組む → PDF → 中綴じ面付けまで
 ```
 
-Chrome で PDF に書き出し、duplex-print スキルで `--pdf --book` として刷る。
+**刷るのは索引と用語集だけでよい**（2026-09-12 やおき指示）。カードの現物はサイトで読むので、索引版では E 番号のリンク先が短縮 URL `https://lyricstheory.com/e/<no>/` になる（全部入り版はページ内アンカーのまま）。紙でも番号を打てば同じところへ着く。実績は 145 枚で A5 28 ページ＝ **A4 7 枚**（全部入りは A4 139 ページ）。
+
+構成は 扉 → **索引1: 引用行** →（全部入りは本文145枚／索引版は用語集）→ 索引2: 作家 → 索引3: 曲名 → 索引4: 音素 → 索引5: 用語 →（全部入りだけ目次）。**引用行索引を巻頭に置く**のは、これが国歌大観の各句索引にあたる引く入口だからで、目次は本文の `no` 順をなぞるだけなので巻末へ回してある。
+
+**カードは1枚1ページにしない。**流し込みにして、見出し・図・歌詞引用の内部だけ分断を避ける。1枚1ページだと短いカードの下半分が丸ごと空く（155 → 139 ページ。2026-09-12 実測）。
+
+仕様を変えるときに触る場所は3つ。
+
+| 変えたいもの | 触る場所 |
+|---|---|
+| 何を載せるか・並び順 | `[...gate].astro` のテンプレート（`lookupOnly` / `isA5` で分岐） |
+| A5 の版面（余白・段組・文字サイズ） | 同ファイルの `A5_PRINT_CSS` |
+| 中綴じの見当補正 | `scripts/make-book.py` の `BOOK_OFFSET_H` / `BOOK_OFFSET_V` |
+
+刷るのは duplex-print スキル。面付け済み PDF は**必ず `--pdf <pdf> --book`** で通す（`--pdf` 単独は長辺綴じになる）。
+
+```bash
+python3 ~/.claude/skills/duplex-print/scripts/duplexprint.py --pdf "<面付け済み>" --book --print
+```
+
+#### 2026-09-12 に踏んだ罠
+
+- **`file://` から刷ると図が全部落ちる。**図は `/og/<slug>.png` のルート相対参照なので、ブラウザでファイルを直接開くと 133 枚すべて解決できずに消える。`make-book.py` が dist を一時的にローカル配信するのはこのため
+- **macOS の Chrome headless は PDF を書き終えても終了しない。**終了を待つと毎回 5 分かかる。`make-book.py` は出力のサイズが落ち着いたところで打ち切る（`tools/svg2img.py` の注記と同じ挙動）
+- **`book_impose` に `sheets_per_sig=0` を渡さない。**`_plan_signatures` が `per=0` で無限ループする。一括中綴じなら `total4 // 4` を渡す
+- **`<style is:global>` は条件分岐の中では効かない。**Astro が静的に抽出するため、`{cond && <style is:global>}` は `</html>` の外へ literal のまま出る（A5 指定が丸ごと無視された）。条件付きの CSS は `is:inline` + `set:html` で出す
 
 ### 機械可読の参照フィールド（2026-08-13 追加）
 
@@ -288,6 +319,8 @@ COMITIA156 本で確定した三類型をそのまま使う。定義は `../comi
 | `cv` | CV反復。子音と母音の両方が一致する |
 
 **この三つは類型であって単位ではない。** 単位は譜割シラブルと、その内部の C・V である。「基礎単位が CV だ」という言い方をしないこと（本文が明示的に退けている）。
+
+**母音だけの音は `cv` に数える**（2026-09-12 確定、やおき裁定）。「い」と「い」のように子音を持たない音が繰り返される場合、子音にあたるものが**無いという形で一致している**ため CV反復にあたる。`v` を当てるのは**子音が入れ替わっている**場合に限る——「いき」と「いみ」なら母音 i・i が揃い、2音目の子音が /k/ と /m/ で入れ替わる。既存の `harujion-alliteration-i`（イ の頭韻）が `cv` なのはこの理由による。**割れると集計が分裂する**（`sheena` / `shiina` と同型）ので、母音単独の音を含むカードはすべてこの扱いに揃える。
 
 一致が同音か類音かは**別の軸**であり、この値には含めない。たとえば `tadashii-machi-aba-voicing`（ひ・と・び／だ・し・た）は母音が完全一致し子音が清濁の類音なので `cv` である。類音であることは本文に書く。
 
