@@ -112,7 +112,7 @@ CC BY 4.0 で公開する。誰でも自分の歌詞分析に使ってよい。A
 - 4操作の英訳は2026-05-20リサーチで確定（**本書独自の定義**であり、Schoenbergのオリジナルの体系化ではない）：
   - 並行（parallel）── ABC→ABC、原型の保存と反復累積
   - 倒置（retrograde）── ABC→CBA、逆順配置。**inversion は音程反転で別概念のため採用しない**
-  - 展開（expansion）── もとの音列が順序保存的に保たれたまま、その間に新しい要素が挿入される操作。AC→ABC は最短記法、一般には A B C → A x B y C z のように複数装飾が間隙に挿入される。Schoenberg の developing variation、Coltrane の sheets of sound、Pat Pattison の sonic fabric と同じ性格（2026-05-20追加。第1章 §4.3 [^expansion-references] 参照）
+  - 展開（expansion）── もとの音列が順序保存的に保たれたまま、その間に新しい要素が挿入される操作。AC→ABC は最短記法、一般には A B C → A x B y C z のように複数装飾が間隙に挿入される。Schoenberg の developing variation、Coltrane の sheets of sound、Pat Pattison の sonic fabric と同じ性格（2026-05-20追加。第1章 §4.3 [^expansion-references] 参照）。**同じ操作を生成側から言ったのが「バップライティング」**（[2015年の記事](../src/content/blog/2015/how-to-write-lyrics-bop-writing.mdx)）。「モチーフを切り離して間をあけ、間を埋める」という手順は AC → AXC そのもので、バップの経過音という出どころも sheets of sound と同じジャズ由来である。四操作が記述の語、バップライティングが生成の手順にあたる（2026-09-14 追加）
   - 圧縮（contraction）── もとの音列の一部要素が脱落し、より短い音列に縮減される操作。ABC→AC は最短記法、一般には A B C D E → A C E のように要素が間引かれる。展開と対称的
 - Schoenbergのオリジナル：12音技法の **原型（prime）・反行（inversion）・逆行（retrograde）・逆反行（retrograde-inversion）＋移高（transposition）**。対象は音列レベル。本書の四操作は動機・フレーズ・反復という別の対象に独自定義したもので、Schoenberg自身が「並行・倒置・展開・圧縮」の四操作として体系化したわけではない
 - 近接用語との峻別が必要：
