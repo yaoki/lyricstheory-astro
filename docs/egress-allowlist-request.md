@@ -53,6 +53,45 @@ joysound はカラオケ配信のデータベースなので、**配信される
 
 ---
 
+## 1-c. 追加の実測（2026-09-14）——発売日が歌詞サイトだけでは埋まらない
+
+『車輪の唄』（BUMP OF CHICKEN）のカードを起こす途中で、§1-b の「クレジットが埋まらない」と同型の穴が**発売日**にもあることが分かった。
+
+| 情報 | utaten | joysound | uta-net | 判定 |
+|:---|:---:|:---:|:---:|:---|
+| 作詞・作曲 | ○ 藤原基央 | ○ 藤原基央 | 403 | **2本一致。書ける** |
+| 発売日 | ○ 2004.8.25 | **項目そのものが無い** | 403 | **1本。書けない** |
+
+joysound は発売日のフィールドを持たない（ページ全体を grep しても年月日が出ない）。uta-net はクラウドからは 403。したがって**発売日はクラウドからは構造的に 1 本にしかならない**。`CLAUDE.md` は「utaten の発売日を単独で信用しない」（2 曲続けて外した実測に基づく）と定めているので、**クラウドセッションは発売日を書けない**ということになる。
+
+**今回はやおきさんが公式サイトと販売店で確認して解決した。**ただし Claude 側からはそのいずれにも当たれない（下記）。**発売日の裏どりはローカルの仕事として残る。**
+
+### WebFetch は塞がれているホストを明示的に教える（2026-09-14）
+
+同日に分かった運用上の改善点。**`WebFetch` は許可先に無いホストに対して、403 ではなく専用のエラーを返す。**
+
+```
+{"error_type":"EGRESS_BLOCKED","domain":"tower.jp",
+ "message":"Access to tower.jp is blocked by the network egress proxy."}
+```
+
+§1 に書いた「同じ 403 でも組織のポリシー拒否かサイト側の遮断か」の判別は、**`WebFetch` を使うかぎり要らない**。`EGRESS_BLOCKED` が返れば組織側、200 が返るのに本文が拒否されればサイト側（J-Lyric 型）、403 が返ればサイト側の遮断（uta-net 型）である。`curl` では従来どおり `recentRelayFailures` を見る。
+
+同日の実測:
+
+| ホスト | 経路 | 結果 |
+|:---|:---|:---|
+| `note.com` | WebFetch | **○ 読める**（§2 優先度C の要望は解消済み） |
+| `pmc.ncbi.nlm.nih.gov` | WebFetch | ✕ `EGRESS_BLOCKED` |
+| `www.frontiersin.org` | WebFetch | ✕ `EGRESS_BLOCKED` |
+| `neurosciencenews.com` | WebFetch | ✕ `EGRESS_BLOCKED` |
+| `tower.jp` | WebFetch | ✕ `EGRESS_BLOCKED` |
+| `www.bumpofchicken.com` | WebFetch | ✕ `EGRESS_BLOCKED` |
+| `www.uta-net.com` | curl | ✕ 403（サイト側。§1 から変化なし） |
+| `utaten.com` / `www.joysound.com` / `lyricstheory.com` | curl | ○ 200 |
+
+---
+
 ## 2. 追加してほしいホスト
 
 ### 最優先 — 自分のサイトの到達確認 → **解決済み（2026-08-22）**
@@ -96,6 +135,7 @@ joysound はカラオケ配信のデータベースなので、**配信される
 |:---|:---|
 | `cir.nii.ac.jp`（＋旧 `ci.nii.ac.jp`） | CiNii Research。`ame-nochi-hare-syllabification` の `sources` にある Tamaoka & Makioka (2004) と北村美樹「J-POP の音韻的考察」は**ここでしか裏が取れない**。図書の NCID も引ける |
 | `www.keisoshobo.co.jp` / `www.ongakunotomo.co.jp` | 2026-08-18 に書誌を起こした 2 冊の版元 |
+| `pmc.ncbi.nlm.nih.gov` / `www.frontiersin.org` | **子音ピボットの想定を実験で検証した唯一の先行研究**が読めない。Vaughan-Evans et al. (2016) "Implicit Detection of Poetic Harmony by the Naïve Brain", *Frontiers in Psychology*, doi:10.3389/fpsyg.2016.01859。ウェールズ詩 Cynghanedd（子音列を同順で反復し母音は違える詩形）の規則を知らない被験者25名が、脳波では規則の違反を検出しているという内容。glossary の「暗示的に働く」「リスナーには分かりにくい」という 11 年来の見立てを、別の言語・別の詩形で支える。2026-09-14 に要旨までは取れたが、**どの脳波成分に差が出たかは本文にしかない** |
 
 **版元サイトを個別に足すのは運用が持たない**（本ごとに増える）。A の 3 つで足りるなら B の後者は不要である。
 
@@ -105,9 +145,11 @@ joysound はカラオケ配信のデータベースなので、**配信される
 |:---|:---|
 | `s.awa.fm`（＋`awa.fm`） | **新譜の照合先。**§1-b の穴を塞ぐ。AWA は配信サービスなので、カラオケ配信を待たずリリース当日から曲がある。共有ページ（`s.awa.fm/track/...`）は歌詞を全文出す。『机さする』（2026.07.25、映画ちいかわ ED）が実際に読めることを確認済み（やおき実見） |
 | `www.j-lyric.net` | uta-net の代替。照合を 2 本から 3 本に戻す。`docs/dead-links-todo.md` が別件で同じ候補を挙げている |
-| `note.com` | `webrefs/sagishi-note` の `lastChecked` 更新 |
+| ~~`note.com`~~ | **解決済み（2026-09-14）。**WebFetch で本文が読める |
 | `soundquest.jp` | `webrefs/soundquest` の同上 |
 | `www.youtube.com` | `webrefs/toydora-music` の同上。加えて `docs/dead-links-todo.md` の埋め込み 3 件（403 / 404）の再確認 |
+| `tower.jp` | **発売日の 2 本目。**§1-c のとおり、歌詞サイトだけでは発売日が 1 本にしかならない。販売店は発売日を必ず持つ |
+| アーティスト公式（例 `www.bumpofchicken.com`） | 発売日の一次情報。ただし**アーティストごとにドメインが増えるので運用が持たない**（§2 優先度B の版元サイトと同じ問題）。`tower.jp` 1 本で足りるなら不要 |
 
 **AWA は足してから 2 つ確かめること。**こちらからは当たれないので未実測である。
 
@@ -127,10 +169,14 @@ ndlsearch.ndl.go.jp
 cir.nii.ac.jp
 ci.nii.ac.jp
 www.j-lyric.net
-note.com
 soundquest.jp
 www.youtube.com
+tower.jp
+pmc.ncbi.nlm.nih.gov
+www.frontiersin.org
 ```
+
+`note.com` は 2026-09-14 に読めることを確認したので外した（§1-c）。
 
 ---
 
