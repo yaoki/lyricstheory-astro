@@ -64,7 +64,7 @@ unverified: []         # 裏どりの取れていない外部事実。1項目で
 # 貼るだけの YAML とプレビュー PNG が出る。二組目は 〈〉、三組目は 〔〕。
 #
 #   npm run figure -- 'おと「し」て「し」まう'
-#   npm run figure -- --pivot 'カ行子音' --repetition c '<LyricQuote の中身をそのまま>'
+#   npm run figure -- --pivot 'カ行子音' '<LyricQuote の中身をそのまま>'
 #
 # 形は4つ。**行数＝図に載せる箇所の数**で決まる（1箇所なら single、離れた2箇所なら pair）。
 #   single    1箇所。units は上限8（著作権上のガードレール）
