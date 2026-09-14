@@ -82,7 +82,10 @@ function axisOf(unitText) {
   return CHAR_TO_ROW.get(lead) ?? 'その他';
 }
 
-/** カタカナをひらがなに寄せる（長音「ー」はそのまま）。 */
+/**
+ * カタカナをひらがなに寄せる（長音「ー」はそのまま）。
+ * @param {string} str
+ */
 function kataToHira(str) {
   return str.replace(/[ァ-ヶ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0x60));
 }
@@ -151,7 +154,7 @@ function stripForMatch(raw) {
  * @param {string[]} chars
  */
 function tokenizeUnits(chars) {
-  /** @type {{ text: string, covered: Set<number> }[]} */
+  /** @type {{ text: string, covered: Set<string> }[]} */
   const units = [];
   /** @type {number[]} */
   const charToUnit = [];
@@ -241,14 +244,19 @@ function parseLyrics(text) {
 /**
  * 1行ぶんの解析結果（正規化済み文字列・単位・文字→単位の対応）を作る。
  * @param {string} raw
+ * @param {string} section 節の見出し（表示用）
+ * @param {number} indexInSection 節の中の行番号（1始まり、表示用）
  */
-function analyzeLine(raw) {
+function analyzeLine(raw, section, indexInSection) {
   const { chars, flags } = stripForMatch(raw);
   const { units, charToUnit } = tokenizeUnits(chars);
-  return { raw, cleanStr: chars.join(''), chars, flags, units, charToUnit };
+  return { raw, section, indexInSection, cleanStr: chars.join(''), chars, flags, units, charToUnit };
 }
 
-/** frontmatter のブロック（先頭の `---` 〜次の `---`）を返す。check-cards.mjs と同じ。 */
+/**
+ * frontmatter のブロック（先頭の `---` 〜次の `---`）を返す。check-cards.mjs と同じ。
+ * @param {string} content
+ */
 function frontmatterOf(content) {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   return match ? match[1] : '';
@@ -356,7 +364,9 @@ function applyCoverage(cards, lineData) {
   return { warnings, dupNotes, skippedPieces };
 }
 
+/** @param {string[]} argv */
 function parseArgs(argv) {
+  /** @type {{ song?: string, axis?: string, section?: string, file?: string, help: boolean }} */
   const opts = { song: undefined, axis: undefined, section: undefined, file: undefined, help: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -405,12 +415,7 @@ function main() {
     process.exit(2);
   }
 
-  const lineData = lines.map((l) => analyzeLine(l.raw));
-  // 節・行の対応づけ（表示用）を analyzeLine の結果に足す
-  lineData.forEach((ld, i) => {
-    ld.section = lines[i].section;
-    ld.indexInSection = lines[i].indexInSection;
-  });
+  const lineData = lines.map((l) => analyzeLine(l.raw, l.section, l.indexInSection));
 
   const cards = loadCards(opts.song);
   if (cards.length === 0) {
@@ -462,6 +467,7 @@ function main() {
         if (axisUnits.length === 0) continue;
 
         axisTotal += axisUnits.length;
+        /** @type {string[]} */
         const uncoveredPositions = [];
         const cardsInvolved = new Set();
         // 位置は行の中の何音目か（1始まり）。カード本文の「12音中の1・4・10音目」と同じ数え方
