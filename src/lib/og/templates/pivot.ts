@@ -24,6 +24,26 @@ export function pivot(figure: Omit<PivotFigure, 'kind'>, ctx: FigureContext): st
 
   const layout = PIVOT.layouts[rows.length] ?? PIVOT.layouts[4];
 
+  // 題は先に組む。何行になるかで、図を下へどこまで伸ばしてよいかが変わる
+  const maxTitleEm = available / PIVOT.titleFontSize;
+  const lines = wrapText(ctx.title, maxTitleEm, PIVOT.titleMaxLines);
+  const titleBaseline = PIVOT.titleCenterY - ((lines.length - 1) * PIVOT.titleLineHeight) / 2;
+
+  // 最終行のベースラインの下限。カードページの切り位置から決まる bottomLimit と、
+  // 題の上端から titleClearance だけ離した位置の、きついほうを採る
+  const clearOfTitle = titleBaseline - PIVOT.titleFontSize - PIVOT.titleClearance;
+  const bottomLimit = Math.min(PIVOT.bottomLimit, clearOfTitle);
+
+  const hasHint = rows.some((row) => row.text !== undefined && row.text !== '');
+  const hintStep = hasHint ? PIVOT.hintFontSize * PIVOT.hintRowStepAdd : 0;
+  const gaps = rows.length - 1;
+  // 1 行目の上端（手がかりがあればその字の上端）は、ベースラインから size × headRatio + headAdd 上にある
+  const headRatio = hasHint ? PIVOT.hintGapRatio : 1;
+  const headAdd = hasHint ? PIVOT.hintFontSize : 0;
+  // topLimit から bottomLimit までに全行が収まる字の大きさ
+  const fitSize =
+    (bottomLimit - PIVOT.topLimit - headAdd - gaps * hintStep) / (headRatio + gaps * PIVOT.rowStepRatio);
+
   // セル幅だけで字の大きさを決めると、枠数の多い行（20 超）で 32px まで細り、
   // SNS で 1/3 に縮んだとき読めなくなる（2026-08-04、やおき指摘）。
   // 伏せた帯は字の手前で切るので、セルをはみ出して書いても帯には食い込まない。
@@ -31,7 +51,12 @@ export function pivot(figure: Omit<PivotFigure, 'kind'>, ctx: FigureContext): st
   // 枠の見積もり（拗音なら 2em）で字の大きさを割っていたため、「ちゃ」「りゅ」を含む
   // 行だけ字が半分になっていた（実測で 29.1px。他の 1 行カードは 58〜76px）。
   // 割らない。1 枠に収まらない字は下の textLength で押し込む
-  const size = Math.min(layout.maxSize, Math.max(cell, PIVOT.minSize));
+  //
+  // 縦に収まらなければ fitSize まで縮める。ただし minSize より下げない。
+  // 縮めずにいたため、行の短い 2 行の図（最長 12 音で 76px）は下端に押し上げられ、
+  // 1 行目の手がかりが軸ラベルに 13〜15px、2 行目の音が題に 21〜23px まで迫っていた
+  // （2026-09-14 に figure-critic が E159 で指摘。2026-09-15 の走査で同じ状態が 11 枚）
+  const size = Math.min(layout.maxSize, Math.max(cell, PIVOT.minSize), Math.max(fitSize, PIVOT.minSize));
 
   const centerX = (index: number, rowLength: number): number => {
     // 短い行は中央に寄せず左を揃える。軸の矢印が行をまたいで一続きに見えるようにするため
@@ -42,10 +67,17 @@ export function pivot(figure: Omit<PivotFigure, 'kind'>, ctx: FigureContext): st
   // 行が増えたぶんは上に詰める。本文の図は y=400 で刈られるので、下の行がそこを越えると欠ける。
   // 手がかりを持つ行があるときは、そのぶん行送りを広げる。広げないと手がかりが自分の行より
   // 上の行に密着し、縮小版で1行目の枠と1つの塊に読める（2026-08-06、figure-critic 不合格）
-  const hasHint = rows.some((row) => row.text !== undefined && row.text !== '');
-  const step = size * PIVOT.rowStepRatio + (hasHint ? PIVOT.hintFontSize * PIVOT.hintRowStepAdd : 0);
-  const span = (rows.length - 1) * step;
-  const firstBaseline = Math.min(layout.baseline, PIVOT.bottomLimit - span);
+  const step = size * PIVOT.rowStepRatio + hintStep;
+  const span = gaps * step;
+  // 2 行以上の図は、topLimit と題（titleClearance を空けた位置）のあいだの中央に置く。
+  // layout.baseline に置いていたため、字が minSize で止まる図（最長 17 音など）では余った高さが
+  // 全部上に回り、軸ラベルの下が 52px、題の上が 32px と下に寄っていた（2026-09-15、figure-critic 判定。
+  // sharin-no-uta-s-pivot-a-prime-4-5）。1 行の図は従来どおり layout.baseline に置く
+  const highest = PIVOT.topLimit + size * headRatio + headAdd;
+  const firstBaseline =
+    gaps === 0
+      ? Math.min(layout.baseline, bottomLimit)
+      : Math.min((highest + clearOfTitle - span) / 2, bottomLimit - span);
 
   const body = rows
     .map((row, rowIndex) => renderRow(row, firstBaseline + rowIndex * step, cell, size, centerX))
@@ -56,10 +88,6 @@ export function pivot(figure: Omit<PivotFigure, 'kind'>, ctx: FigureContext): st
   const labelWidth = widthEm(axis) * PIVOT.axisFontSize;
   const arrowFrom = MARGIN_X + labelWidth + 24;
   const arrowTo = MARGIN_X + available;
-
-  const maxTitleEm = available / PIVOT.titleFontSize;
-  const lines = wrapText(ctx.title, maxTitleEm, PIVOT.titleMaxLines);
-  const titleBaseline = PIVOT.titleCenterY - ((lines.length - 1) * PIVOT.titleLineHeight) / 2;
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS.width}" height="${CANVAS.height}" viewBox="0 0 ${CANVAS.width} ${CANVAS.height}">`,
