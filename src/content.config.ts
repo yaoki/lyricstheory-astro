@@ -334,6 +334,25 @@ const elements = defineCollection({
         // 流通表記（「Mr.Children」「椎名林檎」）。slug 表記の tags.artist とは別物で、
         // 正規化ルール（CLAUDE.md「artist 表記の正規化」）が掛かるのは tags.artist の側
         artist: z.string(),
+        // タイアップ（アニメ・ドラマ・映画・CM 等）。曲名より作品名で覚えている読者のほうが多い曲に、
+        // 作品名から辿り着く入口を足すための欄（2026-09-27、やおき「検索でもSNS用のカードでも認知させたい」）。
+        // カードページの見出し下・meta description・OG 画像の題の直下に出る。
+        //
+        // medium は作品の種類で、無くてもよい。work は作品の流通表記（『』は付けない。表示側で付ける）。role は役割を流通する言い方で書く
+        // （「エンディング・テーマ」「オープニング・テーマ」「主題歌」「挿入歌」等）。語彙を enum にしないのは、
+        // 作品の種類ごとに言い方が割れていて、先に語彙を閉じると分類が語彙の側に引きずられるため。
+        //
+        // 外部事実なので、発売年・作詞者と同じく 2 つ以上の典拠で照合してから書く（CLAUDE.md「外部事実の扱い」）
+        tieup: z
+          .array(
+            z.object({
+              // 作品の種類（「アニメ」「ドラマ」「映画」「CM」等）。作品名だけでは何の作品か分からないので前に添える
+              medium: z.string().min(1).optional(),
+              work: z.string().min(1),
+              role: z.string().min(1),
+            }),
+          )
+          .optional(),
       })
       .optional(),
     maturity: z.enum(['seed', 'budding', 'evergreen']).default('seed'),

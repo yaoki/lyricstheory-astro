@@ -1,4 +1,5 @@
 import type { CollectionEntry } from 'astro:content';
+import { formatTieup } from '../tieup';
 import { lyricistOf } from './credit';
 import { consonant } from './templates/consonant';
 import { fallback } from './templates/fallback';
@@ -21,6 +22,8 @@ export function cardSvg(data: CollectionEntry<'elements'>['data']): string {
     repetition: data.tags?.repetition,
     // 画像は単体で流通するため、引用の体裁として作詞者を図にも添える
     lyricist: lyricistOf(data.sources ?? []),
+    // 作品名で覚えている読者に、タイムラインの画像だけで曲を特定させるため（2026-09-27）
+    tieup: formatTieup(data.song?.tieup),
   };
   return data.figure?.kind === 'pair'
     ? pair(data.figure, ctx)

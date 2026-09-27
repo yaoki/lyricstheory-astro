@@ -1,4 +1,4 @@
-import { footer } from '../chrome';
+import { footer, titleBlock } from '../chrome';
 import type { FigureContext, PivotFigure, PivotRow } from '../figure';
 import { ACCENTS, CANVAS, COLORS, FONT_FAMILY, MARGIN_X, PIVOT, SYMMETRY } from '../layout';
 import { escapeXml, textBlock, widthEm, wrapText } from '../text';
@@ -25,9 +25,8 @@ export function pivot(figure: Omit<PivotFigure, 'kind'>, ctx: FigureContext): st
   const layout = PIVOT.layouts[rows.length] ?? PIVOT.layouts[4];
 
   // 題は先に組む。何行になるかで、図を下へどこまで伸ばしてよいかが変わる
-  const maxTitleEm = available / PIVOT.titleFontSize;
-  const lines = wrapText(ctx.title, maxTitleEm, PIVOT.titleMaxLines);
-  const titleBaseline = PIVOT.titleCenterY - ((lines.length - 1) * PIVOT.titleLineHeight) / 2;
+  const title = titleBlock(ctx, PIVOT);
+  const titleBaseline = title.baseline;
 
   // 最終行のベースラインの下限。カードページの切り位置から決まる bottomLimit と、
   // 題の上端から titleClearance だけ離した位置の、きついほうを採る
@@ -99,15 +98,7 @@ export function pivot(figure: Omit<PivotFigure, 'kind'>, ctx: FigureContext): st
       `font-size="${PIVOT.axisFontSize}" font-weight="700" fill="${ACCENTS[0].stroke}">${axisLabel}</text>`,
     arrow(arrowFrom, arrowTo, PIVOT.axisY - PIVOT.axisFontSize * 0.3),
     body,
-    textBlock(lines, {
-      x: MARGIN_X,
-      baseline: titleBaseline,
-      fontSize: PIVOT.titleFontSize,
-      lineHeight: PIVOT.titleLineHeight,
-      fill: COLORS.text,
-      fontFamily: FONT_FAMILY,
-      fontWeight: 700,
-    }),
+    title.svg,
     footer(PIVOT.siteY, PIVOT.siteFontSize, ctx.lyricist),
     '</svg>',
   ].join('');

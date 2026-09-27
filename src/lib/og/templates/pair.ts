@@ -1,4 +1,4 @@
-import { footer, frameBadge } from '../chrome';
+import { footer, frameBadge, titleBlock } from '../chrome';
 import type { FigureContext, PairFigure } from '../figure';
 import { ACCENTS, CANVAS, COLORS, FONT_FAMILY, MARGIN_X, PAIR, SYMMETRY } from '../layout';
 import { escapeXml, textBlock, wrapText } from '../text';
@@ -168,8 +168,7 @@ export function pair(figure: Omit<PairFigure, 'kind'>, ctx: FigureContext): stri
     )
     .join('');
 
-  const lines = wrapText(ctx.title, (CANVAS.width - MARGIN_X * 2) / PAIR.titleFontSize, PAIR.titleMaxLines);
-  const baseline = PAIR.titleCenterY - ((lines.length - 1) * PAIR.titleLineHeight) / 2;
+  const title = titleBlock(ctx, PAIR);
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS.width}" height="${CANVAS.height}" viewBox="0 0 ${CANVAS.width} ${CANVAS.height}">`,
@@ -178,15 +177,7 @@ export function pair(figure: Omit<PairFigure, 'kind'>, ctx: FigureContext): stri
     band,
     rowLabels,
     glyphs,
-    textBlock(lines, {
-      x: MARGIN_X,
-      baseline,
-      fontSize: PAIR.titleFontSize,
-      lineHeight: PAIR.titleLineHeight,
-      fill: COLORS.text,
-      fontFamily: FONT_FAMILY,
-      fontWeight: 700,
-    }),
+    title.svg,
     footer(PAIR.siteY, PAIR.siteFontSize, ctx.lyricist),
     '</svg>',
   ].join('');

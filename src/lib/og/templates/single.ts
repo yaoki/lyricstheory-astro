@@ -1,4 +1,4 @@
-import { frameBadge, footer } from '../chrome';
+import { frameBadge, footer, titleBlock } from '../chrome';
 import { normalizeHighlight, type FigureContext, type SingleFigure } from '../figure';
 import { ACCENTS, CANVAS, COLORS, FONT_FAMILY, MARGIN_X, SYMMETRY } from '../layout';
 import { escapeXml, moraCount, textBlock, widthEm, wrapText } from '../text';
@@ -113,10 +113,8 @@ export function single(figure: Omit<SingleFigure, 'kind'>, ctx: FigureContext): 
         );
   const arcs = spans.map((span) => arcPath(span, spans, arcAnchors, size, scale)).join('');
 
-  const maxTitleEm = available / SYMMETRY.titleFontSize;
-  const lines = wrapText(ctx.title, maxTitleEm, SYMMETRY.titleMaxLines);
-  // 行数が増えたぶん上へ持ち上げ、タイトル塊の重心を titleCenterY に保つ
-  const baseline = SYMMETRY.titleCenterY - ((lines.length - 1) * SYMMETRY.titleLineHeight) / 2;
+  // 行数が増えたぶん上へ持ち上げ、タイトル塊の重心を titleCenterY に保つ（titleBlock が担う）
+  const title = titleBlock(ctx, SYMMETRY);
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS.width}" height="${CANVAS.height}" viewBox="0 0 ${CANVAS.width} ${CANVAS.height}">`,
@@ -125,15 +123,7 @@ export function single(figure: Omit<SingleFigure, 'kind'>, ctx: FigureContext): 
     arcs,
     glyphs,
     ties,
-    textBlock(lines, {
-      x: MARGIN_X,
-      baseline,
-      fontSize: SYMMETRY.titleFontSize,
-      lineHeight: SYMMETRY.titleLineHeight,
-      fill: COLORS.text,
-      fontFamily: FONT_FAMILY,
-      fontWeight: 700,
-    }),
+    title.svg,
     footer(SYMMETRY.siteY, SYMMETRY.siteFontSize, ctx.lyricist),
     '</svg>',
   ].join('');

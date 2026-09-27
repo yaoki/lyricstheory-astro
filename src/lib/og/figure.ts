@@ -168,6 +168,8 @@ export interface FigureContext {
   repetition?: string;
   /** 引用の体裁として図に添える作詞者。取れなければ出さない */
   lyricist?: string;
+  /** タイアップ（『作品』役割）。右下の作詞者の左に並べる。無ければ出さない */
+  tieup?: string;
 }
 
 /** [2, 4] と [[2, 4], [5, 7]] の両方を受けて、組の配列に揃える */

@@ -1,4 +1,4 @@
-import { frameBadge, footer } from '../chrome';
+import { frameBadge, footer, titleBlock } from '../chrome';
 import type { ConsonantFigure, ConsonantRow, FigureContext } from '../figure';
 import {
   ACCENTS,
@@ -121,9 +121,7 @@ export function consonant(figure: Omit<ConsonantFigure, 'kind'>, ctx: FigureCont
     .map((row, i) => renderRow(row, first + i * step, cell, size, palette, subPalette))
     .join('');
 
-  const maxTitleEm = available / CONSONANT.titleFontSize;
-  const lines = wrapText(ctx.title, maxTitleEm, CONSONANT.titleMaxLines);
-  const titleBaseline = CONSONANT.titleCenterY - ((lines.length - 1) * CONSONANT.titleLineHeight) / 2;
+  const title = titleBlock(ctx, CONSONANT);
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS.width}" height="${CANVAS.height}" viewBox="0 0 ${CANVAS.width} ${CANVAS.height}">`,
@@ -132,15 +130,7 @@ export function consonant(figure: Omit<ConsonantFigure, 'kind'>, ctx: FigureCont
     // 図が上へ伸びてバッジの座る位置（左上）と重なるため
     rows.length <= 2 ? frameBadge(ctx.repetition) : '',
     body,
-    textBlock(lines, {
-      x: MARGIN_X,
-      baseline: titleBaseline,
-      fontSize: CONSONANT.titleFontSize,
-      lineHeight: CONSONANT.titleLineHeight,
-      fill: COLORS.text,
-      fontFamily: FONT_FAMILY,
-      fontWeight: 700,
-    }),
+    title.svg,
     footer(CONSONANT.siteY, CONSONANT.siteFontSize, ctx.lyricist),
     '</svg>',
   ].join('');

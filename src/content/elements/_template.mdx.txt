@@ -45,6 +45,9 @@ type: ""
 song:
   title: ""
   artist: ""
+  # タイアップ（任意）。照合が取れたときだけ書く。書くと OG 画像の題が1行に収まらない場合ビルドが止まる
+  # tieup:
+  #   - { medium: "アニメ", work: "", role: "エンディング・テーマ" }
 maturity: seed        # seed | budding | evergreen（related が1本入ったら budding でよい）
 tags:
   phoneme: []          # romaji 小文字。正規化ルールは CLAUDE.md 参照（例: [k, a]）
