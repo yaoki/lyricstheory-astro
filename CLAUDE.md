@@ -156,7 +156,7 @@ https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/sound-looku
 
 ### 二層構造
 
-- **essays**（`src/content/blog/`）= 結晶層。既存の完成記事。permalink `/{slug}/` は変更しない。
+- **essays**（`src/content/blog/`）= 結晶層。既存の完成記事。permalink `/{slug}/` は変更しない。**新しく書くエッセイも `.md` でここに置き、Web と紙（Vivliostyle）の両方の正本にする**（2026-10-03 決定。別コレクション `essays` は作らない）。仕様は [`docs/essay-two-exits-spec.md`](docs/essay-two-exits-spec.md)、Chat からは `https://raw.githubusercontent.com/yaoki/lyricstheory-astro/main/docs/essay-two-exits-spec.md`
 - **elements**（`src/content/elements/`）= 庭層。分析の最小単位を1件1ファイル（MDX）で持つ新設コレクション。子音ピボットの個別事例、反復パターンの型、押韻パターンなど。公開後も編集し続ける常緑運用。URL は `/elements/{slug}/`。
 
 ### 成熟度（maturity）
