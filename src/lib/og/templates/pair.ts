@@ -1,4 +1,4 @@
-import { footer, frameBadge, titleBlock } from '../chrome';
+import { footer, frameBadge, framesOf, titleBlock } from '../chrome';
 import type { FigureContext, PairFigure } from '../figure';
 import { ACCENTS, CANVAS, COLORS, FONT_FAMILY, MARGIN_X, PAIR, SYMMETRY } from '../layout';
 import { escapeXml, textBlock, wrapText } from '../text';
@@ -26,9 +26,10 @@ export function pair(figure: Omit<PairFigure, 'kind'>, ctx: FigureContext): stri
   // 差異の帯も出ない。このときだけ C反復・V反復のフレームでも図が嘘にならない
   // （2026-08-09 に緩和。それまでは理由を失ったままガードだけが効いていた）
   const matchesByNotation = mode === 'aligned' || figure.correspondences === undefined;
-  if (matchesByNotation && ctx.repetition !== 'cv') {
+  const frames = framesOf(ctx.repetition);
+  if (matchesByNotation && !(frames.length === 1 && frames[0] === 'cv')) {
     throw new Error(
-      `pair の図は CV反復 のフレームでしか使えません（tags.repetition: ${ctx.repetition ?? 'なし'}）。\n` +
+      `pair の図は CV反復 のフレームでしか使えません（tags.repetition: ${frames.join(', ') || 'なし'}）。\n` +
         '一致の判定を表記の突き合わせで行っているためです。\n' +
         'mode: expansion で correspondences を手で書けば、他のフレームでも使えます。',
     );

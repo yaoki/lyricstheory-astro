@@ -165,7 +165,7 @@ export type Figure = SingleFigure | PairFigure | PivotFigure | ConsonantFigure;
 export interface FigureContext {
   title: string;
   /** 分析のフレーム（カードの tags.repetition） */
-  repetition?: string;
+  repetition?: string | readonly string[];
   /** 引用の体裁として図に添える作詞者。取れなければ出さない */
   lyricist?: string;
   /** タイアップ（『作品』役割）。右下の作詞者の左に並べる。無ければ出さない */

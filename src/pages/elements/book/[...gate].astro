@@ -72,8 +72,8 @@ const cards = await Promise.all(
     const links = resolveCardLinks(entry, elements, posts, backlinks);
 
     const metaParts: string[] = [TYPE_LABELS[entry.data.type] ?? entry.data.type];
-    const repetition = entry.data.tags?.repetition;
-    if (repetition) metaParts.push(REPETITION_LABELS[repetition]);
+    const repetition = entry.data.tags?.repetition ?? [];
+    if (repetition.length > 0) metaParts.push(repetition.map((r) => REPETITION_LABELS[r]).join('・'));
     if (entry.data.song) metaParts.push(`${entry.data.song.artist}『${entry.data.song.title}』`);
     const phoneme = entry.data.tags?.phoneme ?? [];
     if (phoneme.length > 0) metaParts.push(`音素: ${phoneme.join(', ')}`);
@@ -182,7 +182,7 @@ const REPETITION_ORDER = ['c', 'v', 'cv'] as const;
 const repetitionIndex = REPETITION_ORDER.map((rep) => ({
   repetition: rep,
   label: REPETITION_LABELS[rep],
-  nos: sorted.filter((e) => e.data.tags?.repetition === rep).map((e) => e.data.no),
+  nos: sorted.filter((e) => e.data.tags?.repetition?.includes(rep)).map((e) => e.data.no),
 })).filter((r) => r.nos.length > 0);
 
 // ---- 巻末索引5: 引用行（国歌大観の各句索引に相当） ---------------------------

@@ -30,7 +30,7 @@ type Row = {
   consonants: string[];
   vowels: string[];
   song: string | null;
-  repetition: string | undefined;
+  repetition: string[];
   type: string;
   updated: string;
   // 引用（<LyricQuote>）から取った、行ごとのモーラ列。連なりの段の元データ。
@@ -49,7 +49,7 @@ const rows: Row[] = entries
       consonants,
       vowels,
       song: entry.data.song ? `${entry.data.song.artist}『${entry.data.song.title}』` : null,
-      repetition: entry.data.tags?.repetition,
+      repetition: entry.data.tags?.repetition ?? [],
       type: entry.data.type,
       updated: iso(entry.data.updated),
       moraSegments: extractLyricQuoteSegments(entry.body ?? ''),
@@ -248,7 +248,7 @@ const examples = EXAMPLES.map((word) => {
           </a>
           <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
             <span>音素: {row.tags.join(', ')}</span>
-            {row.repetition && <span class="text-gray-400">{row.repetition.toUpperCase()}反復</span>}
+            {row.repetition.map((r) => <span class="text-gray-400">{r.toUpperCase()}反復</span>)}
             <span class="text-gray-400">{row.type}</span>
           </div>
           <p class="mt-0.5 text-xs text-amber-700" hidden data-why />

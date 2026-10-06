@@ -117,7 +117,7 @@ export function matchesFilter(dataset: FilterableDataset, filter: string | null)
     const [, artist, colKind, colKey] = parts;
     if ((dataset.artist ?? '') !== (artist ?? '')) return false;
     if (colKind === 'type') return dataset.type === colKey;
-    if (colKind === 'rep') return dataset.repetition === colKey;
+    if (colKind === 'rep') return (dataset.repetition ?? '').split(' ').includes(colKey ?? '');
     if (colKind === 'term') return (dataset.terms ?? '').split(' ').includes(colKey ?? '');
     return false;
   }

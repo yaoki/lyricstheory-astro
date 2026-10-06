@@ -49,6 +49,8 @@ export const FRAME_BADGE = {
   height: 56,
   radius: 10,
   fontSize: 30,
+  /** バッジを二つ並べるときの間隔 */
+  gap: 16,
 } as const;
 
 export const REPETITION_LABELS: Record<string, string> = {

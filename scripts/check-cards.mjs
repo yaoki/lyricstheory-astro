@@ -20,6 +20,7 @@
  *   検査8  title の曲名と song が食い違っていること
  *   検査9  no が欠落している・正の整数でない・重複していること
  *   検査10 引用の囲みに、図とまったく重ならないものが混ざっていること
+ *   検査11 tags.repetition が配列なのに、その数が図の組の数と合わないこと
  *
  * 検査5〜8 は 2026-08-13 追加（段階1）。1〜4 が「貼付されたテキストの変異」を見るのに対し、
  * 5〜8 は**参照とメタデータの整合**を見る。前者は歌詞の写し崩れ、後者はリンク切れと
@@ -247,10 +248,53 @@ function readCard(filePath) {
     quotes,
     figures: figures.map(normalizeLyricLine).filter(isPureKana),
     figureEmphasis: emphasizedByFigure(frontmatter),
+    repetitionList: repetitionListOf(frontmatter),
+    figureGroups: figureGroupCount(frontmatter),
     unverified,
     figureSource,
     skipped,
   };
+}
+
+/**
+ * tags.repetition が配列（`repetition: [cv, c]`）のときだけ、その要素を返す。
+ * 文字列1つのとき・無いときは null。
+ * @param {string} frontmatter
+ * @returns {string[] | null}
+ */
+function repetitionListOf(frontmatter) {
+  const m = frontmatter.match(/^[ \t]+repetition:[ \t]*\[([^\]]*)\][ \t]*$/m);
+  if (!m) return null;
+  return m[1]
+    .split(',')
+    .map((s) => s.trim().replace(/^["']|["']$/g, ''))
+    .filter(Boolean);
+}
+
+/**
+ * 図の組（色の数）を数える。single は highlight の組、pair は correspondences の組。
+ * それ以外の形（correspondences 省略の pair を含む）は、組の数が決まらないので null。
+ * @param {string} frontmatter
+ * @returns {{ kind: string, count: number | null }}
+ */
+function figureGroupCount(frontmatter) {
+  const block = frontmatter.match(/^figure:\r?\n((?:[ \t]+.*\r?\n?)*)/m);
+  if (!block) return { kind: '', count: null };
+  const body = block[1];
+  const kind = (body.match(/kind:[ \t]*["']?(\w+)["']?/) ?? [, ''])[1];
+  const key = kind === 'single' ? 'highlight' : kind === 'pair' ? 'correspondences' : null;
+  if (!key) return { kind, count: null };
+  const raw = (body.match(new RegExp(`${key}:[ \\t]*(\\[.*\\])[ \\t]*$`, 'm')) ?? [])[1];
+  if (!raw) return { kind, count: null };
+  try {
+    const value = JSON.parse(raw);
+    if (!Array.isArray(value)) return { kind, count: null };
+    // single の平たい形 [2, 4] は一組
+    if (kind === 'single' && typeof value[0] === 'number') return { kind, count: 1 };
+    return { kind, count: value.length };
+  } catch {
+    return { kind, count: null };
+  }
 }
 
 /**
@@ -707,6 +751,26 @@ export function runCardChecks(rootDir) {
           `紛れ込んでいないか確かめてください。`,
       );
     }
+  }
+
+  // 検査11: tags.repetition が配列なのに、その数が図の組の数と合わないこと
+  //
+  // 二つの類型が組み合わさるカード（E192・E213）は、左上にバッジを書いた順に並べ、
+  // i 番目のバッジを i 番目の組の色で塗る（src/lib/og/chrome.ts の frameBadge）。
+  // 「青のバッジ＝青の組」と読ませる約束なので、数がずれるとバッジが別の組を指し、
+  // 図が誤ったことを言う（2026-10-06、figure-critic の指摘）。順序までは機械で見られない
+  // ——どの組がどの類型かは音を見て決まるので、書く人が組の順に並べること。
+  for (const card of cards) {
+    if (!card.repetitionList) continue;
+    const { kind, count } = card.figureGroups;
+    if (count === card.repetitionList.length) continue;
+    errors.push(
+      `[類型の数と図の組の数が合わない] ${card.slug}\n` +
+        `    repetition: [${card.repetitionList.join(', ')}]（${card.repetitionList.length}）` +
+        ` / 図（${kind || 'なし'}）の組: ${count ?? '数えられない'}\n` +
+        `    → 類型を二つ書くのは、図の組がちょうどその数だけあり、i 番目の類型が i 番目の組に` +
+        `当たるときに限ります。single の highlight か pair の correspondences を、類型と同じ順で書いてください。`,
+    );
   }
 
   return { errors, skipped, cardCount: cards.length };

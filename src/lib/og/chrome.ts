@@ -18,21 +18,40 @@ import {
 import type { FigureContext } from './figure';
 import { escapeXml, textBlock, widthEm, wrapText } from './text';
 
+/** tags.repetition を配列にそろえる（schema は配列に正規化するが、npm run figure は文字列で渡す） */
+export function framesOf(repetition: string | readonly string[] | undefined): string[] {
+  if (repetition === undefined) return [];
+  return typeof repetition === 'string' ? [repetition] : [...repetition];
+}
+
 /**
  * 分析のフレームを左上に掲げる。図を読み始める前に、どの枠で見ているかを知らせる。
  * tags.repetition を持たないカードでは何も描かない。
+ *
+ * 二つの類型が組み合わさるカード（E213「CV反復とC反復の組み合わせ」）は、書いた順に
+ * 横へ並べる（2026-10-06、やおき「バッジを二つつければ？」）。1つしか掲げないと、
+ * 題が名指すもう一方の類型を図が否定して見える。
  */
-export function frameBadge(repetition: string | undefined): string {
-  const label = repetition ? REPETITION_LABELS[repetition] : undefined;
-  if (!label) return '';
-  const { x, y, width, height, radius, fontSize } = FRAME_BADGE;
-  return (
-    `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${radius}" fill="none" ` +
-    `stroke="${ACCENTS[0].stroke}" stroke-width="2" />` +
-    `<text x="${x + width / 2}" y="${y + height / 2 + fontSize * 0.35}" font-family="${FONT_FAMILY}" ` +
-    `font-size="${fontSize}" font-weight="700" fill="${ACCENTS[0].stroke}" ` +
-    `text-anchor="middle">${escapeXml(label)}</text>`
-  );
+export function frameBadge(repetition: string | readonly string[] | undefined): string {
+  const labels = framesOf(repetition)
+    .map((r) => REPETITION_LABELS[r])
+    .filter((l): l is string => Boolean(l));
+  const { x, y, width, height, radius, fontSize, gap } = FRAME_BADGE;
+  return labels
+    .map((label, i) => {
+      const bx = x + i * (width + gap);
+      // i 番目のバッジは i 番目の組の色。一色だと二つの類型がどちらも青の組の話に読める
+      // （2026-10-06、figure-critic）。類型と組の数が揃うことは check-cards の検査11 が見る
+      const color = ACCENTS[i % ACCENTS.length].stroke;
+      return (
+        `<rect x="${bx}" y="${y}" width="${width}" height="${height}" rx="${radius}" fill="none" ` +
+        `stroke="${color}" stroke-width="2" />` +
+        `<text x="${bx + width / 2}" y="${y + height / 2 + fontSize * 0.35}" font-family="${FONT_FAMILY}" ` +
+        `font-size="${fontSize}" font-weight="700" fill="${color}" ` +
+        `text-anchor="middle">${escapeXml(label)}</text>`
+      );
+    })
+    .join('');
 }
 
 /**

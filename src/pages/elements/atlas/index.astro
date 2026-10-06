@@ -98,7 +98,7 @@ const buildMatrixRow = (key: string, heading: string): MatrixRow => {
   const cardsInRow = entries.filter((e) => (e.data.song?.artist ?? THEORY_KEY) === key);
   const cells = matrixColumns.map((col) => {
     if (col.kind === 'type') return cardsInRow.filter((e) => e.data.type === col.key).length;
-    if (col.kind === 'rep') return cardsInRow.filter((e) => e.data.tags?.repetition === col.key).length;
+    if (col.kind === 'rep') return cardsInRow.filter((e) => e.data.tags?.repetition?.includes(col.key as 'c' | 'v' | 'cv')).length;
     // 用語列は逆引き（この用語を terms に挙げているカード）を作家ごとに数える
     const users = new Set(termsBacklinks.get(col.key) ?? []);
     return cardsInRow.filter((e) => users.has(e.id)).length;
@@ -122,7 +122,7 @@ type ListRow = {
   phoneme: string[];
   type: string;
   typeLabel: string;
-  repetition: string | undefined;
+  repetition: string[];
   updated: string;
   hasFigure: boolean;
   // 五十音図のセルの数字と、押したときに出る枚数を一致させるため、data-c / data-v は
@@ -148,7 +148,7 @@ const listRows: ListRow[] = byNo.map((entry) => {
     phoneme: tags,
     type: entry.data.type,
     typeLabel: typeLabel(entry.data.type),
-    repetition: entry.data.tags?.repetition,
+    repetition: entry.data.tags?.repetition ?? [],
     updated: iso(entry.data.updated),
     hasFigure: Boolean(entry.data.figure),
     consonants: [...rowOnly],
@@ -383,7 +383,7 @@ const listRows: ListRow[] = byNo.map((entry) => {
             data-cv={row.mora.join(' ')}
             data-artist={row.artist}
             data-type={row.type}
-            data-repetition={row.repetition ?? ''}
+            data-repetition={row.repetition.join(' ')}
             data-terms={row.terms.join(' ')}
             data-updated={row.updated}
             class="border-b border-gray-100 py-2"

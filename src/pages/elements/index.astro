@@ -322,7 +322,7 @@ const rangeLabel = `${iso(new Date(startSunday))} 〜 ${iso(new Date(todayUTC))}
           <li
             data-maturity={entry.data.maturity}
             data-type={entry.data.type}
-            data-repetition={entry.data.tags?.repetition}
+            data-repetition={entry.data.tags?.repetition?.join(' ')}
             data-group={row.group.key}
             data-order={order}
             data-updated={iso(entry.data.updated)}
@@ -346,16 +346,16 @@ const rangeLabel = `${iso(new Date(startSunday))} 〜 ${iso(new Date(todayUTC))}
               >
                 {entry.data.type}
               </button>
-              {entry.data.tags?.repetition && (
+              {(entry.data.tags?.repetition ?? []).map((rep) => (
                 <button
                   type="button"
                   data-filter-key="repetition"
-                  data-filter-value={entry.data.tags.repetition}
+                  data-filter-value={rep}
                   class="rounded-full border border-gray-400 px-2 py-0.5 text-gray-600 hover:border-gray-700 hover:text-gray-900"
                 >
-                  {entry.data.tags.repetition.toUpperCase()}反復
+                  {rep.toUpperCase()}反復
                 </button>
-              )}
+              ))}
               <button
                 type="button"
                 data-filter-key="maturity"
@@ -415,7 +415,12 @@ const rangeLabel = `${iso(new Date(startSunday))} 〜 ${iso(new Date(todayUTC))}
       let visible = 0;
       const cards = rows().filter((li) => !isHeader(li));
       cards.forEach((li) => {
-        const show = filterKey === 'all' || li.dataset[filterKey] === filterValue;
+        // repetition は組み合わせのカードで空白区切りの複数値になる（E192・E213）
+        const show =
+          filterKey === 'all' ||
+          (filterKey === 'repetition'
+            ? (li.dataset.repetition ?? '').split(' ').includes(filterValue)
+            : li.dataset[filterKey] === filterValue);
         li.hidden = !show;
         if (show) visible += 1;
       });
